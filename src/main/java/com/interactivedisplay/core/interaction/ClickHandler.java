@@ -73,12 +73,22 @@ public final class ClickHandler {
             return clickResult;
         }
 
+        if (hitResult.action().type() == ComponentActionType.TOGGLE_PLACEMENT_TRACKING) {
+            ActionExecutionResult result = this.actionExecutor.togglePlacementTracking(playerId, context);
+            if (!result.success()) {
+                return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, result.message());
+            }
+            ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, result.message());
+            record(DebugLevel.DEBUG, clickResult);
+            return clickResult;
+        }
+
         if (hitResult.action().type() == ComponentActionType.RUN_COMMAND) {
             String command = hitResult.action().target();
             if (command == null || command.isBlank()) {
                 return pass(DebugLevel.WARN, DebugReason.ACTION_TARGET_NOT_FOUND, playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, "run_command command 없음");
             }
-            ActionExecutionResult result = this.actionExecutor.runCommand(playerId, hitResult.windowId(), hitResult.componentId(), command);
+            ActionExecutionResult result = this.actionExecutor.runCommand(playerId, hitResult, hitResult.action().permissionLevel(), command);
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), command, result.message());
             }

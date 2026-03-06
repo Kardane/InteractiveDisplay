@@ -49,7 +49,7 @@ class UiHitClickHandlerTest {
 
     @Test
     void openWindowWithoutTargetShouldReturnReason() {
-        ClickHandleResult result = new ClickHandler(new TrackingExecutor(), new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(new com.interactivedisplay.core.component.ComponentAction(com.interactivedisplay.core.component.ComponentActionType.OPEN_WINDOW, null), "btn_open_invalid"));
+        ClickHandleResult result = new ClickHandler(new TrackingExecutor(), new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(new com.interactivedisplay.core.component.ComponentAction(com.interactivedisplay.core.component.ComponentActionType.OPEN_WINDOW, null, null), "btn_open_invalid"));
         assertEquals(false, result.consumed());
         assertEquals(DebugReason.ACTION_TARGET_NOT_FOUND, result.reasonCode());
     }
@@ -57,10 +57,12 @@ class UiHitClickHandlerTest {
     @Test
     void runCommandShouldDispatch() {
         TrackingExecutor executor = new TrackingExecutor();
-        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand("say hi"), "run"));
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand("say hi", 3), "run"));
 
         assertEquals(true, result.consumed());
         assertEquals(1, executor.commandCalls);
+        assertEquals(3, executor.lastPermissionLevel);
+        assertEquals(new Vec3d(0.0, 0.0, 0.0), executor.lastHit.hitPosition());
     }
 
     @Test
@@ -71,6 +73,15 @@ class UiHitClickHandlerTest {
 
         assertEquals(false, result.consumed());
         assertEquals(DebugReason.ACTION_EXECUTION_FAILED, result.reasonCode());
+    }
+
+    @Test
+    void togglePlacementTrackingShouldDispatch() {
+        TrackingExecutor executor = new TrackingExecutor();
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.togglePlacementTracking(), "track"));
+
+        assertEquals(true, result.consumed());
+        assertEquals(1, executor.placementCalls);
     }
 
     private static UiHitResult closeHit() {
@@ -101,10 +112,14 @@ class UiHitClickHandlerTest {
         int openCalls;
         int commandCalls;
         int callbackCalls;
+        int placementCalls;
+        Integer lastPermissionLevel;
+        UiHitResult lastHit;
         RemoveWindowResult closeResult = RemoveWindowResult.success(UUID.randomUUID(), "main", 1, "닫기");
         CreateWindowResult openResult = CreateWindowResult.success(UUID.randomUUID(), "Steve", "settings", null, 0, 0, "열기");
         ActionExecutionResult commandResult = ActionExecutionResult.success("run_command 처리 완료");
         ActionExecutionResult callbackResult = ActionExecutionResult.success("callback 처리 완료");
+        ActionExecutionResult placementResult = ActionExecutionResult.success("toggle_placement_tracking 처리 완료");
 
         @Override
         public RemoveWindowResult closeWindow(UUID owner, WindowNavigationContext context) {
@@ -125,8 +140,10 @@ class UiHitClickHandlerTest {
         }
 
         @Override
-        public ActionExecutionResult runCommand(UUID owner, String windowId, String componentId, String command) {
+        public ActionExecutionResult runCommand(UUID owner, UiHitResult hitResult, Integer permissionLevel, String command) {
             this.commandCalls++;
+            this.lastPermissionLevel = permissionLevel;
+            this.lastHit = hitResult;
             return this.commandResult;
         }
 
@@ -134,6 +151,12 @@ class UiHitClickHandlerTest {
         public ActionExecutionResult executeCallback(UUID owner, String windowId, String componentId, String callbackId) {
             this.callbackCalls++;
             return this.callbackResult;
+        }
+
+        @Override
+        public ActionExecutionResult togglePlacementTracking(UUID owner, WindowNavigationContext context) {
+            this.placementCalls++;
+            return this.placementResult;
         }
     }
 }

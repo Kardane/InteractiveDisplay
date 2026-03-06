@@ -5,6 +5,7 @@ public enum ComponentActionType {
     OPEN_WINDOW,
     SWITCH_MODE_FIXED,
     SWITCH_MODE_PLAYER_FIXED,
+    TOGGLE_PLACEMENT_TRACKING,
     RUN_COMMAND,
     CALLBACK
 }
