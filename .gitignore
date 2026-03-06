@@ -31,3 +31,4 @@ run/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
 .gradle-user/
+.sandbox-build/

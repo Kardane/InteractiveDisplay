@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "${mod_id}",
   "version": "${version}",
-  "name": "Fabric Minigame Template",
-  "description": "서버사이드 미니게임 모드 템플릿 (Polymer 기반)",
+  "name": "InteractiveDisplay",
+  "description": "서버사이드 3D HUD 프레임워크 (Display Entity 기반)",
   "authors": [
     "Your Name"
   ],
@@ -12,16 +12,13 @@
     "sources": ""
   },
   "license": "MIT",
-  "icon": "assets/fabricminigametemplate/icon.png",
-  "environment": "*",
+  "icon": "assets/interactivedisplay/icon.png",
+  "environment": "server",
   "entrypoints": {
     "server": [
-      "com.example.minigame.FabricMinigameTemplate"
+      "com.interactivedisplay.InteractiveDisplay"
     ]
   },
-  "mixins": [
-    "fabricminigametemplate.mixins.json"
-  ],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "minecraft": ">=${minecraft_version}",
@@ -29,9 +26,6 @@
     "fabric-api": ">=${fabric_api_version}"
   },
   "suggests": {
-    "polymer-core": "*",
-    "sgui": "*",
-    "placeholder-api": "*",
     "fabric-permissions-api-v0": "*"
   }
 }

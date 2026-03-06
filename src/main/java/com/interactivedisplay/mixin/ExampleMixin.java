@@ -1,4 +1,4 @@
-package com.example.minigame.mixin;
+package com.interactivedisplay.mixin;
 
 import net.minecraft.server.MinecraftServer;
 import org.spongepowered.asm.mixin.Mixin;
