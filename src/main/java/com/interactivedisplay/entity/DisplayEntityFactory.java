@@ -393,7 +393,13 @@ public final class DisplayEntityFactory {
     }
 
     private void applyEntityData(MinecraftServer server, Entity entity, NbtCompound data) {
+        Vec3d position = entity.getPos();
+        float yaw = entity.getYaw();
+        float pitch = entity.getPitch();
         entity.readData(NbtReadView.create(ErrorReporter.EMPTY, server.getRegistryManager(), data));
+        entity.setPosition(position);
+        entity.setYaw(yaw);
+        entity.setPitch(pitch);
     }
 
     private ItemStack buildItemStack(String value) {

@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import java.awt.Color;
@@ -16,6 +19,29 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class SchemaLoaderDebugTest {
+    @Test
+    void defaultWindowShouldContainBackgroundTitleContentAndClose(@TempDir Path tempDir) throws Exception {
+        DebugRecorder recorder = new DebugRecorder(10);
+        SchemaLoader loader = new SchemaLoader(tempDir, new SchemaValidator(), recorder);
+
+        SchemaLoader.LoadResult result = loader.loadAll();
+        JsonObject root = JsonParser.parseString(Files.readString(
+                tempDir.resolve("interactivedisplay").resolve("windows").resolve("main_menu.json"),
+                StandardCharsets.UTF_8
+        )).getAsJsonObject();
+        JsonArray components = root.getAsJsonArray("components");
+
+        assertFalse(result.hasErrors());
+        assertEquals(4, components.size());
+        assertEquals("background", components.get(0).getAsJsonObject().get("id").getAsString());
+        assertEquals("panel", components.get(0).getAsJsonObject().get("type").getAsString());
+        assertEquals("title", components.get(1).getAsJsonObject().get("id").getAsString());
+        assertEquals("content", components.get(2).getAsJsonObject().get("id").getAsString());
+        assertEquals("close", components.get(3).getAsJsonObject().get("id").getAsString());
+        assertTrue(components.get(0).getAsJsonObject().get("backgroundColor").getAsString().startsWith("#88"));
+        assertTrue(components.get(1).getAsJsonObject().get("fontSize").getAsFloat() > components.get(2).getAsJsonObject().get("fontSize").getAsFloat());
+    }
+
     @Test
     void invalidSchemaShouldBeRecorded(@TempDir Path tempDir) throws Exception {
         DebugRecorder recorder = new DebugRecorder(10);

@@ -324,21 +324,41 @@ public final class SchemaLoader {
                   "offset": { "forward": 2.0, "horizontal": 0.0, "vertical": 0.5 },
                   "components": [
                     {
+                      "id": "background",
+                      "type": "panel",
+                      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                      "size": { "width": 3.0, "height": 2.0 },
+                      "backgroundColor": "#88000000",
+                      "children": []
+                    },
+                    {
                       "id": "title",
                       "type": "text",
-                      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
-                      "width": 3.0,
-                      "height": 0.4,
+                      "position": { "x": 0.2, "y": 0.15, "z": 0.01 },
+                      "width": 2.6,
+                      "height": 0.35,
                       "content": "InteractiveDisplay",
                       "fontSize": 1.2,
                       "alignment": "center",
-                      "background": "#22000000"
+                      "background": "#00000000"
+                    },
+                    {
+                      "id": "content",
+                      "type": "text",
+                      "position": { "x": 0.2, "y": 0.6, "z": 0.01 },
+                      "width": 2.6,
+                      "height": 0.45,
+                      "content": "샘플 창 내용",
+                      "fontSize": 0.8,
+                      "alignment": "center",
+                      "color": "#E8E8E8",
+                      "background": "#00000000"
                     },
                     {
                       "id": "close",
                       "type": "button",
-                      "position": { "x": 0.1, "y": 0.55, "z": 0.0 },
-                      "size": { "width": 1.4, "height": 0.35 },
+                      "position": { "x": 0.7, "y": 1.35, "z": 0.01 },
+                      "size": { "width": 1.6, "height": 0.35 },
                       "label": "닫기",
                       "hoverColor": "#55FFFFFF",
                       "action": { "type": "close_window" }

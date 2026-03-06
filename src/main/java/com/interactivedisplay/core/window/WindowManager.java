@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -37,6 +38,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 
 public final class WindowManager implements WindowActionExecutor {
+    private static final DustParticleEffect BUTTON_HOVER_PARTICLE = new DustParticleEffect(DustParticleEffect.RED, 0.5f);
+
     private final MinecraftServer server;
     private final SchemaLoader schemaLoader;
     private final LayoutEngine layoutEngine;
@@ -465,6 +468,10 @@ public final class WindowManager implements WindowActionExecutor {
         UiHitResult hovered = findUiHit(player);
         WindowComponentRuntime hoveredRuntime = hovered == null ? null : hovered.runtime();
         ServerWorld world = player.getWorld();
+        if (hovered != null) {
+            Vec3d hit = hovered.hitPosition();
+            world.spawnParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+        }
         for (WindowInstance instance : windows.values()) {
             for (WindowComponentRuntime runtime : instance.runtimes()) {
                 if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
