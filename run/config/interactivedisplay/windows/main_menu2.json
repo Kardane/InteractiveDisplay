@@ -1,0 +1,123 @@
+{
+  "id": "main_menu2",
+  "size": {
+    "width": 3.2,
+    "height": 2.2
+  },
+  "offset": {
+    "forward": 3.0,
+    "horizontal": 0.0,
+    "vertical": -0.5
+  },
+  "components": [
+    {
+      "id": "background",
+      "type": "panel",
+      "position": {
+        "x": 0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "size": {
+        "width": 7.0,
+        "height": 4.0
+      },
+      "backgroundColor": "#88000000",
+      "children": []
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "position": {
+        "x": 0.0,
+        "y": 0.45,
+        "z": 0.01
+      },
+      "width": 2.6,
+      "height": 0.35,
+      "content": "InteractiveDisplay",
+      "fontSize": 0.6,
+      "alignment": "center",
+      "background": "#00000000"
+    },
+    {
+      "id": "content",
+      "type": "text",
+      "position": {
+        "x": 0.0,
+        "y": 0.18,
+        "z": 0.01
+      },
+      "width": 2.6,
+      "height": 0.45,
+      "content": "두 번째 창임, {player:name}",
+      "fontSize": 0.4,
+      "alignment": "center",
+      "color": "#E8E8E8",
+      "background": "#00000000"
+    },
+    {
+      "id": "back_main",
+      "type": "button",
+      "position": {
+        "x": -0.72,
+        "y": -0.55,
+        "z": 0.01
+      },
+      "size": {
+        "width": 1.2,
+        "height": 0.35
+      },
+      "label": "{player:name} 돌아가기",
+      "fontSize": 0.34,
+      "backgroundColor": "#CC225577",
+      "hoverColor": "#EE3388AA",
+      "action": {
+        "type": "open_window",
+        "target": "main_menu"
+      }
+    },
+    {
+      "id": "command_ping",
+      "type": "button",
+      "position": {
+        "x": 0.72,
+        "y": -0.55,
+        "z": 0.01
+      },
+      "size": {
+        "width": 1.25,
+        "height": 0.35
+      },
+      "label": "title 실행 {player:name}",
+      "fontSize": 0.32,
+      "backgroundColor": "#CC9A8124",
+      "hoverColor": "#EEC5A534",
+      "action": {
+        "type": "run_command",
+        "command": "title @s actionbar {\"text\":\"main_menu2 command\"}",
+        "permissionLevel": 2
+      }
+    },
+    {
+      "id": "close",
+      "type": "button",
+      "position": {
+        "x": 0.0,
+        "y": -0.98,
+        "z": 0.01
+      },
+      "size": {
+        "width": 1.4,
+        "height": 0.35
+      },
+      "label": "✕",
+      "fontSize": 0.75,
+      "backgroundColor": "#CC992222",
+      "hoverColor": "#EECC4444",
+      "action": {
+        "type": "close_window"
+      }
+    }
+  ]
+}

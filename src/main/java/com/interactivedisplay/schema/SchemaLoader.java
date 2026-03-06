@@ -365,7 +365,11 @@ public final class SchemaLoader {
             case "open_window" -> ComponentAction.openWindow(action.get("target").getAsString());
             case "switch_mode_fixed" -> ComponentAction.switchModeFixed();
             case "switch_mode_player_fixed" -> ComponentAction.switchModePlayerFixed();
-            case "run_command" -> ComponentAction.runCommand(action.get("command").getAsString());
+            case "toggle_placement_tracking" -> ComponentAction.togglePlacementTracking();
+            case "run_command" -> ComponentAction.runCommand(
+                    action.get("command").getAsString(),
+                    action.has("permissionLevel") ? action.get("permissionLevel").getAsInt() : null
+            );
             case "callback" -> ComponentAction.callback(action.get("id").getAsString());
             default -> throw new SchemaValidationException("지원하지 않는 action type: " + actionType);
         };

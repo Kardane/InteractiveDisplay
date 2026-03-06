@@ -48,7 +48,7 @@ class SchemaValidatorTest {
                           "position": {"x": 0.0, "y": 0.0, "z": 0.0},
                           "size": {"width": 1.0, "height": 0.3},
                           "label": "run",
-                          "action": {"type": "run_command", "command": "say hi"}
+                          "action": {"type": "run_command", "command": "say hi", "permissionLevel": 2}
                         }
                       ]
                     }
@@ -114,5 +114,53 @@ class SchemaValidatorTest {
         assertTrue(errors.stream().anyMatch(msg -> msg.contains("width must be > 0")));
         assertTrue(errors.stream().anyMatch(msg -> msg.contains("imageType")));
         assertTrue(errors.stream().anyMatch(msg -> msg.contains("id must be string") || msg.contains(".action: id must be string")));
+    }
+
+    @Test
+    void runCommandPermissionLevelShouldBeValidated() {
+        JsonObject root = JsonParser.parseString("""
+                {
+                  "id": "menu",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "run",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.3},
+                      "label": "run",
+                      "action": {"type": "run_command", "command": "say hi", "permissionLevel": 5}
+                    }
+                  ]
+                }
+                """).getAsJsonObject();
+
+        List<String> errors = validator.validate(root, "menu.json");
+
+        assertTrue(errors.stream().anyMatch(msg -> msg.contains("permissionLevel")));
+    }
+
+    @Test
+    void togglePlacementTrackingActionShouldPassValidation() {
+        JsonObject root = JsonParser.parseString("""
+                {
+                  "id": "menu",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "track",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.3},
+                      "label": "track",
+                      "action": {"type": "toggle_placement_tracking"}
+                    }
+                  ]
+                }
+                """).getAsJsonObject();
+
+        List<String> errors = validator.validate(root, "menu.json");
+
+        assertTrue(errors.isEmpty());
     }
 }

@@ -10,7 +10,7 @@ import java.util.Set;
 
 public final class SchemaValidator {
     private static final Set<String> COMPONENT_TYPES = Set.of("text", "button", "image", "panel");
-    private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "switch_mode_fixed", "switch_mode_player_fixed", "run_command", "callback");
+    private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "switch_mode_fixed", "switch_mode_player_fixed", "toggle_placement_tracking", "run_command", "callback");
     private static final Set<String> IMAGE_TYPES = Set.of("item", "block", "map");
     private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal");
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
@@ -143,8 +143,24 @@ public final class SchemaValidator {
             requireString(action, "target", sourceName + ".action", errors);
         } else if ("run_command".equals(type)) {
             requireString(action, "command", sourceName + ".action", errors);
+            validatePermissionLevel(action, sourceName + ".action", errors);
         } else if ("callback".equals(type)) {
             requireString(action, "id", sourceName + ".action", errors);
+        }
+    }
+
+    private static void validatePermissionLevel(JsonObject action, String sourceName, List<String> errors) {
+        JsonElement element = action.get("permissionLevel");
+        if (element == null) {
+            return;
+        }
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            errors.add(sourceName + ": permissionLevel must be integer between 0 and 4");
+            return;
+        }
+        double value = element.getAsDouble();
+        if (value != Math.rint(value) || value < 0.0D || value > 4.0D) {
+            errors.add(sourceName + ": permissionLevel must be integer between 0 and 4");
         }
     }
 

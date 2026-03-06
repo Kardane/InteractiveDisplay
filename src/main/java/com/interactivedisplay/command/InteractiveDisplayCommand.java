@@ -414,7 +414,7 @@ public final class InteractiveDisplayCommand {
                                                                            InteractiveDisplayCommandTree.Rotation requestedRotation) throws CommandSyntaxException {
         return switch (positionMode) {
             case FIXED -> new InteractiveDisplayCommandTree.Rotation(source.getRotation().y, 0.0f);
-            case PLAYER_FIXED -> {
+            case PLAYER_FIXED, PLAYER_VIEW -> {
                 if (requestedRotation == null) {
                     yield new InteractiveDisplayCommandTree.Rotation(0.0f, 0.0f);
                 }
@@ -426,7 +426,6 @@ public final class InteractiveDisplayCommand {
                         MathHelper.clamp(pitchValue, -90.0f, 90.0f)
                 );
             }
-            case PLAYER_VIEW -> new InteractiveDisplayCommandTree.Rotation(0.0f, 0.0f);
         };
     }
 
@@ -437,7 +436,7 @@ public final class InteractiveDisplayCommand {
                                                                            InteractiveDisplayCommandTree.Rotation requestedRotation) {
         return switch (positionMode) {
             case FIXED -> new InteractiveDisplayCommandTree.Rotation(sourceYaw, 0.0f);
-            case PLAYER_FIXED -> {
+            case PLAYER_FIXED, PLAYER_VIEW -> {
                 float yawValue = requestedRotation == null ? 0.0f : requestedRotation.yaw();
                 float pitchValue = requestedRotation == null ? 0.0f : requestedRotation.pitch();
                 yield new InteractiveDisplayCommandTree.Rotation(
@@ -445,7 +444,6 @@ public final class InteractiveDisplayCommand {
                         MathHelper.clamp(pitchValue, -90.0f, 90.0f)
                 );
             }
-            case PLAYER_VIEW -> new InteractiveDisplayCommandTree.Rotation(0.0f, 0.0f);
         };
     }
 

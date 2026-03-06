@@ -150,4 +150,32 @@ class InteractiveDisplayCommandFormatTest {
         assertEquals(30.0f, resolved.yaw(), 0.0001f);
         assertEquals(-10.0f, resolved.pitch(), 0.0001f);
     }
+
+    @Test
+    void playerViewRotationShouldDefaultToZeroOffsets() {
+        InteractiveDisplayCommandTree.Rotation resolved = InteractiveDisplayCommand.resolveRotationForTarget(
+                PositionMode.PLAYER_VIEW,
+                25.0f,
+                130.0f,
+                -20.0f,
+                null
+        );
+
+        assertEquals(0.0f, resolved.yaw(), 0.0001f);
+        assertEquals(0.0f, resolved.pitch(), 0.0001f);
+    }
+
+    @Test
+    void playerViewRotationShouldUseExplicitOffsets() {
+        InteractiveDisplayCommandTree.Rotation resolved = InteractiveDisplayCommand.resolveRotationForTarget(
+                PositionMode.PLAYER_VIEW,
+                0.0f,
+                170.0f,
+                15.0f,
+                new InteractiveDisplayCommandTree.Rotation(12.0f, -8.0f)
+        );
+
+        assertEquals(12.0f, resolved.yaw(), 0.0001f);
+        assertEquals(-8.0f, resolved.pitch(), 0.0001f);
+    }
 }

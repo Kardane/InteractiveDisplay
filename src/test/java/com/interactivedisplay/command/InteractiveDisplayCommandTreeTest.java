@@ -46,6 +46,23 @@ class InteractiveDisplayCommandTreeTest {
     }
 
     @Test
+    void playerViewCreateLiteralShouldExposeYawPitchArguments() {
+        TestHandlers handlers = new TestHandlers();
+        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
+        register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true, source -> true);
+
+        var playerView = dispatcher.getRoot()
+                .getChild("interactivedisplay")
+                .getChild("create")
+                .getChild("windowId")
+                .getChild("player")
+                .getChild("player_view");
+
+        assertNotNull(playerView.getChild("yaw").getChild("pitch"));
+        assertEquals("AngleArgumentType", ((ArgumentCommandNode<?, ?>) playerView.getChild("yaw")).getType().getClass().getSimpleName());
+    }
+
+    @Test
     void playerFixedCreateLiteralShouldExposeYawPitchArguments() {
         TestHandlers handlers = new TestHandlers();
         CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();

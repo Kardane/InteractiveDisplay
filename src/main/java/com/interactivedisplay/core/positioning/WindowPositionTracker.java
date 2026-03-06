@@ -35,21 +35,36 @@ public final class WindowPositionTracker {
                                         Vec3d fixedAnchor,
                                         float fixedYaw,
                                         float fixedPitch) {
-        Vec3d look = player.getRotationVec(1.0f);
+        return resolve(positionMode, offset, player.getEyePos(), player.getRotationVec(1.0f), player.getYaw(), player.getPitch(), fixedAnchor, fixedYaw, fixedPitch);
+    }
+
+    WindowTransformState resolve(PositionMode positionMode,
+                                 WindowOffset offset,
+                                 Vec3d eyePos,
+                                 Vec3d look,
+                                 float playerYaw,
+                                 float playerPitch,
+                                 Vec3d fixedAnchor,
+                                 float fixedYaw,
+                                 float fixedPitch) {
+        float resolvedYaw = switch (positionMode) {
+            case FIXED, PLAYER_FIXED -> fixedYaw;
+            case PLAYER_VIEW -> MathHelper.wrapDegrees(playerYaw + fixedYaw);
+        };
+        float resolvedPitch = switch (positionMode) {
+            case FIXED -> 0.0f;
+            case PLAYER_FIXED -> fixedPitch;
+            case PLAYER_VIEW -> MathHelper.clamp(playerPitch + fixedPitch, -90.0f, 90.0f);
+        };
+        Vec3d resolvedLook = positionMode == PositionMode.PLAYER_VIEW ? Vec3d.fromPolar(resolvedPitch, resolvedYaw) : look;
         Vec3d anchor = switch (positionMode) {
             case FIXED -> fixedAnchor != null
                     ? fixedAnchor
-                    : this.transformer.toFixedAnchorFromPlayerEye(player.getEyePos(), look, offset);
-            case PLAYER_FIXED -> this.transformer.toPlayerFixedAnchor(player.getEyePos(), offset, fixedYaw, fixedPitch);
-            case PLAYER_VIEW -> this.transformer.toPlayerViewAnchor(player.getEyePos(), look, offset);
+                    : this.transformer.toFixedAnchorFromPlayerEye(eyePos, resolvedLook, offset);
+            case PLAYER_FIXED -> this.transformer.toPlayerFixedAnchor(eyePos, offset, fixedYaw, fixedPitch);
+            case PLAYER_VIEW -> this.transformer.toPlayerViewAnchor(eyePos, resolvedLook, offset);
         };
-        if (positionMode == PositionMode.PLAYER_FIXED) {
-            CoordinateTransformer.ViewRotation facing = this.transformer.facingYawOnly(anchor, player.getEyePos());
-            return new WindowTransformState(anchor, facing.yaw(), 0.0f, player.getEyePos());
-        }
-        float resolvedYaw = positionMode == PositionMode.PLAYER_VIEW ? player.getYaw() : fixedYaw;
-        float resolvedPitch = positionMode == PositionMode.PLAYER_VIEW ? player.getPitch() : 0.0f;
-        return new WindowTransformState(anchor, resolvedYaw, resolvedPitch, player.getEyePos());
+        return new WindowTransformState(anchor, resolvedYaw, resolvedPitch, eyePos);
     }
 
     public WindowTransformState applyDeadzone(WindowInstance instance, WindowTransformState rawState) {
@@ -101,10 +116,7 @@ public final class WindowPositionTracker {
         if (instance.targetAnchor().squaredDistanceTo(rawState.anchor()) < PLAYER_FIXED_POSITION_DEADZONE_SQUARED) {
             targetAnchor = instance.targetAnchor();
         }
-        CoordinateTransformer.ViewRotation facing = rawState.focusPoint() == null
-                ? new CoordinateTransformer.ViewRotation(rawState.yaw(), rawState.pitch())
-                : this.transformer.facingYawOnly(targetAnchor, rawState.focusPoint());
-        return new WindowTransformState(targetAnchor, facing.yaw(), 0.0f, rawState.focusPoint());
+        return new WindowTransformState(targetAnchor, rawState.yaw(), rawState.pitch(), rawState.focusPoint());
     }
 
     private WindowTransformState applyPlayerViewDeadzone(WindowInstance instance, WindowTransformState rawState) {

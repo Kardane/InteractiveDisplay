@@ -46,6 +46,7 @@ dependencies {
     modImplementation include("eu.pb4:polymer-resource-pack:${project.polymer_version}")
     modImplementation include("eu.pb4:polymer-autohost:${project.polymer_version}")
     modImplementation include("eu.pb4:map-canvas-api:${project.map_canvas_api_version}")
+    modImplementation include("eu.pb4:placeholder-api:2.7.2+1.21.8")
     modImplementation include("me.lucko:fabric-permissions-api:${project.fabric_permissions_api_version}")
 
     implementation "io.github.orioncraftmc:meditate-layout:1.0.2"

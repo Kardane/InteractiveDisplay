@@ -16,6 +16,8 @@ import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.JsonOps;
+import eu.pb4.placeholders.api.PlaceholderContext;
+import eu.pb4.placeholders.api.Placeholders;
 import eu.pb4.mapcanvas.api.core.CanvasImage;
 import eu.pb4.mapcanvas.api.core.DrawableCanvas;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
@@ -23,6 +25,7 @@ import eu.pb4.mapcanvas.api.utils.CanvasUtils;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.function.BiFunction;
 import java.util.List;
 import java.util.Locale;
 import java.util.StringJoiner;
@@ -60,9 +63,15 @@ public final class DisplayEntityFactory {
     private static final float MIN_Z_SCALE = 0.001f;
 
     private final DebugRecorder debugRecorder;
+    private final BiFunction<ServerPlayerEntity, Text, Text> placeholderResolver;
 
     public DisplayEntityFactory(DebugRecorder debugRecorder) {
+        this(debugRecorder, DisplayEntityFactory::applyPlaceholders);
+    }
+
+    DisplayEntityFactory(DebugRecorder debugRecorder, BiFunction<ServerPlayerEntity, Text, Text> placeholderResolver) {
         this.debugRecorder = debugRecorder;
+        this.placeholderResolver = placeholderResolver;
     }
 
     public WindowComponentRuntime spawnRuntime(MinecraftServer server,
@@ -77,7 +86,7 @@ public final class DisplayEntityFactory {
                                                Collection<ServerPlayerEntity> canvasViewers) {
         try {
             if (component instanceof TextComponentDefinition text) {
-                UUID displayId = spawnText(server, world, text, position, positionMode, yaw, pitch);
+                UUID displayId = spawnText(server, world, owner, text, position, positionMode, yaw, pitch);
                 return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, null);
             }
 
@@ -87,7 +96,7 @@ public final class DisplayEntityFactory {
             }
 
             if (component instanceof ButtonComponentDefinition button) {
-                UUID displayId = spawnButton(server, world, button, position, positionMode, yaw, pitch);
+                UUID displayId = spawnButton(server, world, owner, button, position, positionMode, yaw, pitch);
                 return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, null);
             }
 
@@ -103,6 +112,7 @@ public final class DisplayEntityFactory {
 
     public void reconfigureRuntime(MinecraftServer server,
                                    ServerWorld world,
+                                   UUID owner,
                                    WindowComponentRuntime runtime,
                                    Vec3d position,
                                    PositionMode positionMode,
@@ -111,9 +121,9 @@ public final class DisplayEntityFactory {
                                    Collection<ServerPlayerEntity> canvasViewers) {
         moveRuntime(world, runtime, position, positionMode, yaw, pitch);
         runtime.setHovered(false);
-        applyRuntimeTransform(server, world, runtime, positionMode);
+        applyRuntimeTransform(server, world, owner, runtime, positionMode);
         if (runtime.definition() instanceof ButtonComponentDefinition button) {
-            setButtonHover(server, world, runtime, button, false, positionMode);
+            setButtonHover(server, world, owner, runtime, button, false, positionMode);
         }
         if (runtime.mapCanvas() != null) {
             syncMapCanvas(runtime.mapCanvas(), canvasViewers);
@@ -193,7 +203,7 @@ public final class DisplayEntityFactory {
             entity.setPitch(displayPitch(positionMode, pitch));
             entity.startRiding(root, true);
         }
-        applyRuntimeTransform(server, world, runtime, positionMode);
+        applyRuntimeTransform(server, world, null, runtime, positionMode);
     }
 
     public void updateRuntimeOrientation(MinecraftServer server,
@@ -210,7 +220,7 @@ public final class DisplayEntityFactory {
             entity.setYaw(displayYaw(positionMode, yaw));
             entity.setPitch(displayPitch(positionMode, pitch));
         }
-        applyRuntimeTransform(server, world, runtime, positionMode);
+        applyRuntimeTransform(server, world, null, runtime, positionMode);
     }
 
     public void moveRuntime(ServerWorld world,
@@ -262,6 +272,7 @@ public final class DisplayEntityFactory {
 
     public void setButtonHover(MinecraftServer server,
                                ServerWorld world,
+                               UUID owner,
                                WindowComponentRuntime runtime,
                                ButtonComponentDefinition button,
                                boolean hovered,
@@ -270,7 +281,7 @@ public final class DisplayEntityFactory {
             return;
         }
         int background = hovered ? parseArgb(button.hoverColor()) : parseArgb(button.backgroundColor());
-        applyTextData(server, world, runtime.displayEntityId(), Text.literal(button.label()), buttonLineWidth(button), background, true, button.opacity(), billboard(positionMode), button.fontSize(), "center", new org.joml.Vector3f());
+        applyTextData(server, world, runtime.displayEntityId(), renderButtonLabel(button.label(), ownerPlayer(server, owner)), buttonLineWidth(button), background, true, button.opacity(), billboard(positionMode), button.fontSize(), "center", new org.joml.Vector3f());
         runtime.setHovered(hovered);
     }
 
@@ -285,6 +296,7 @@ public final class DisplayEntityFactory {
 
     private UUID spawnText(MinecraftServer server,
                            ServerWorld world,
+                           UUID owner,
                            TextComponentDefinition component,
                            Vec3d position,
                            PositionMode positionMode,
@@ -300,7 +312,7 @@ public final class DisplayEntityFactory {
                 server,
                 world,
                 entity.getUuid(),
-                buildText(server, component.content(), component.color()),
+                renderTextContent(component.content(), component.color(), ownerPlayer(server, owner)),
                 component.lineWidth(),
                 parseArgb(component.background()),
                 component.shadow(),
@@ -346,6 +358,7 @@ public final class DisplayEntityFactory {
 
     private UUID spawnButton(MinecraftServer server,
                              ServerWorld world,
+                             UUID owner,
                              ButtonComponentDefinition component,
                              Vec3d position,
                              PositionMode positionMode,
@@ -361,7 +374,7 @@ public final class DisplayEntityFactory {
                 server,
                 world,
                 entity.getUuid(),
-                Text.literal(component.label()),
+                renderButtonLabel(component.label(), ownerPlayer(server, owner)),
                 buttonLineWidth(component),
                 parseArgb(component.backgroundColor()),
                 true,
@@ -574,7 +587,15 @@ public final class DisplayEntityFactory {
         return block.getDefaultState();
     }
 
-    private MutableText buildText(MinecraftServer server, String content, String color) {
+    Text renderTextContent(String content, String color, ServerPlayerEntity owner) {
+        return resolvePlaceholders(buildBaseText(content, color), owner);
+    }
+
+    Text renderButtonLabel(String label, ServerPlayerEntity owner) {
+        return resolvePlaceholders(Text.literal(label), owner);
+    }
+
+    private MutableText buildBaseText(String content, String color) {
         Text parsed;
         if ((content.startsWith("{") || content.startsWith("["))) {
             parsed = TextCodecs.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(content)).result().orElse(Text.literal(content));
@@ -587,6 +608,24 @@ public final class DisplayEntityFactory {
             mutable.styled(style -> style.withColor(textColor));
         }
         return mutable;
+    }
+
+    private Text resolvePlaceholders(Text text, ServerPlayerEntity owner) {
+        return this.placeholderResolver.apply(owner, text);
+    }
+
+    private static Text applyPlaceholders(ServerPlayerEntity player, Text text) {
+        if (player == null) {
+            return text;
+        }
+        return Placeholders.parseText(text, PlaceholderContext.of(player));
+    }
+
+    private static ServerPlayerEntity ownerPlayer(MinecraftServer server, UUID owner) {
+        if (server == null || owner == null) {
+            return null;
+        }
+        return server.getPlayerManager().getPlayer(owner);
     }
 
     private static TextColor parseTextColor(String value) {
@@ -674,6 +713,7 @@ public final class DisplayEntityFactory {
 
     private void applyRuntimeTransform(MinecraftServer server,
                                        ServerWorld world,
+                                       UUID owner,
                                        WindowComponentRuntime runtime,
                                        PositionMode positionMode) {
         if (runtime.displayEntityId() == null) {
@@ -684,7 +724,7 @@ public final class DisplayEntityFactory {
                     server,
                     world,
                     runtime.displayEntityId(),
-                    buildText(server, text.content(), text.color()),
+                    renderTextContent(text.content(), text.color(), ownerPlayer(server, owner)),
                     text.lineWidth(),
                     parseArgb(text.background()),
                     text.shadow(),
@@ -719,7 +759,7 @@ public final class DisplayEntityFactory {
                     server,
                     world,
                     runtime.displayEntityId(),
-                    Text.literal(button.label()),
+                    renderButtonLabel(button.label(), ownerPlayer(server, owner)),
                     buttonLineWidth(button),
                     parseArgb(runtime.hovered() ? button.hoverColor() : button.backgroundColor()),
                     true,

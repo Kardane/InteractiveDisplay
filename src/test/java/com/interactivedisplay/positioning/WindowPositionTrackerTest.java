@@ -1,10 +1,8 @@
-package com.interactivedisplay.positioning;
+package com.interactivedisplay.core.positioning;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import com.interactivedisplay.core.positioning.PositionMode;
-import com.interactivedisplay.core.positioning.WindowPositionTracker;
 import com.interactivedisplay.core.window.WindowInstance;
 import java.util.UUID;
 import net.minecraft.util.math.Vec3d;
@@ -37,7 +35,7 @@ class WindowPositionTrackerTest {
         WindowPositionTracker.WindowTransformState raw = new WindowPositionTracker.WindowTransformState(
                 new Vec3d(-1.99, 64.0, 0.0),
                 90.0f,
-                0.0f,
+                12.0f,
                 new Vec3d(0.0, 64.0, 0.0)
         );
 
@@ -45,7 +43,7 @@ class WindowPositionTrackerTest {
 
         assertEquals(-2.0, target.anchor().x, 0.0001);
         assertEquals(90.0f, target.yaw(), 0.0001f);
-        assertEquals(0.0f, target.pitch(), 0.0001f);
+        assertEquals(12.0f, target.pitch(), 0.0001f);
     }
 
     @Test
@@ -154,5 +152,51 @@ class WindowPositionTrackerTest {
         boolean shouldUpdate = tracker.shouldUpdate(instance, new WindowPositionTracker.WindowTransformState(Vec3d.ZERO, 0.2f, 0.1f), 2L);
 
         assertFalse(shouldUpdate);
+    }
+
+    @Test
+    void playerFixedResolveShouldKeepConfiguredPitch() {
+        WindowPositionTracker.WindowTransformState state = tracker.resolve(
+                PositionMode.PLAYER_FIXED,
+                new WindowOffset(2.0f, 0.0f, 0.0f),
+                new Vec3d(0.0, 64.0, 0.0),
+                new Vec3d(0.0, 0.0, 1.0),
+                0.0f,
+                0.0f,
+                null,
+                35.0f,
+                -20.0f
+        );
+
+        assertEquals(35.0f, state.yaw(), 0.0001f);
+        assertEquals(-20.0f, state.pitch(), 0.0001f);
+    }
+
+    @Test
+    void playerViewResolveShouldAddStoredYawPitchOffsets() {
+        WindowPositionTracker.WindowTransformState state = tracker.resolve(
+                PositionMode.PLAYER_VIEW,
+                new WindowOffset(2.0f, 0.0f, 0.0f),
+                new Vec3d(0.0, 64.0, 0.0),
+                Vec3d.fromPolar(-15.0f, 20.0f),
+                20.0f,
+                -15.0f,
+                null,
+                30.0f,
+                10.0f
+        );
+
+        Vec3d expectedAnchor = new CoordinateTransformer().toPlayerFixedAnchor(
+                new Vec3d(0.0, 64.0, 0.0),
+                new WindowOffset(2.0f, 0.0f, 0.0f),
+                50.0f,
+                -5.0f
+        );
+
+        assertEquals(expectedAnchor.x, state.anchor().x, 0.0001);
+        assertEquals(expectedAnchor.y, state.anchor().y, 0.0001);
+        assertEquals(expectedAnchor.z, state.anchor().z, 0.0001);
+        assertEquals(50.0f, state.yaw(), 0.0001f);
+        assertEquals(-5.0f, state.pitch(), 0.0001f);
     }
 }

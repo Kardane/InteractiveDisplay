@@ -1,0 +1,183 @@
+{
+  "id": "main_menu",
+  "size": {
+    "width": 3.2,
+    "height": 2.4
+  },
+  "offset": {
+    "forward": 3.0,
+    "horizontal": 0.0,
+    "vertical": -0.5
+  },
+  "components": [
+    {
+      "id": "background",
+      "type": "panel",
+      "position": {
+        "x": 0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "size": {
+        "width": 7.0,
+        "height": 4.0
+      },
+      "backgroundColor": "#88000000",
+      "children": []
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "position": {
+        "x": 0.0,
+        "y": 0.45,
+        "z": 0.01
+      },
+      "width": 2.6,
+      "height": 0.35,
+      "content": "InteractiveDisplay",
+      "fontSize": 0.7,
+      "alignment": "center",
+      "background": "#00000000"
+    },
+    {
+      "id": "welcome",
+      "type": "text",
+      "position": {
+        "x": 0.0,
+        "y": 0.18,
+        "z": 0.01
+      },
+      "width": 2.8,
+      "height": 0.35,
+      "content": "환영함, {player:name}",
+      "fontSize": 0.5,
+      "alignment": "center",
+      "color": "#E8E8E8",
+      "background": "#00000000"
+    },
+    {
+      "id": "mode_fixed",
+      "type": "button",
+      "position": {
+        "x": -0.72,
+        "y": -0.18,
+        "z": 0.01
+      },
+      "size": {
+        "width": 1.1,
+        "height": 0.32
+      },
+      "label": "FIXED",
+      "fontSize": 0.48,
+      "backgroundColor": "#CC225577",
+      "hoverColor": "#EE3388AA",
+      "action": {
+        "type": "switch_mode_fixed"
+      }
+    },
+    {
+      "id": "mode_player_fixed",
+      "type": "button",
+      "position": {
+        "x": 0.72,
+        "y": -0.18,
+        "z": 0.01
+      },
+      "size": {
+        "width": 1.35,
+        "height": 0.32
+      },
+      "label": "PLAYER_FIXED",
+      "fontSize": 0.38,
+      "backgroundColor": "#CC2B6A2B",
+      "hoverColor": "#EE3F8E3F",
+      "action": {
+        "type": "switch_mode_player_fixed"
+      }
+    },
+    {
+      "id": "open_linked",
+      "type": "button",
+      "position": {
+        "x": -0.72,
+        "y": -0.62,
+        "z": 0.01
+      },
+      "size": {
+        "width": 1.1,
+        "height": 0.32
+      },
+      "label": "열기 main_menu2",
+      "fontSize": 0.34,
+      "backgroundColor": "#CC654321",
+      "hoverColor": "#EE8A5D38",
+      "action": {
+        "type": "open_window",
+        "target": "main_menu2"
+      }
+    },
+    {
+      "id": "track_place",
+      "type": "button",
+      "position": {
+        "x": 0.72,
+        "y": -0.62,
+        "z": 0.01
+      },
+      "size": {
+        "width": 1.35,
+        "height": 0.32
+      },
+      "label": "배치 추적 토글",
+      "fontSize": 0.34,
+      "backgroundColor": "#CC7143A6",
+      "hoverColor": "#EE9464D2",
+      "action": {
+        "type": "toggle_placement_tracking"
+      }
+    },
+    {
+      "id": "run_context_command",
+      "type": "button",
+      "position": {
+        "x": 0.0,
+        "y": -1.05,
+        "z": 0.01
+      },
+      "size": {
+        "width": 2.4,
+        "height": 0.34
+      },
+      "label": "컨텍스트 명령 실행",
+      "fontSize": 0.38,
+      "backgroundColor": "#CC9A8124",
+      "hoverColor": "#EEC5A534",
+      "action": {
+        "type": "run_command",
+        "command": "title @s actionbar {\"text\":\"버튼 컨텍스트 실행\"}",
+        "permissionLevel": 2
+      }
+    },
+    {
+      "id": "close",
+      "type": "button",
+      "position": {
+        "x": 1.18,
+        "y": 0.86,
+        "z": 0.01
+      },
+      "size": {
+        "width": 0.45,
+        "height": 0.35
+      },
+      "label": "✕",
+      "fontSize": 0.75,
+      "backgroundColor": "#CC992222",
+      "hoverColor": "#EECC4444",
+      "action": {
+        "type": "close_window"
+      }
+    }
+  ]
+}

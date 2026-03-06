@@ -124,7 +124,7 @@ public final class InteractiveDisplayCommandTree {
                                     .executes(context -> group
                                             ? handlers.groupCreate(context, argGroupId(context), mode, argPosition(context), null)
                                             : handlers.create(context, argWindowId(context), mode, argPosition(context), null)))));
-        } else if (mode == PositionMode.PLAYER_FIXED) {
+        } else if (mode == PositionMode.PLAYER_FIXED || mode == PositionMode.PLAYER_VIEW) {
             RequiredArgumentBuilder<S, AngleArgumentType.Angle> yawArgument = InteractiveDisplayCommandTree.<S>angleArgument("yaw");
             RequiredArgumentBuilder<S, AngleArgumentType.Angle> pitchArgument = InteractiveDisplayCommandTree.<S>angleArgument("pitch")
                     .executes(context -> group

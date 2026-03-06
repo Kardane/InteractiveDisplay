@@ -297,4 +297,45 @@ class SchemaLoaderDebugTest {
                 ((com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions().get("button_only").components().get(1)).action().type()
         );
     }
+
+    @Test
+    void buttonActionsShouldSupportPlacementTrackingAndCommandPermissionLevel(@TempDir Path tempDir) throws Exception {
+        DebugRecorder recorder = new DebugRecorder(10);
+        Path windows = tempDir.resolve("interactivedisplay").resolve("windows");
+        Files.createDirectories(windows);
+        Files.writeString(windows.resolve("button.json"), """
+                {
+                  "id": "button_only",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "track",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.35},
+                      "label": "배치",
+                      "action": {"type": "toggle_placement_tracking"}
+                    },
+                    {
+                      "id": "run",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": -0.4, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.35},
+                      "label": "실행",
+                      "action": {"type": "run_command", "command": "say hi", "permissionLevel": 2}
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+
+        SchemaLoader loader = new SchemaLoader(tempDir, new SchemaValidator(), recorder);
+        SchemaLoader.LoadResult result = loader.loadAll();
+        var first = (com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions().get("button_only").components().get(0);
+        var second = (com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions().get("button_only").components().get(1);
+
+        assertFalse(result.hasErrors());
+        assertEquals(com.interactivedisplay.core.component.ComponentActionType.TOGGLE_PLACEMENT_TRACKING, first.action().type());
+        assertEquals(com.interactivedisplay.core.component.ComponentActionType.RUN_COMMAND, second.action().type());
+        assertEquals(2, second.action().permissionLevel());
+    }
 }
