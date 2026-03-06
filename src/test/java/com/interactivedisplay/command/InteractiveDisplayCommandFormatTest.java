@@ -17,6 +17,7 @@ import com.interactivedisplay.debug.DebugReason;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -106,5 +107,14 @@ class InteractiveDisplayCommandFormatTest {
         assertTrue(lines.get(0).contains("바인딩 수=1"));
         assertTrue(lines.get(1).contains("component=close"));
         assertTrue(lines.get(1).contains("action=CLOSE_WINDOW"));
+    }
+
+    @Test
+    void listLinesShouldContainLoadedWindowsAndCandidates() {
+        List<String> lines = InteractiveDisplayCommand.buildListLines(Set.of("main_menu"), Set.of("main_menu", "gallery"));
+
+        assertTrue(lines.get(0).contains("loaded=1"));
+        assertTrue(lines.get(1).contains("main_menu"));
+        assertTrue(lines.get(2).contains("gallery"));
     }
 }

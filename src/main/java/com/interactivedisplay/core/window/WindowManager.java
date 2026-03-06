@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.entity.Entity;
@@ -274,7 +275,13 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public Set<String> loadedWindowIds() {
-        return Set.copyOf(this.definitions.keySet());
+        return Set.copyOf(new TreeSet<>(this.definitions.keySet()));
+    }
+
+    public Set<String> availableWindowIds() {
+        Set<String> windowIds = new TreeSet<>(this.schemaLoader.discoverWindowIds());
+        windowIds.addAll(this.definitions.keySet());
+        return Set.copyOf(windowIds);
     }
 
     public int loadedWindowCount() {

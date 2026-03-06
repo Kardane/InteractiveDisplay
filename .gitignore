@@ -25,6 +25,7 @@ desktop.ini
 # Fabric / Loom
 run/
 *.log
+logs/
 
 # Java
 *.class
@@ -32,3 +33,5 @@ run/
 !gradle/wrapper/gradle-wrapper.jar
 .gradle-user/
 .sandbox-build/
+.gradle-sandbox-patch/
+tools/

@@ -15,14 +15,15 @@ public final class MapImageResolver {
     }
 
     public ImageSource resolve(String rawValue) throws IOException, InterruptedException {
-        Files.createDirectories(this.imagesDir);
+        Path normalizedImagesDir = this.imagesDir.toAbsolutePath().normalize();
+        Files.createDirectories(normalizedImagesDir);
         if (rawValue.startsWith("http://") || rawValue.startsWith("https://")) {
             Path cachedPath = this.remoteImageCache.resolve(rawValue);
             return new ImageSource(rawValue, true, cachedPath);
         }
 
-        Path resolved = this.imagesDir.resolve(rawValue).normalize();
-        if (!resolved.startsWith(this.imagesDir)) {
+        Path resolved = normalizedImagesDir.resolve(rawValue).normalize();
+        if (!resolved.startsWith(normalizedImagesDir)) {
             throw new IOException("MAP 로컬 경로가 images 디렉터리 밖을 가리킴");
         }
         if (!Files.exists(resolved)) {

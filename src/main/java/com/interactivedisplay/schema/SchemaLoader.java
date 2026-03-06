@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import javax.imageio.ImageIO;
 
 public final class SchemaLoader {
@@ -92,6 +94,22 @@ public final class SchemaLoader {
         return this.remoteImageCache.cacheEntryCount();
     }
 
+    public Set<String> discoverWindowIds() {
+        Set<String> windowIds = new TreeSet<>();
+        if (!Files.isDirectory(this.windowsDir)) {
+            return windowIds;
+        }
+
+        try (var paths = Files.list(this.windowsDir)) {
+            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+                    .sorted()
+                    .forEach(path -> windowIds.add(readWindowId(path)));
+        } catch (IOException exception) {
+            recordSchemaFailure(null, "window id 목록 조회 실패: " + exception.getMessage(), exception);
+        }
+        return windowIds;
+    }
+
     private void loadSingleFile(Path path, Map<String, WindowDefinition> definitions, List<String> errors) {
         String sourceName = path.getFileName().toString();
 
@@ -111,6 +129,19 @@ public final class SchemaLoader {
             errors.add(message);
             recordSchemaFailure(sourceName, message, exception);
         }
+    }
+
+    private String readWindowId(Path path) {
+        String fileName = path.getFileName().toString();
+        try {
+            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+            if (root.has("id") && root.get("id").isJsonPrimitive() && root.get("id").getAsJsonPrimitive().isString()) {
+                return root.get("id").getAsString();
+            }
+        } catch (Exception ignored) {
+            return stripJsonExtension(fileName);
+        }
+        return stripJsonExtension(fileName);
     }
 
     private WindowDefinition parseDefinition(JsonObject root, String sourceName) throws IOException, InterruptedException {
@@ -432,6 +463,10 @@ public final class SchemaLoader {
             case "BOTH" -> ClickType.BOTH;
             default -> ClickType.RIGHT;
         };
+    }
+
+    private static String stripJsonExtension(String fileName) {
+        return fileName.endsWith(".json") ? fileName.substring(0, fileName.length() - 5) : fileName;
     }
 
     private static boolean getBoolean(JsonObject object, String key, boolean defaultValue) {

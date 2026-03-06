@@ -18,12 +18,16 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import me.lucko.fabric.api.permissions.v0.Permissions;
+import net.minecraft.entity.Entity;
 import net.minecraft.command.CommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -33,6 +37,8 @@ import net.minecraft.util.math.Vec3d;
 public final class InteractiveDisplayCommand {
     private static final SimpleCommandExceptionType PLAYER_NOT_FOUND = new SimpleCommandExceptionType(Text.literal("플레이어를 찾을 수 없음"));
     private static final SimpleCommandExceptionType MANAGER_NOT_READY = new SimpleCommandExceptionType(Text.literal("InteractiveDisplay 런타임이 아직 준비되지 않음"));
+    private static final SimpleCommandExceptionType UNSUPPORTED_SELECTOR = new SimpleCommandExceptionType(Text.literal("지원하지 않는 플레이어 selector"));
+    private static final SimpleCommandExceptionType SINGLE_PLAYER_REQUIRED = new SimpleCommandExceptionType(Text.literal("이 명령은 플레이어 1명만 선택 가능"));
 
     private InteractiveDisplayCommand() {
     }
@@ -45,6 +51,7 @@ public final class InteractiveDisplayCommand {
         Predicate<ServerCommandSource> canRemove = Permissions.require("interactivedisplay.remove", 2);
         Predicate<ServerCommandSource> canReload = Permissions.require("interactivedisplay.reload", 3);
         Predicate<ServerCommandSource> canDebug = Permissions.require("interactivedisplay.debug", 2);
+        Predicate<ServerCommandSource> canList = source -> canCreate.test(source) || canReload.test(source) || canDebug.test(source);
 
         InteractiveDisplayCommandTree.register(dispatcher,
                 new InteractiveDisplayCommandTree.Handlers<>() {
@@ -55,15 +62,28 @@ public final class InteractiveDisplayCommand {
                                       PositionMode positionMode,
                                       Vec3d position) throws CommandSyntaxException {
                         WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_CREATE, playerName, windowId);
-                        ServerPlayerEntity target = getPlayer(context, playerName);
-                        CreateWindowResult result = windowManager.createWindow(target, windowId, positionMode, position);
-                        if (!result.success()) {
-                            InteractiveDisplay.LOGGER.warn("[{}] create command rejected player={} windowId={} mode={} position={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, playerName, windowId, positionMode, position, result.reasonCode(), result.message());
-                            context.getSource().sendError(Text.literal("창 생성 실패: " + windowId + " [" + result.reasonCode() + "]"));
+                        List<ServerPlayerEntity> targets = resolvePlayers(context.getSource(), playerName);
+                        int successCount = 0;
+                        List<String> failures = new ArrayList<>();
+                        for (ServerPlayerEntity target : targets) {
+                            CreateWindowResult result = windowManager.createWindow(target, windowId, positionMode, position);
+                            if (!result.success()) {
+                                InteractiveDisplay.LOGGER.warn("[{}] create command rejected player={} windowId={} mode={} position={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, target.getGameProfile().getName(), windowId, positionMode, position, result.reasonCode(), result.message());
+                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                continue;
+                            }
+                            successCount++;
+                        }
+                        if (successCount == 0) {
+                            context.getSource().sendError(Text.literal("창 생성 실패: " + windowId + (failures.isEmpty() ? "" : " " + String.join(", ", failures))));
                             return 0;
                         }
-                        context.getSource().sendFeedback(() -> Text.literal("창 생성 완료: " + windowId), false);
-                        return 1;
+                        if (!failures.isEmpty()) {
+                            context.getSource().sendError(Text.literal("부분 실패: " + String.join(", ", failures)));
+                        }
+                        int finalSuccessCount = successCount;
+                        context.getSource().sendFeedback(() -> Text.literal(formatSuccessMessage("창 생성 완료", windowId, finalSuccessCount)), false);
+                        return successCount;
                     }
 
                     @Override
@@ -71,14 +91,27 @@ public final class InteractiveDisplayCommand {
                                       String windowId,
                                       String playerName) throws CommandSyntaxException {
                         WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_REMOVE, playerName, windowId);
-                        ServerPlayerEntity target = getPlayer(context, playerName);
-                        RemoveWindowResult result = windowManager.removeWindow(target.getUuid(), windowId);
-                        if (!result.success()) {
-                            context.getSource().sendError(Text.literal("창 제거 실패: " + windowId + " [" + result.reasonCode() + "]"));
+                        List<ServerPlayerEntity> targets = resolvePlayers(context.getSource(), playerName);
+                        int successCount = 0;
+                        List<String> failures = new ArrayList<>();
+                        for (ServerPlayerEntity target : targets) {
+                            RemoveWindowResult result = windowManager.removeWindow(target.getUuid(), windowId);
+                            if (!result.success()) {
+                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                continue;
+                            }
+                            successCount++;
+                        }
+                        if (successCount == 0) {
+                            context.getSource().sendError(Text.literal("창 제거 실패: " + windowId + (failures.isEmpty() ? "" : " " + String.join(", ", failures))));
                             return 0;
                         }
-                        context.getSource().sendFeedback(() -> Text.literal("창 제거 완료: " + windowId), false);
-                        return 1;
+                        if (!failures.isEmpty()) {
+                            context.getSource().sendError(Text.literal("부분 실패: " + String.join(", ", failures)));
+                        }
+                        int finalSuccessCount = successCount;
+                        context.getSource().sendFeedback(() -> Text.literal(formatSuccessMessage("창 제거 완료", windowId, finalSuccessCount)), false);
+                        return successCount;
                     }
 
                     @Override
@@ -91,6 +124,13 @@ public final class InteractiveDisplayCommand {
                             return 0;
                         }
                         context.getSource().sendFeedback(() -> Text.literal(windowId == null ? "전체 창 리로드 완료" : "창 리로드 완료: " + windowId), false);
+                        return 1;
+                    }
+
+                    @Override
+                    public int list(com.mojang.brigadier.context.CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+                        WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_RELOAD, null, null);
+                        sendLines(context, buildListLines(windowManager.loadedWindowIds(), windowManager.availableWindowIds()), false);
                         return 1;
                     }
 
@@ -115,7 +155,7 @@ public final class InteractiveDisplayCommand {
                                            String playerName) throws CommandSyntaxException {
                         UUID playerUuid = null;
                         if (playerName != null) {
-                            playerUuid = getPlayer(context, playerName).getUuid();
+                            playerUuid = getSinglePlayer(context.getSource(), playerName).getUuid();
                         }
                         sendLines(context, buildRecentLines(debugRecorder.recentFailures(playerUuid, 5)), false);
                         return 1;
@@ -126,7 +166,7 @@ public final class InteractiveDisplayCommand {
                                            String windowId,
                                            String playerName) throws CommandSyntaxException {
                         WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_RELOAD, playerName, windowId);
-                        ServerPlayerEntity player = getPlayer(context, playerName);
+                        ServerPlayerEntity player = getSinglePlayer(context.getSource(), playerName);
                         WindowInstance instance = windowManager.findActiveWindow(player.getUuid(), windowId);
                         sendLines(context, buildWindowLines(windowId, windowManager.hasDefinition(windowId), instance, debugRecorder.latestFailure(player.getUuid(), windowId).orElse(null)), false);
                         return 1;
@@ -135,7 +175,7 @@ public final class InteractiveDisplayCommand {
                     @Override
                     public int debugBindings(com.mojang.brigadier.context.CommandContext<ServerCommandSource> context,
                                              String playerName) throws CommandSyntaxException {
-                        ServerPlayerEntity player = getPlayer(context, playerName);
+                        ServerPlayerEntity player = getSinglePlayer(context.getSource(), playerName);
                         sendLines(context, buildBindingLines(playerName, interactionRegistry.snapshotOwnerBindings(player.getUuid())), false);
                         return 1;
                     }
@@ -143,14 +183,20 @@ public final class InteractiveDisplayCommand {
                 canCreate,
                 canRemove,
                 canReload,
+                canList,
                 canDebug,
-                (context, builder) -> CommandSource.suggestMatching(context.getSource().getServer().getPlayerNames(), builder),
+                (context, builder) -> {
+                    builder.suggest("@s");
+                    builder.suggest("@p");
+                    builder.suggest("@a");
+                    return CommandSource.suggestMatching(context.getSource().getServer().getPlayerNames(), builder);
+                },
                 (context, builder) -> {
                     WindowManager manager = managerSupplier.get();
                     if (manager == null) {
                         return builder.buildFuture();
                     }
-                    return CommandSource.suggestMatching(manager.loadedWindowIds(), builder);
+                    return CommandSource.suggestMatching(manager.availableWindowIds(), builder);
                 }
         );
 
@@ -217,6 +263,26 @@ public final class InteractiveDisplayCommand {
         return lines;
     }
 
+    static List<String> buildListLines(Set<String> loadedWindowIds, Set<String> availableWindowIds) {
+        TreeSet<String> sortedLoaded = new TreeSet<>(loadedWindowIds);
+        TreeSet<String> sortedAvailable = new TreeSet<>(availableWindowIds);
+        List<String> lines = new ArrayList<>();
+        lines.add("창 목록 loaded=" + sortedLoaded.size() + " configured=" + sortedAvailable.size());
+        if (sortedLoaded.isEmpty()) {
+            lines.add("로드된 창 없음");
+        } else {
+            for (String windowId : sortedLoaded) {
+                lines.add("loaded: " + windowId);
+            }
+        }
+
+        sortedAvailable.removeAll(sortedLoaded);
+        for (String windowId : sortedAvailable) {
+            lines.add("configured-only: " + windowId);
+        }
+        return lines;
+    }
+
     private static WindowManager getManager(Supplier<WindowManager> managerSupplier,
                                             DebugRecorder debugRecorder,
                                             DebugEventType eventType,
@@ -230,13 +296,55 @@ public final class InteractiveDisplayCommand {
         return manager;
     }
 
-    private static ServerPlayerEntity getPlayer(com.mojang.brigadier.context.CommandContext<ServerCommandSource> context,
-                                                String playerName) throws CommandSyntaxException {
-        ServerPlayerEntity player = context.getSource().getServer().getPlayerManager().getPlayer(playerName);
-        if (player == null) {
-            throw PLAYER_NOT_FOUND.create();
+    private static ServerPlayerEntity getSinglePlayer(ServerCommandSource source, String playerToken) throws CommandSyntaxException {
+        List<ServerPlayerEntity> players = resolvePlayers(source, playerToken);
+        if (players.size() != 1) {
+            throw SINGLE_PLAYER_REQUIRED.create();
         }
-        return player;
+        return players.getFirst();
+    }
+
+    private static List<ServerPlayerEntity> resolvePlayers(ServerCommandSource source, String playerToken) throws CommandSyntaxException {
+        return switch (playerToken) {
+            case "@a" -> {
+                List<ServerPlayerEntity> players = new ArrayList<>(source.getServer().getPlayerManager().getPlayerList());
+                if (players.isEmpty()) {
+                    throw PLAYER_NOT_FOUND.create();
+                }
+                yield players;
+            }
+            case "@p" -> {
+                ServerPlayerEntity nearest = findNearestPlayer(source);
+                if (nearest == null) {
+                    throw PLAYER_NOT_FOUND.create();
+                }
+                yield List.of(nearest);
+            }
+            case "@s" -> {
+                Entity entity = source.getEntity();
+                if (entity instanceof ServerPlayerEntity player) {
+                    yield List.of(player);
+                }
+                throw PLAYER_NOT_FOUND.create();
+            }
+            default -> {
+                if (playerToken.startsWith("@")) {
+                    throw UNSUPPORTED_SELECTOR.create();
+                }
+                ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(playerToken);
+                if (player == null) {
+                    throw PLAYER_NOT_FOUND.create();
+                }
+                yield List.of(player);
+            }
+        };
+    }
+
+    private static ServerPlayerEntity findNearestPlayer(ServerCommandSource source) {
+        Vec3d origin = source.getPosition();
+        return source.getWorld().getPlayers().stream()
+                .min(Comparator.comparingDouble(player -> player.squaredDistanceTo(origin)))
+                .orElse(null);
     }
 
     private static void sendLines(com.mojang.brigadier.context.CommandContext<ServerCommandSource> context,
@@ -253,5 +361,9 @@ public final class InteractiveDisplayCommand {
 
     private static String valueOrDash(String value) {
         return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private static String formatSuccessMessage(String prefix, String windowId, int successCount) {
+        return successCount == 1 ? prefix + ": " + windowId : prefix + ": " + windowId + " (" + successCount + "명)";
     }
 }

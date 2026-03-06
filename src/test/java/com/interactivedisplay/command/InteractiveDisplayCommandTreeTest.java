@@ -16,7 +16,7 @@ class InteractiveDisplayCommandTreeTest {
     void fixedCreateCommandShouldParseExplicitPosition() throws Exception {
         TestHandlers handlers = new TestHandlers();
         CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
-        register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true);
+        register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true, source -> true);
 
         int result = dispatcher.execute("interactivedisplay create main_menu Steve fixed 1 2 3", new TestSource(Set.of("create")));
 
@@ -28,7 +28,7 @@ class InteractiveDisplayCommandTreeTest {
     void playerViewCreateCommandShouldParseWithoutPosition() throws Exception {
         TestHandlers handlers = new TestHandlers();
         CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
-        register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true);
+        register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true, source -> true);
 
         int result = dispatcher.execute("interactivedisplay create main_menu Steve player_view", new TestSource(Set.of("create")));
 
@@ -40,7 +40,7 @@ class InteractiveDisplayCommandTreeTest {
     void permissionDeniedShouldFail() {
         TestHandlers handlers = new TestHandlers();
         CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
-        register(dispatcher, handlers, source -> false, source -> false, source -> false, source -> false);
+        register(dispatcher, handlers, source -> false, source -> false, source -> false, source -> false, source -> false);
 
         assertThrows(CommandSyntaxException.class,
                 () -> dispatcher.execute("interactivedisplay create main Steve fixed", new TestSource(Set.of())));
@@ -55,6 +55,7 @@ class InteractiveDisplayCommandTreeTest {
                 source -> true,
                 source -> true,
                 source -> true,
+                source -> true,
                 (context, builder) -> builder.suggest("Karned").suggest("Alex").buildFuture(),
                 (context, builder) -> builder.suggest("main_menu").buildFuture());
 
@@ -65,16 +66,50 @@ class InteractiveDisplayCommandTreeTest {
         assertTrue(suggestions.getList().stream().anyMatch(s -> "Alex".equals(s.getText())));
     }
 
+    @Test
+    void listCommandShouldParse() throws Exception {
+        TestHandlers handlers = new TestHandlers();
+        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
+        register(dispatcher, handlers, source -> true, source -> true, source -> true, source -> true, source -> true);
+
+        int result = dispatcher.execute("interactivedisplay list", new TestSource(Set.of("create")));
+
+        assertEquals(1, result);
+        assertEquals("list", handlers.lastCall);
+    }
+
+    @Test
+    void windowSuggestionsShouldIncludeConfiguredCandidates() {
+        TestHandlers handlers = new TestHandlers();
+        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
+        InteractiveDisplayCommandTree.register(dispatcher, handlers,
+                source -> true,
+                source -> true,
+                source -> true,
+                source -> true,
+                source -> true,
+                (context, builder) -> builder.suggest("@s").suggest("@p").suggest("@a").suggest("Karned").buildFuture(),
+                (context, builder) -> builder.suggest("main_menu").suggest("gallery").buildFuture());
+
+        var parse = dispatcher.parse("interactivedisplay create ", new TestSource(Set.of("create")));
+        var suggestions = dispatcher.getCompletionSuggestions(parse).join();
+
+        assertTrue(suggestions.getList().stream().anyMatch(s -> "main_menu".equals(s.getText())));
+        assertTrue(suggestions.getList().stream().anyMatch(s -> "gallery".equals(s.getText())));
+    }
+
     private static void register(CommandDispatcher<TestSource> dispatcher,
                                  TestHandlers handlers,
                                  java.util.function.Predicate<TestSource> canCreate,
                                  java.util.function.Predicate<TestSource> canRemove,
                                  java.util.function.Predicate<TestSource> canReload,
+                                 java.util.function.Predicate<TestSource> canList,
                                  java.util.function.Predicate<TestSource> canDebug) {
         InteractiveDisplayCommandTree.register(dispatcher, handlers,
                 canCreate,
                 canRemove,
                 canReload,
+                canList,
                 canDebug,
                 (context, builder) -> builder.suggest("Steve").buildFuture(),
                 (context, builder) -> builder.suggest("main_menu").buildFuture());
@@ -138,6 +173,12 @@ class InteractiveDisplayCommandTreeTest {
         @Override
         public int debugBindings(com.mojang.brigadier.context.CommandContext<TestSource> context, String playerName) {
             this.lastCall = "debugBindings:" + playerName;
+            return 1;
+        }
+
+        @Override
+        public int list(com.mojang.brigadier.context.CommandContext<TestSource> context) {
+            this.lastCall = "list";
             return 1;
         }
     }

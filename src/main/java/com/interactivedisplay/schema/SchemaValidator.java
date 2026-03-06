@@ -61,7 +61,7 @@ public final class SchemaValidator {
 
             if ("text".equals(type)) {
                 requireString(component, "content", componentName, errors);
-                validateSize(component, componentName, errors, false);
+                validateOptionalTextSize(component, componentName, errors);
                 continue;
             }
 
@@ -175,6 +175,27 @@ public final class SchemaValidator {
         }
 
         errors.add(sourceName + ": size is required");
+    }
+
+    private static void validateOptionalTextSize(JsonObject component, String sourceName, List<String> errors) {
+        JsonObject size = getObject(component, "size");
+        if (size != null) {
+            requirePositiveNumber(size, "width", sourceName + ".size", errors);
+            requirePositiveNumber(size, "height", sourceName + ".size", errors);
+            return;
+        }
+
+        boolean hasWidth = component.has("width");
+        boolean hasHeight = component.has("height");
+        if (!hasWidth && !hasHeight) {
+            return;
+        }
+        if (!hasWidth || !hasHeight) {
+            errors.add(sourceName + ": width and height must be provided together");
+            return;
+        }
+        requirePositiveNumber(component, "width", sourceName, errors);
+        requirePositiveNumber(component, "height", sourceName, errors);
     }
 
     private static void requireLayout(JsonObject object, String sourceName, List<String> errors) {

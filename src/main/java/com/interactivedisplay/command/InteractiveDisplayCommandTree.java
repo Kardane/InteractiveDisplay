@@ -21,16 +21,18 @@ public final class InteractiveDisplayCommandTree {
                                     Predicate<S> canCreate,
                                     Predicate<S> canRemove,
                                     Predicate<S> canReload,
+                                    Predicate<S> canList,
                                     Predicate<S> canDebug,
                                     SuggestionProvider<S> playerSuggestions,
                                     SuggestionProvider<S> windowSuggestions) {
-        dispatcher.register(buildTree(handlers, canCreate, canRemove, canReload, canDebug, playerSuggestions, windowSuggestions));
+        dispatcher.register(buildTree(handlers, canCreate, canRemove, canReload, canList, canDebug, playerSuggestions, windowSuggestions));
     }
 
     private static <S> LiteralArgumentBuilder<S> buildTree(Handlers<S> handlers,
                                                            Predicate<S> canCreate,
                                                            Predicate<S> canRemove,
                                                            Predicate<S> canReload,
+                                                           Predicate<S> canList,
                                                            Predicate<S> canDebug,
                                                            SuggestionProvider<S> playerSuggestions,
                                                            SuggestionProvider<S> windowSuggestions) {
@@ -57,6 +59,9 @@ public final class InteractiveDisplayCommandTree {
                         .then(RequiredArgumentBuilder.<S, String>argument("windowId", StringArgumentType.word())
                                 .suggests(windowSuggestions)
                                 .executes(context -> handlers.reload(context, argWindowId(context)))))
+                .then(LiteralArgumentBuilder.<S>literal("list")
+                        .requires(canList)
+                        .executes(handlers::list))
                 .then(LiteralArgumentBuilder.<S>literal("debug")
                         .requires(canDebug)
                         .then(LiteralArgumentBuilder.<S>literal("status")
@@ -112,6 +117,8 @@ public final class InteractiveDisplayCommandTree {
         int remove(CommandContext<S> context, String windowId, String playerName) throws CommandSyntaxException;
 
         int reload(CommandContext<S> context, String windowId) throws CommandSyntaxException;
+
+        int list(CommandContext<S> context) throws CommandSyntaxException;
 
         int debugStatus(CommandContext<S> context) throws CommandSyntaxException;
 

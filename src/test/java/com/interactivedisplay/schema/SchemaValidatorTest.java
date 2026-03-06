@@ -61,6 +61,28 @@ class SchemaValidatorTest {
     }
 
     @Test
+    void textComponentWithoutExplicitSizeShouldUseDefaults() {
+        JsonObject root = JsonParser.parseString("""
+                {
+                  "id": "main_menu",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "title",
+                      "type": "text",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.01},
+                      "content": "InteractiveDisplay"
+                    }
+                  ]
+                }
+                """).getAsJsonObject();
+
+        List<String> errors = validator.validate(root, "main_menu.json");
+
+        assertTrue(errors.isEmpty());
+    }
+
+    @Test
     void invalidWindowShouldReportActionAndImageErrors() {
         JsonObject root = JsonParser.parseString("""
                 {
