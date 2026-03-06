@@ -39,7 +39,15 @@ class SchemaLoaderDebugTest {
         assertEquals("content", components.get(2).getAsJsonObject().get("id").getAsString());
         assertEquals("close", components.get(3).getAsJsonObject().get("id").getAsString());
         assertTrue(components.get(0).getAsJsonObject().get("backgroundColor").getAsString().startsWith("#88"));
-        assertTrue(components.get(1).getAsJsonObject().get("fontSize").getAsFloat() > components.get(2).getAsJsonObject().get("fontSize").getAsFloat());
+        assertEquals(0.7f, components.get(1).getAsJsonObject().get("fontSize").getAsFloat());
+        assertEquals(0.5f, components.get(2).getAsJsonObject().get("fontSize").getAsFloat());
+        assertTrue(components.get(1).getAsJsonObject().get("position").getAsJsonObject().get("y").getAsFloat()
+                > components.get(2).getAsJsonObject().get("position").getAsJsonObject().get("y").getAsFloat());
+        assertEquals("#CC992222", components.get(3).getAsJsonObject().get("backgroundColor").getAsString());
+        assertEquals("☒", components.get(3).getAsJsonObject().get("label").getAsString());
+        assertEquals(1.0f, components.get(3).getAsJsonObject().get("fontSize").getAsFloat());
+        assertEquals("minecraft:ui.button.click", components.get(3).getAsJsonObject().get("clickSound").getAsString());
+        assertEquals(0.45f, components.get(3).getAsJsonObject().getAsJsonObject("size").get("width").getAsFloat());
     }
 
     @Test
@@ -105,5 +113,73 @@ class SchemaLoaderDebugTest {
 
         assertFalse(result.hasErrors());
         assertTrue(result.definitions().containsKey("gallery"));
+    }
+
+    @Test
+    void textComponentWithoutFontSizeShouldUseSmallerDefault(@TempDir Path tempDir) throws Exception {
+        DebugRecorder recorder = new DebugRecorder(10);
+        Path windows = tempDir.resolve("interactivedisplay").resolve("windows");
+        Files.createDirectories(windows);
+        Files.writeString(windows.resolve("text.json"), """
+                {
+                  "id": "text_only",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "body",
+                      "type": "text",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "content": "hello"
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+
+        SchemaLoader loader = new SchemaLoader(tempDir, new SchemaValidator(), recorder);
+        SchemaLoader.LoadResult result = loader.loadAll();
+        var text = (com.interactivedisplay.core.component.TextComponentDefinition) result.definitions()
+                .get("text_only")
+                .components()
+                .getFirst();
+
+        assertFalse(result.hasErrors());
+        assertEquals(0.5f, text.fontSize());
+        assertEquals("#00000000", text.background());
+    }
+
+    @Test
+    void buttonComponentShouldSupportExplicitFontSizeAndClickSound(@TempDir Path tempDir) throws Exception {
+        DebugRecorder recorder = new DebugRecorder(10);
+        Path windows = tempDir.resolve("interactivedisplay").resolve("windows");
+        Files.createDirectories(windows);
+        Files.writeString(windows.resolve("button.json"), """
+                {
+                  "id": "button_only",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "close",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.35},
+                      "label": "닫기",
+                      "fontSize": 0.7,
+                      "clickSound": "minecraft:ui.button.click",
+                      "action": {"type": "close_window"}
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+
+        SchemaLoader loader = new SchemaLoader(tempDir, new SchemaValidator(), recorder);
+        SchemaLoader.LoadResult result = loader.loadAll();
+        var button = (com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions()
+                .get("button_only")
+                .components()
+                .getFirst();
+
+        assertFalse(result.hasErrors());
+        assertEquals(0.7f, button.fontSize());
+        assertEquals("minecraft:ui.button.click", button.clickSound());
     }
 }

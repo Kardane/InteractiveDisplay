@@ -18,6 +18,7 @@ import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
 import com.interactivedisplay.entity.DisplayEntityPool;
 import com.interactivedisplay.entity.EntitySpawnException;
+import com.interactivedisplay.item.InteractiveDisplayItems;
 import com.interactivedisplay.schema.SchemaLoader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -125,14 +126,16 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public CreateWindowResult createWindow(ServerPlayerEntity player, String windowId, PositionMode positionMode, Vec3d overrideAnchor) {
-        return createWindow(player, windowId, positionMode, overrideAnchor, player.getYaw());
+        float fixedYaw = positionMode == PositionMode.FIXED ? player.getYaw() : 0.0f;
+        return createWindow(player, windowId, positionMode, overrideAnchor, fixedYaw, 0.0f);
     }
 
     public CreateWindowResult createWindow(ServerPlayerEntity player,
                                            String windowId,
                                            PositionMode positionMode,
                                            Vec3d overrideAnchor,
-                                           float fixedYaw) {
+                                           float fixedYaw,
+                                           float fixedPitch) {
         WindowDefinition definition = this.definitions.get(windowId);
         String playerName = player.getGameProfile().getName();
         if (definition == null) {
@@ -143,24 +146,30 @@ public final class WindowManager implements WindowActionExecutor {
 
         removeWindowInternal(player.getUuid(), windowId, false);
 
-        WindowPositionTracker.WindowTransformState transformState = this.positionTracker.resolve(player, positionMode, definition.offset(), overrideAnchor, fixedYaw);
+        WindowPositionTracker.WindowTransformState transformState = this.positionTracker.resolve(player, positionMode, definition.offset(), overrideAnchor, fixedYaw, fixedPitch);
         List<LayoutComponent> layout = this.layoutEngine.calculate(definition);
         ServerWorld world = player.getWorld();
         long tick = this.server.getTicks();
+        UUID rootEntityId = this.entityFactory.spawnRoot(this.server, world, transformState.anchor(), positionMode, transformState.yaw(), transformState.pitch());
         WindowInstance instance = new WindowInstance(
                 player.getUuid(),
                 windowId,
                 world.getRegistryKey(),
                 positionMode,
                 positionMode == PositionMode.FIXED ? transformState.anchor() : overrideAnchor,
-                positionMode == PositionMode.FIXED ? fixedYaw : 0.0f,
+                fixedYaw,
+                positionMode == PositionMode.PLAYER_FIXED ? fixedPitch : 0.0f,
+                rootEntityId,
+                transformState.anchor(),
+                transformState.yaw(),
+                transformState.pitch(),
                 transformState.anchor(),
                 transformState.yaw(),
                 transformState.pitch(),
                 tick
         );
 
-        int spawnedEntityCount = 0;
+        int spawnedEntityCount = 1;
         List<WindowComponentRuntime> activatedRuntimes = new ArrayList<>();
         try {
             for (LayoutComponent layoutComponent : layout) {
@@ -169,14 +178,20 @@ public final class WindowManager implements WindowActionExecutor {
                     continue;
                 }
 
-                Vec3d worldPosition = this.transformer.toWorld(transformState.anchor(), layoutComponent.localPosition(), positionMode, transformState.yaw(), transformState.pitch());
                 String signature = buildSignature(component);
+                Vec3d componentWorldPosition = this.transformer.toWorld(
+                        transformState.anchor(),
+                        layoutComponent.localPosition(),
+                        positionMode,
+                        transformState.yaw(),
+                        transformState.pitch()
+                );
                 WindowComponentRuntime runtime = this.displayEntityPool.acquire(player.getUuid(), world.getRegistryKey(), signature, tick);
                 if (runtime != null) {
                     runtime.redefine(component, layoutComponent.localPosition());
-                    this.entityFactory.reconfigureRuntime(this.server, world, runtime, worldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
+                    this.entityFactory.reconfigureRuntime(this.server, world, runtime, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
                 } else {
-                    runtime = this.entityFactory.spawnRuntime(this.server, world, player.getUuid(), signature, component, worldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
+                    runtime = this.entityFactory.spawnRuntime(this.server, world, player.getUuid(), signature, component, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
                     runtime.redefine(component, layoutComponent.localPosition());
                 }
 
@@ -191,11 +206,13 @@ public final class WindowManager implements WindowActionExecutor {
             return result;
         } catch (EntitySpawnException exception) {
             cleanupFailedCreate(activatedRuntimes);
+            this.entityFactory.destroyRoot(this.server, world.getRegistryKey(), rootEntityId);
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, componentIdFrom(exception.getMessage()), transformState.anchor(), layout.size(), spawnedEntityCount, exception.getMessage());
             recordCreate(DebugLevel.WARN, positionMode, result);
             return result;
         } catch (RuntimeException exception) {
             cleanupFailedCreate(activatedRuntimes);
+            this.entityFactory.destroyRoot(this.server, world.getRegistryKey(), rootEntityId);
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, null, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 중 예외 발생: " + exception.getMessage());
             this.debugRecorder.record(DebugEventType.WINDOW_CREATE, DebugLevel.ERROR, player.getUuid(), playerName, windowId, null, null, DebugReason.ENTITY_SPAWN_FAILED, result.message(), exception);
             InteractiveDisplay.LOGGER.error("[{}] window create error player={} windowId={} mode={} anchor={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, playerName, windowId, positionMode, transformState.anchor(), result.reasonCode(), result.message(), exception);
@@ -212,7 +229,7 @@ public final class WindowManager implements WindowActionExecutor {
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, instance.currentAnchor(), 0, 0, "플레이어를 찾을 수 없음");
         }
-        return createWindow(player, windowId, instance.positionMode(), instance.fixedAnchor(), instance.fixedYaw());
+        return createWindow(player, windowId, instance.positionMode(), instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
     }
 
     public void tick() {
@@ -236,12 +253,15 @@ public final class WindowManager implements WindowActionExecutor {
                     continue;
                 }
 
-                WindowPositionTracker.WindowTransformState nextState = this.positionTracker.resolve(player, instance.positionMode(), definition.offset(), instance.fixedAnchor(), instance.fixedYaw());
-                if (this.positionTracker.shouldUpdate(instance, nextState, currentTick)) {
-                    if (instance.positionMode() != PositionMode.FIXED || !Objects.equals(instance.currentAnchor(), nextState.anchor())) {
-                        moveWindow(instance, nextState, player.getWorld());
+                WindowPositionTracker.WindowTransformState rawState = this.positionTracker.resolve(player, instance.positionMode(), definition.offset(), instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
+                WindowPositionTracker.WindowTransformState targetState = this.positionTracker.applyDeadzone(instance, rawState);
+                WindowPositionTracker.WindowTransformState currentState = this.positionTracker.smooth(instance, targetState);
+                instance.updateTarget(targetState.anchor(), targetState.yaw(), targetState.pitch());
+                if (this.positionTracker.shouldUpdate(instance, currentState, currentTick)) {
+                    if (instance.positionMode() != PositionMode.FIXED || !Objects.equals(instance.currentAnchor(), currentState.anchor())) {
+                        moveWindow(instance, currentState, player.getWorld());
                     }
-                    instance.updateTransform(nextState.anchor(), nextState.yaw(), nextState.pitch(), currentTick);
+                    instance.updateTransform(currentState.anchor(), currentState.yaw(), currentState.pitch(), currentTick);
                 }
                 syncCanvases(instance, player.getWorld().getPlayers());
             }
@@ -413,7 +433,7 @@ public final class WindowManager implements WindowActionExecutor {
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, null, 0, 0, "action 대상 플레이어를 찾을 수 없음");
         }
-        return createWindow(player, windowId, PositionMode.FIXED, null, player.getYaw());
+        return createWindow(player, windowId, PositionMode.FIXED, null, player.getYaw(), 0.0f);
     }
 
     @Override
@@ -453,9 +473,16 @@ public final class WindowManager implements WindowActionExecutor {
     private void moveWindow(WindowInstance instance,
                             WindowPositionTracker.WindowTransformState nextState,
                             ServerWorld world) {
+        this.entityFactory.moveRoot(world, instance.rootEntityId(), nextState.anchor(), instance.positionMode(), nextState.yaw(), nextState.pitch());
         for (WindowComponentRuntime runtime : instance.runtimes()) {
-            Vec3d worldPosition = this.transformer.toWorld(nextState.anchor(), runtime.localPosition(), instance.positionMode(), nextState.yaw(), nextState.pitch());
-            this.entityFactory.moveRuntime(this.server, world, runtime, worldPosition, instance.positionMode(), nextState.yaw(), nextState.pitch());
+            Vec3d componentWorldPosition = this.transformer.toWorld(
+                    nextState.anchor(),
+                    runtime.localPosition(),
+                    instance.positionMode(),
+                    nextState.yaw(),
+                    nextState.pitch()
+            );
+            this.entityFactory.moveRuntime(world, runtime, componentWorldPosition, instance.positionMode(), nextState.yaw(), nextState.pitch());
         }
     }
 
@@ -465,19 +492,27 @@ public final class WindowManager implements WindowActionExecutor {
             return;
         }
 
+        if (!InteractiveDisplayItems.isPointer(player.getMainHandStack())) {
+            clearHover(windows);
+            return;
+        }
+
         UiHitResult hovered = findUiHit(player);
         WindowComponentRuntime hoveredRuntime = hovered == null ? null : hovered.runtime();
-        ServerWorld world = player.getWorld();
         if (hovered != null) {
             Vec3d hit = hovered.hitPosition();
-            world.spawnParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            player.getWorld().spawnParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
         }
         for (WindowInstance instance : windows.values()) {
+            ServerWorld world = this.server.getWorld(instance.worldKey());
+            if (world == null) {
+                continue;
+            }
             for (WindowComponentRuntime runtime : instance.runtimes()) {
                 if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
                     continue;
                 }
-                boolean shouldHover = runtime == hoveredRuntime && instance.worldKey().equals(world.getRegistryKey());
+                boolean shouldHover = runtime == hoveredRuntime && instance.worldKey().equals(player.getWorld().getRegistryKey());
                 if (runtime.hovered() != shouldHover) {
                     this.entityFactory.setButtonHover(this.server, world, runtime, button, shouldHover, instance.positionMode());
                 }
@@ -518,6 +553,7 @@ public final class WindowManager implements WindowActionExecutor {
                 this.entityFactory.deactivateRuntime(this.server, world, runtime);
                 this.displayEntityPool.release(owner, instance.worldKey(), runtime, this.server.getTicks());
             }
+            this.entityFactory.destroyRoot(this.server, instance.worldKey(), instance.rootEntityId());
         }
 
         if (playerWindows.isEmpty()) {
@@ -619,6 +655,23 @@ public final class WindowManager implements WindowActionExecutor {
         int valueStart = index + "componentId=".length();
         int end = message.indexOf(' ', valueStart);
         return end < 0 ? message.substring(valueStart) : message.substring(valueStart, end);
+    }
+
+    private void clearHover(Map<String, WindowInstance> windows) {
+        for (WindowInstance instance : windows.values()) {
+            ServerWorld world = this.server.getWorld(instance.worldKey());
+            if (world == null) {
+                continue;
+            }
+            for (WindowComponentRuntime runtime : instance.runtimes()) {
+                if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
+                    continue;
+                }
+                if (runtime.hovered()) {
+                    this.entityFactory.setButtonHover(this.server, world, runtime, button, false, instance.positionMode());
+                }
+            }
+        }
     }
 
     public record BindingSnapshot(

@@ -18,7 +18,12 @@ public final class WindowInstance {
     private final PositionMode positionMode;
     private final Vec3d fixedAnchor;
     private final float fixedYaw;
+    private final float fixedPitch;
+    private final UUID rootEntityId;
     private final Map<String, WindowComponentRuntime> components = new LinkedHashMap<>();
+    private Vec3d targetAnchor;
+    private float targetYaw;
+    private float targetPitch;
     private Vec3d currentAnchor;
     private float currentYaw;
     private float currentPitch;
@@ -30,6 +35,11 @@ public final class WindowInstance {
                           PositionMode positionMode,
                           Vec3d fixedAnchor,
                           float fixedYaw,
+                          float fixedPitch,
+                          UUID rootEntityId,
+                          Vec3d targetAnchor,
+                          float targetYaw,
+                          float targetPitch,
                           Vec3d currentAnchor,
                           float currentYaw,
                           float currentPitch,
@@ -40,6 +50,11 @@ public final class WindowInstance {
         this.positionMode = positionMode;
         this.fixedAnchor = fixedAnchor;
         this.fixedYaw = fixedYaw;
+        this.fixedPitch = fixedPitch;
+        this.rootEntityId = rootEntityId;
+        this.targetAnchor = targetAnchor;
+        this.targetYaw = targetYaw;
+        this.targetPitch = targetPitch;
         this.currentAnchor = currentAnchor;
         this.currentYaw = currentYaw;
         this.currentPitch = currentPitch;
@@ -70,8 +85,28 @@ public final class WindowInstance {
         return this.fixedYaw;
     }
 
+    public float fixedPitch() {
+        return this.fixedPitch;
+    }
+
+    public UUID rootEntityId() {
+        return this.rootEntityId;
+    }
+
     public Vec3d currentAnchor() {
         return this.currentAnchor;
+    }
+
+    public Vec3d targetAnchor() {
+        return this.targetAnchor;
+    }
+
+    public float targetYaw() {
+        return this.targetYaw;
+    }
+
+    public float targetPitch() {
+        return this.targetPitch;
     }
 
     public float currentYaw() {
@@ -80,6 +115,12 @@ public final class WindowInstance {
 
     public float currentPitch() {
         return this.currentPitch;
+    }
+
+    public void updateTarget(Vec3d targetAnchor, float targetYaw, float targetPitch) {
+        this.targetAnchor = targetAnchor;
+        this.targetYaw = targetYaw;
+        this.targetPitch = targetPitch;
     }
 
     public void updateTransform(Vec3d currentAnchor, float currentYaw, float currentPitch, long tick) {
@@ -107,6 +148,9 @@ public final class WindowInstance {
 
     public Set<UUID> entityIds() {
         Set<UUID> ids = new LinkedHashSet<>();
+        if (this.rootEntityId != null) {
+            ids.add(this.rootEntityId);
+        }
         for (WindowComponentRuntime runtime : this.components.values()) {
             ids.addAll(runtime.entityIds());
         }

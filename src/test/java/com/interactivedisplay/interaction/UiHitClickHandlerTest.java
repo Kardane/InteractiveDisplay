@@ -84,7 +84,10 @@ class UiHitClickHandlerTest {
                 true,
                 1.0f,
                 "버튼",
+                1.0f,
+                "#AA2222",
                 "#44FFFFFF",
+                null,
                 com.interactivedisplay.core.component.ClickType.RIGHT,
                 action
         );

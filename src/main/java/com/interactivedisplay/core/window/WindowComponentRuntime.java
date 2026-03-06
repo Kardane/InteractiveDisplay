@@ -13,6 +13,10 @@ import org.joml.Vector3f;
 
 public final class WindowComponentRuntime {
     private static final double DEFAULT_MAX_DISTANCE = 6.0D;
+    private static final float MIN_BUTTON_WIDTH = 0.2f;
+    private static final float MIN_BUTTON_HEIGHT = 0.2f;
+    private static final float GLYPH_WIDTH_FACTOR = 0.72f;
+    private static final float HORIZONTAL_PADDING_FACTOR = 0.5f;
 
     private final RegistryKey<World> worldKey;
     private final String signature;
@@ -84,14 +88,14 @@ public final class WindowComponentRuntime {
 
     public float hitHalfWidth() {
         if (this.definition instanceof ButtonComponentDefinition button) {
-            return button.size().width() / 2.0f;
+            return buttonHitWidth(button) / 2.0f;
         }
         return 0.0f;
     }
 
     public float hitHalfHeight() {
         if (this.definition instanceof ButtonComponentDefinition button) {
-            return button.size().height() / 2.0f;
+            return buttonHitHeight(button) / 2.0f;
         }
         return 0.0f;
     }
@@ -113,5 +117,71 @@ public final class WindowComponentRuntime {
             ids.add(this.displayEntityId);
         }
         return ids;
+    }
+
+    private static float buttonHitWidth(ButtonComponentDefinition button) {
+        float baseHeight = Math.max(button.size().height() * Math.max(button.fontSize(), 0.1f), MIN_BUTTON_HEIGHT);
+        float availableWidth = Math.max(button.size().width(), MIN_BUTTON_WIDTH);
+        float textWidth = estimateTextUnits(button.label()) * baseHeight * GLYPH_WIDTH_FACTOR;
+        float paddedWidth = Math.max(baseHeight, textWidth + (baseHeight * HORIZONTAL_PADDING_FACTOR));
+        return Math.min(availableWidth, Math.max(MIN_BUTTON_WIDTH, paddedWidth));
+    }
+
+    private static float buttonHitHeight(ButtonComponentDefinition button) {
+        float baseHeight = Math.max(button.size().height() * Math.max(button.fontSize(), 0.1f), MIN_BUTTON_HEIGHT);
+        float availableWidth = buttonHitWidth(button);
+        float textWidth = estimateTextUnits(button.label()) * baseHeight * GLYPH_WIDTH_FACTOR;
+        int lineCount = Math.max(1, (int) Math.ceil(textWidth / Math.max(availableWidth, MIN_BUTTON_WIDTH)));
+        return baseHeight * lineCount;
+    }
+
+    private static float estimateTextUnits(String label) {
+        if (label == null || label.isEmpty()) {
+            return 1.0f;
+        }
+
+        float units = 0.0f;
+        for (int index = 0; index < label.length();) {
+            int codePoint = label.codePointAt(index);
+            units += glyphUnit(codePoint);
+            index += Character.charCount(codePoint);
+        }
+        return Math.max(1.0f, units);
+    }
+
+    private static float glyphUnit(int codePoint) {
+        if (Character.isWhitespace(codePoint)) {
+            return 0.35f;
+        }
+        if (isAsciiLetterOrDigit(codePoint)) {
+            return 0.62f;
+        }
+        if (isAsciiPunctuation(codePoint)) {
+            return 0.5f;
+        }
+        if (isWideGlyph(codePoint)) {
+            return 1.0f;
+        }
+        return 0.8f;
+    }
+
+    private static boolean isAsciiLetterOrDigit(int codePoint) {
+        return codePoint <= 0x7F && Character.isLetterOrDigit(codePoint);
+    }
+
+    private static boolean isAsciiPunctuation(int codePoint) {
+        return codePoint <= 0x7F && !Character.isLetterOrDigit(codePoint) && !Character.isWhitespace(codePoint);
+    }
+
+    private static boolean isWideGlyph(int codePoint) {
+        Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
+        return block == Character.UnicodeBlock.HANGUL_SYLLABLES
+                || block == Character.UnicodeBlock.HANGUL_JAMO
+                || block == Character.UnicodeBlock.HANGUL_COMPATIBILITY_JAMO
+                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
+                || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
+                || block == Character.UnicodeBlock.ENCLOSED_CJK_LETTERS_AND_MONTHS
+                || Character.getType(codePoint) == Character.OTHER_SYMBOL;
     }
 }

@@ -13,6 +13,7 @@ public final class SchemaValidator {
     private static final Set<String> IMAGE_TYPES = Set.of("item", "block", "map");
     private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal");
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
+    private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
 
     public List<String> validate(JsonObject root, String sourceName) {
         List<String> errors = new ArrayList<>();
@@ -62,16 +63,19 @@ public final class SchemaValidator {
             if ("text".equals(type)) {
                 requireString(component, "content", componentName, errors);
                 validateOptionalTextSize(component, componentName, errors);
+                validateAlignment(component, componentName, errors);
                 continue;
             }
 
             if ("button".equals(type)) {
                 requireString(component, "label", componentName, errors);
                 validateSize(component, componentName, errors, true);
+                validatePositiveOptional(component, "fontSize", componentName, errors);
                 String clickType = optionalString(component, "clickType");
                 if (clickType != null && !CLICK_TYPES.contains(clickType.toLowerCase())) {
                     errors.add(componentName + ": clickType must be LEFT, RIGHT, BOTH");
                 }
+                validateOptionalString(component, "clickSound", componentName, errors);
                 validateAction(component, componentName, errors);
                 continue;
             }
@@ -205,6 +209,26 @@ public final class SchemaValidator {
         }
         if (!LAYOUT_TYPES.contains(layout.toLowerCase())) {
             errors.add(sourceName + ": layout must be absolute, vertical, horizontal");
+        }
+    }
+
+    private static void validateAlignment(JsonObject object, String sourceName, List<String> errors) {
+        String alignment = optionalString(object, "alignment");
+        if (alignment == null) {
+            return;
+        }
+        if (!ALIGNMENTS.contains(alignment.toLowerCase())) {
+            errors.add(sourceName + ": alignment must be left, center, right");
+        }
+    }
+
+    private static void validateOptionalString(JsonObject object, String key, String sourceName, List<String> errors) {
+        JsonElement element = object.get(key);
+        if (element == null) {
+            return;
+        }
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+            errors.add(sourceName + ": " + key + " must be string");
         }
     }
 

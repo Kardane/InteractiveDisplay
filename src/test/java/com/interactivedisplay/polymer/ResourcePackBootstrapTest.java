@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -34,6 +37,34 @@ class ResourcePackBootstrapTest {
 
         assertFalse(ready);
         assertFalse(bootstrap.ready());
+    }
+
+    @Test
+    void bootstrapShouldSyncConfigImagesBeforeBuild(@TempDir Path tempDir) throws Exception {
+        FakePolymerBridge bridge = new FakePolymerBridge();
+        Path configDir = tempDir.resolve("config");
+        Path gameDir = tempDir.resolve("game");
+        Path imagePath = configDir.resolve("interactivedisplay").resolve("images").resolve("sample.png");
+        Files.createDirectories(imagePath.getParent());
+        BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
+        ImageIO.write(image, "png", imagePath.toFile());
+
+        ResourcePackBootstrap bootstrap = new ResourcePackBootstrap(
+                new PolymerConfigEnsurer(configDir),
+                bridge,
+                new ConfigImageAssetPackBuilder(configDir, gameDir)
+        );
+
+        bootstrap.bootstrap("interactivedisplay");
+
+        assertTrue(Files.exists(gameDir
+                .resolve("polymer")
+                .resolve("source_assets")
+                .resolve("assets")
+                .resolve("interactivedisplay")
+                .resolve("textures")
+                .resolve("config_images")
+                .resolve("sample.png")));
     }
 
     private static final class FakePolymerBridge extends PolymerBridge {

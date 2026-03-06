@@ -30,6 +30,23 @@ class CoordinateTransformerTest {
     }
 
     @Test
+    void playerFixedAnchorShouldRotateForwardOffsetByOrbitYaw() {
+        Vec3d anchor = transformer.toPlayerFixedAnchor(new Vec3d(0.0, 64.0, 0.0), new WindowOffset(2.0f, 0.0f, 0.0f), 90.0f, 0.0f);
+
+        assertEquals(-2.0, anchor.x, 0.0001);
+        assertEquals(64.0, anchor.y, 0.0001);
+        assertEquals(0.0, anchor.z, 0.0001);
+    }
+
+    @Test
+    void playerFixedFacingShouldPointBackToPlayerEye() {
+        CoordinateTransformer.ViewRotation rotation = transformer.facingRotation(new Vec3d(0.0, 64.0, 2.0), new Vec3d(0.0, 64.0, 0.0));
+
+        assertEquals(0.0f, rotation.yaw(), 0.0001f);
+        assertEquals(0.0f, rotation.pitch(), 0.0001f);
+    }
+
+    @Test
     void raycastQuadShouldHitWithinBounds() {
         double distance = transformer.raycastQuadDistance(
                 new Vec3d(0.0, 0.0, 0.0),

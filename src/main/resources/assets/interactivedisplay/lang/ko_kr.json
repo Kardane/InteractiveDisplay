@@ -1,4 +1,5 @@
 {
   "pack.interactivedisplay.title": "InteractiveDisplay",
-  "pack.interactivedisplay.description": "서버가 자동 배포하는 InteractiveDisplay 리소스팩"
+  "pack.interactivedisplay.description": "서버가 자동 배포하는 InteractiveDisplay 리소스팩",
+  "item.interactivedisplay.pointer": "UI 포인터"
 }

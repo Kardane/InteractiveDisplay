@@ -46,6 +46,22 @@ class InteractiveDisplayCommandTreeTest {
     }
 
     @Test
+    void playerFixedCreateLiteralShouldExposeYawPitchArguments() {
+        TestHandlers handlers = new TestHandlers();
+        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
+        register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true, source -> true);
+
+        var playerFixed = dispatcher.getRoot()
+                .getChild("interactivedisplay")
+                .getChild("create")
+                .getChild("windowId")
+                .getChild("player")
+                .getChild("player_fixed");
+
+        assertNotNull(playerFixed.getChild("yaw").getChild("pitch"));
+    }
+
+    @Test
     void listCommandShouldParse() throws Exception {
         TestHandlers handlers = new TestHandlers();
         CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
@@ -107,7 +123,8 @@ class InteractiveDisplayCommandTreeTest {
         public int create(com.mojang.brigadier.context.CommandContext<TestSource> context,
                           String windowId,
                           PositionMode positionMode,
-                          net.minecraft.util.math.Vec3d position) {
+                          net.minecraft.util.math.Vec3d position,
+                          InteractiveDisplayCommandTree.Rotation rotation) {
             this.lastCall = "create:" + windowId + ":" + positionMode;
             return 1;
         }

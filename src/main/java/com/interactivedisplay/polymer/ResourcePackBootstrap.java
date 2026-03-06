@@ -5,19 +5,29 @@ import com.interactivedisplay.InteractiveDisplay;
 public final class ResourcePackBootstrap {
     private final PolymerConfigEnsurer configEnsurer;
     private final PolymerBridge polymerBridge;
+    private final ConfigImageAssetPackBuilder configImageAssetPackBuilder;
     private volatile boolean ready;
 
     public ResourcePackBootstrap(PolymerConfigEnsurer configEnsurer, PolymerBridge polymerBridge) {
+        this(configEnsurer, polymerBridge, null);
+    }
+
+    public ResourcePackBootstrap(PolymerConfigEnsurer configEnsurer,
+                                 PolymerBridge polymerBridge,
+                                 ConfigImageAssetPackBuilder configImageAssetPackBuilder) {
         this.configEnsurer = configEnsurer;
         this.polymerBridge = polymerBridge;
+        this.configImageAssetPackBuilder = configImageAssetPackBuilder;
     }
 
     public void prepareFiles() {
         this.configEnsurer.ensure();
+        syncConfigImages();
     }
 
     public boolean bootstrap(String modId) {
         this.configEnsurer.ensure();
+        syncConfigImages();
         try {
             this.polymerBridge.enableAutoHost();
             boolean assetsAdded = this.polymerBridge.addModAssets(modId);
@@ -37,5 +47,11 @@ public final class ResourcePackBootstrap {
 
     public boolean ready() {
         return this.ready;
+    }
+
+    private void syncConfigImages() {
+        if (this.configImageAssetPackBuilder != null) {
+            this.configImageAssetPackBuilder.sync();
+        }
     }
 }

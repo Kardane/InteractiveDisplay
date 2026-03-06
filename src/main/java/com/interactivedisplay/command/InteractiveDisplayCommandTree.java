@@ -80,12 +80,16 @@ public final class InteractiveDisplayCommandTree {
 
     private static <S> LiteralArgumentBuilder<S> createLiteral(Handlers<S> handlers, PositionMode mode, String literal) {
         LiteralArgumentBuilder<S> node = LiteralArgumentBuilder.<S>literal(literal)
-                .executes(context -> handlers.create(context, argWindowId(context), mode, null));
+                .executes(context -> handlers.create(context, argWindowId(context), mode, null, null));
         if (mode == PositionMode.FIXED) {
             node.then(RequiredArgumentBuilder.<S, Double>argument("x", DoubleArgumentType.doubleArg())
                     .then(RequiredArgumentBuilder.<S, Double>argument("y", DoubleArgumentType.doubleArg())
                             .then(RequiredArgumentBuilder.<S, Double>argument("z", DoubleArgumentType.doubleArg())
-                                    .executes(context -> handlers.create(context, argWindowId(context), mode, argPosition(context))))));
+                                    .executes(context -> handlers.create(context, argWindowId(context), mode, argPosition(context), null)))));
+        } else if (mode == PositionMode.PLAYER_FIXED) {
+            node.then(RequiredArgumentBuilder.<S, Double>argument("yaw", DoubleArgumentType.doubleArg())
+                    .then(RequiredArgumentBuilder.<S, Double>argument("pitch", DoubleArgumentType.doubleArg())
+                            .executes(context -> handlers.create(context, argWindowId(context), mode, null, argRotation(context)))));
         }
         return node;
     }
@@ -102,8 +106,15 @@ public final class InteractiveDisplayCommandTree {
         );
     }
 
+    private static <S> Rotation argRotation(CommandContext<S> context) {
+        return new Rotation(
+                (float) DoubleArgumentType.getDouble(context, "yaw"),
+                (float) DoubleArgumentType.getDouble(context, "pitch")
+        );
+    }
+
     public interface Handlers<S> {
-        int create(CommandContext<S> context, String windowId, PositionMode positionMode, Vec3d position) throws CommandSyntaxException;
+        int create(CommandContext<S> context, String windowId, PositionMode positionMode, Vec3d position, Rotation rotation) throws CommandSyntaxException;
 
         int remove(CommandContext<S> context, String windowId) throws CommandSyntaxException;
 
@@ -118,5 +129,8 @@ public final class InteractiveDisplayCommandTree {
         int debugWindow(CommandContext<S> context, String windowId) throws CommandSyntaxException;
 
         int debugBindings(CommandContext<S> context) throws CommandSyntaxException;
+    }
+
+    public record Rotation(float yaw, float pitch) {
     }
 }

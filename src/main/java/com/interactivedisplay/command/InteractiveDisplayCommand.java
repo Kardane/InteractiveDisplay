@@ -29,6 +29,7 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 
@@ -53,14 +54,28 @@ public final class InteractiveDisplayCommand {
                     public int create(CommandContext<ServerCommandSource> context,
                                       String windowId,
                                       PositionMode positionMode,
-                                      Vec3d position) throws CommandSyntaxException {
+                                      Vec3d position,
+                                      InteractiveDisplayCommandTree.Rotation rotation) throws CommandSyntaxException {
                         WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_CREATE, null, windowId);
                         List<ServerPlayerEntity> targets = resolvePlayers(context);
-                        float fixedYaw = positionMode == PositionMode.FIXED ? commandSourceYaw(context.getSource()) : 0.0f;
                         int successCount = 0;
                         List<String> failures = new ArrayList<>();
                         for (ServerPlayerEntity target : targets) {
-                            CreateWindowResult result = windowManager.createWindow(target, windowId, positionMode, position, fixedYaw);
+                            InteractiveDisplayCommandTree.Rotation resolvedRotation = resolveRotationForTarget(
+                                    positionMode,
+                                    commandSourceYaw(context.getSource()),
+                                    target.getYaw(),
+                                    target.getPitch(),
+                                    rotation
+                            );
+                            CreateWindowResult result = windowManager.createWindow(
+                                    target,
+                                    windowId,
+                                    positionMode,
+                                    position,
+                                    resolvedRotation.yaw(),
+                                    resolvedRotation.pitch()
+                            );
                             if (!result.success()) {
                                 InteractiveDisplay.LOGGER.warn("[{}] create command rejected player={} windowId={} mode={} position={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, target.getGameProfile().getName(), windowId, positionMode, position, result.reasonCode(), result.message());
                                 failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
@@ -111,6 +126,10 @@ public final class InteractiveDisplayCommand {
                     public int reload(CommandContext<ServerCommandSource> context,
                                       String windowId) throws CommandSyntaxException {
                         WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_RELOAD, null, windowId);
+                        InteractiveDisplay interactiveDisplay = InteractiveDisplay.instance();
+                        if (interactiveDisplay != null) {
+                            interactiveDisplay.rebuildResourcePack();
+                        }
                         ReloadWindowResult result = windowId == null ? windowManager.reloadAll() : windowManager.reloadOne(windowId);
                         if (!result.success()) {
                             context.getSource().sendError(Text.literal((windowId == null ? "리로드 완료" : "리로드 실패") + " [" + result.reasonCode() + "] 오류 " + result.errorCount() + "건"));
@@ -222,7 +241,7 @@ public final class InteractiveDisplayCommand {
         if (instance == null) {
             lines.add("창 " + windowId + " 정의 있음, 활성 인스턴스 없음");
         } else {
-            lines.add("창 " + windowId + " 정의 있음, 활성 인스턴스 있음, entityCount=" + instance.entityIds().size() + " bindings=" + instance.bindingCount() + " world=" + instance.worldKey().getValue() + " mode=" + instance.positionMode() + " fixedYaw=" + instance.fixedYaw());
+            lines.add("창 " + windowId + " 정의 있음, 활성 인스턴스 있음, entityCount=" + instance.entityIds().size() + " bindings=" + instance.bindingCount() + " world=" + instance.worldKey().getValue() + " mode=" + instance.positionMode() + " fixedYaw=" + instance.fixedYaw() + " fixedPitch=" + instance.fixedPitch());
         }
         lines.add(latestFailure == null
                 ? "최근 실패 없음"
@@ -297,6 +316,25 @@ public final class InteractiveDisplayCommand {
 
     private static float commandSourceYaw(ServerCommandSource source) {
         return source.getEntity() instanceof ServerPlayerEntity player ? player.getYaw() : 0.0f;
+    }
+
+    static InteractiveDisplayCommandTree.Rotation resolveRotationForTarget(PositionMode positionMode,
+                                                                           float sourceYaw,
+                                                                           float targetYaw,
+                                                                           float targetPitch,
+                                                                           InteractiveDisplayCommandTree.Rotation requestedRotation) {
+        return switch (positionMode) {
+            case FIXED -> new InteractiveDisplayCommandTree.Rotation(sourceYaw, 0.0f);
+            case PLAYER_FIXED -> {
+                float yawValue = requestedRotation == null ? 0.0f : requestedRotation.yaw();
+                float pitchValue = requestedRotation == null ? 0.0f : requestedRotation.pitch();
+                yield new InteractiveDisplayCommandTree.Rotation(
+                        MathHelper.wrapDegrees(yawValue),
+                        MathHelper.clamp(pitchValue, -90.0f, 90.0f)
+                );
+            }
+            case PLAYER_VIEW -> new InteractiveDisplayCommandTree.Rotation(0.0f, 0.0f);
+        };
     }
 
     private static boolean hasArgument(CommandContext<?> context, String name) {

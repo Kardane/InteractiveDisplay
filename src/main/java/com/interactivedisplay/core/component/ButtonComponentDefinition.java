@@ -7,7 +7,10 @@ public record ButtonComponentDefinition(
         boolean visible,
         float opacity,
         String label,
+        float fontSize,
+        String backgroundColor,
         String hoverColor,
+        String clickSound,
         ClickType clickType,
         ComponentAction action
 ) implements ComponentDefinition {

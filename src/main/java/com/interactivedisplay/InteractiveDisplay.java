@@ -1,6 +1,7 @@
 package com.interactivedisplay;
 
 import com.interactivedisplay.command.InteractiveDisplayCommand;
+import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.ClickHandleResult;
 import com.interactivedisplay.core.interaction.ClickHandler;
@@ -12,6 +13,8 @@ import com.interactivedisplay.core.window.ReloadWindowResult;
 import com.interactivedisplay.core.window.WindowManager;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
+import com.interactivedisplay.item.InteractiveDisplayItems;
+import com.interactivedisplay.polymer.ConfigImageAssetPackBuilder;
 import com.interactivedisplay.polymer.PolymerBridge;
 import com.interactivedisplay.polymer.PolymerConfigEnsurer;
 import com.interactivedisplay.polymer.ResourcePackBootstrap;
@@ -24,6 +27,10 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
+import java.nio.file.Path;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,9 +62,16 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     @Override
     public void onInitializeServer() {
         LOGGER.info("[{}] 초기화 시작", MOD_ID);
+        InteractiveDisplayItems.register();
 
-        PolymerConfigEnsurer configEnsurer = new PolymerConfigEnsurer(FabricLoader.getInstance().getConfigDir());
-        this.resourcePackBootstrap = new ResourcePackBootstrap(configEnsurer, new PolymerBridge());
+        Path configDir = FabricLoader.getInstance().getConfigDir();
+        Path gameDir = FabricLoader.getInstance().getGameDir();
+        PolymerConfigEnsurer configEnsurer = new PolymerConfigEnsurer(configDir);
+        this.resourcePackBootstrap = new ResourcePackBootstrap(
+                configEnsurer,
+                new PolymerBridge(),
+                new ConfigImageAssetPackBuilder(configDir, gameDir)
+        );
         this.resourcePackBootstrap.prepareFiles();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
@@ -80,7 +94,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             this.windowManager = manager;
             this.clickHandler = new ClickHandler(manager, this.debugRecorder);
 
-            this.resourcePackBootstrap.bootstrap(MOD_ID);
+            this.rebuildResourcePack();
             ReloadWindowResult result = manager.reloadAll();
             if (!result.success()) {
                 LOGGER.warn("[{}] 초기 리로드 경고 reasonCode={} errorCount={}", MOD_ID, result.reasonCode(), result.errorCount());
@@ -129,13 +143,43 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         if (manager == null || handler == null) {
             return false;
         }
+        if (!InteractiveDisplayItems.isPointer(player.getMainHandStack())) {
+            return false;
+        }
 
         UiHitResult hitResult = manager.findUiHit(player);
         if (hitResult == null) {
             return false;
         }
 
-        handler.handle(player.getUuid(), player.getGameProfile().getName(), hitResult);
-        return true;
+        ClickHandleResult result = handler.handle(player.getUuid(), player.getGameProfile().getName(), hitResult);
+        if (result.consumed()) {
+            playButtonSound(player, hitResult);
+        }
+        return result.consumed();
+    }
+
+    public WindowManager windowManager() {
+        return this.windowManager;
+    }
+
+    public boolean rebuildResourcePack() {
+        ResourcePackBootstrap bootstrap = this.resourcePackBootstrap;
+        return bootstrap != null && bootstrap.bootstrap(MOD_ID);
+    }
+
+    private static void playButtonSound(ServerPlayerEntity player, UiHitResult hitResult) {
+        if (!(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
+            return;
+        }
+        if (button.clickSound() == null || button.clickSound().isBlank()) {
+            return;
+        }
+        Identifier soundId = Identifier.tryParse(button.clickSound());
+        if (soundId == null) {
+            LOGGER.warn("[{}] invalid clickSound componentId={} value={}", MOD_ID, hitResult.componentId(), button.clickSound());
+            return;
+        }
+        player.playSoundToPlayer(SoundEvent.of(soundId), SoundCategory.PLAYERS, 1.0f, 1.0f);
     }
 }

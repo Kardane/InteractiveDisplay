@@ -183,7 +183,7 @@ public final class SchemaLoader {
                     visible,
                     opacity,
                     component.get("content").getAsString(),
-                    getFloat(component, "fontSize", 1.0f),
+                    getFloat(component, "fontSize", 0.5f),
                     getString(component, "color", "#FFFFFF"),
                     getString(component, "alignment", "left"),
                     getInt(component, "lineWidth", 200),
@@ -223,7 +223,10 @@ public final class SchemaLoader {
                     visible,
                     opacity,
                     component.get("label").getAsString(),
+                    getFloat(component, "fontSize", 1.0f),
+                    getString(component, "backgroundColor", "#00000000"),
                     getString(component, "hoverColor", "#44FFFFFF"),
+                    getString(component, "clickSound", null),
                     ClickType.RIGHT,
                     parseAction(component.getAsJsonObject("action"))
             );
@@ -334,22 +337,22 @@ public final class SchemaLoader {
                     {
                       "id": "title",
                       "type": "text",
-                      "position": { "x": 0.2, "y": 0.15, "z": 0.01 },
+                      "position": { "x": 0.0, "y": 0.45, "z": 0.01 },
                       "width": 2.6,
                       "height": 0.35,
                       "content": "InteractiveDisplay",
-                      "fontSize": 1.2,
+                      "fontSize": 0.7,
                       "alignment": "center",
                       "background": "#00000000"
                     },
                     {
                       "id": "content",
                       "type": "text",
-                      "position": { "x": 0.2, "y": 0.6, "z": 0.01 },
+                      "position": { "x": 0.0, "y": 0.05, "z": 0.01 },
                       "width": 2.6,
                       "height": 0.45,
                       "content": "샘플 창 내용",
-                      "fontSize": 0.8,
+                      "fontSize": 0.5,
                       "alignment": "center",
                       "color": "#E8E8E8",
                       "background": "#00000000"
@@ -357,10 +360,13 @@ public final class SchemaLoader {
                     {
                       "id": "close",
                       "type": "button",
-                      "position": { "x": 0.7, "y": 1.35, "z": 0.01 },
-                      "size": { "width": 1.6, "height": 0.35 },
-                      "label": "닫기",
-                      "hoverColor": "#55FFFFFF",
+                      "position": { "x": 0.0, "y": -0.55, "z": 0.01 },
+                      "size": { "width": 0.45, "height": 0.35 },
+                      "label": "☒",
+                      "fontSize": 1.0,
+                      "backgroundColor": "#CC992222",
+                      "hoverColor": "#EECC4444",
+                      "clickSound": "minecraft:ui.button.click",
                       "action": { "type": "close_window" }
                     }
                   ]
