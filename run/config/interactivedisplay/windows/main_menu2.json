@@ -7,7 +7,7 @@
   "offset": {
     "forward": 3.0,
     "horizontal": 0.0,
-    "vertical": -0.5
+    "vertical": 0.5
   },
   "components": [
     {
@@ -50,7 +50,7 @@
       },
       "width": 2.6,
       "height": 0.45,
-      "content": "두 번째 창임, {player:name}",
+      "content": "테스트트틑2",
       "fontSize": 0.4,
       "alignment": "center",
       "color": "#E8E8E8",
@@ -60,7 +60,7 @@
       "id": "back_main",
       "type": "button",
       "position": {
-        "x": -0.72,
+        "x": -0.5,
         "y": -0.55,
         "z": 0.01
       },
@@ -68,8 +68,8 @@
         "width": 1.2,
         "height": 0.35
       },
-      "label": "{player:name} 돌아가기",
-      "fontSize": 0.34,
+      "label": "돌아가기",
+      "fontSize": 0.4,
       "backgroundColor": "#CC225577",
       "hoverColor": "#EE3388AA",
       "action": {
@@ -81,7 +81,7 @@
       "id": "command_ping",
       "type": "button",
       "position": {
-        "x": 0.72,
+        "x": 0.5,
         "y": -0.55,
         "z": 0.01
       },
@@ -89,8 +89,8 @@
         "width": 1.25,
         "height": 0.35
       },
-      "label": "title 실행 {player:name}",
-      "fontSize": 0.32,
+      "label": "명령어 실행",
+      "fontSize": 0.4,
       "backgroundColor": "#CC9A8124",
       "hoverColor": "#EEC5A534",
       "action": {
@@ -100,7 +100,7 @@
       }
     },
     {
-      "id": "close",
+      "id": "close2",
       "type": "button",
       "position": {
         "x": 0.0,
