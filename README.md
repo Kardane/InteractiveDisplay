@@ -1,5 +1,7 @@
 # InteractiveDisplay
 
+[img](https://imgur.com/a/EsAEpMW)
+
 `InteractiveDisplay`는 Minecraft 1.21.8 Fabric 서버에서 동작하는 서버사이드 3D HUD / 창 시스템임.  
 `display entity` 기반으로 UI를 띄우고, JSON 설정으로 창 레이아웃과 버튼 동작을 정의하는 구조임.
 
