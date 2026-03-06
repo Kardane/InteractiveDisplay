@@ -10,6 +10,8 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.util.function.Predicate;
+import net.minecraft.command.EntitySelector;
+import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.util.math.Vec3d;
 
 public final class InteractiveDisplayCommandTree {
@@ -23,9 +25,8 @@ public final class InteractiveDisplayCommandTree {
                                     Predicate<S> canReload,
                                     Predicate<S> canList,
                                     Predicate<S> canDebug,
-                                    SuggestionProvider<S> playerSuggestions,
                                     SuggestionProvider<S> windowSuggestions) {
-        dispatcher.register(buildTree(handlers, canCreate, canRemove, canReload, canList, canDebug, playerSuggestions, windowSuggestions));
+        dispatcher.register(buildTree(handlers, canCreate, canRemove, canReload, canList, canDebug, windowSuggestions));
     }
 
     private static <S> LiteralArgumentBuilder<S> buildTree(Handlers<S> handlers,
@@ -34,15 +35,13 @@ public final class InteractiveDisplayCommandTree {
                                                            Predicate<S> canReload,
                                                            Predicate<S> canList,
                                                            Predicate<S> canDebug,
-                                                           SuggestionProvider<S> playerSuggestions,
                                                            SuggestionProvider<S> windowSuggestions) {
         return LiteralArgumentBuilder.<S>literal("interactivedisplay")
                 .then(LiteralArgumentBuilder.<S>literal("create")
                         .requires(canCreate)
                         .then(RequiredArgumentBuilder.<S, String>argument("windowId", StringArgumentType.word())
                                 .suggests(windowSuggestions)
-                                .then(RequiredArgumentBuilder.<S, String>argument("player", StringArgumentType.word())
-                                        .suggests(playerSuggestions)
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
                                         .then(createLiteral(handlers, PositionMode.FIXED, "fixed"))
                                         .then(createLiteral(handlers, PositionMode.PLAYER_FIXED, "player_fixed"))
                                         .then(createLiteral(handlers, PositionMode.PLAYER_VIEW, "player_view")))))
@@ -50,9 +49,8 @@ public final class InteractiveDisplayCommandTree {
                         .requires(canRemove)
                         .then(RequiredArgumentBuilder.<S, String>argument("windowId", StringArgumentType.word())
                                 .suggests(windowSuggestions)
-                                .then(RequiredArgumentBuilder.<S, String>argument("player", StringArgumentType.word())
-                                        .suggests(playerSuggestions)
-                                        .executes(context -> handlers.remove(context, argWindowId(context), argPlayer(context))))))
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
+                                        .executes(context -> handlers.remove(context, argWindowId(context))))))
                 .then(LiteralArgumentBuilder.<S>literal("reload")
                         .requires(canReload)
                         .executes(context -> handlers.reload(context, null))
@@ -67,40 +65,33 @@ public final class InteractiveDisplayCommandTree {
                         .then(LiteralArgumentBuilder.<S>literal("status")
                                 .executes(handlers::debugStatus))
                         .then(LiteralArgumentBuilder.<S>literal("recent")
-                                .executes(context -> handlers.debugRecent(context, null))
-                                .then(RequiredArgumentBuilder.<S, String>argument("player", StringArgumentType.word())
-                                        .suggests(playerSuggestions)
-                                        .executes(context -> handlers.debugRecent(context, argPlayer(context)))))
+                                .executes(handlers::debugRecent)
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.player())
+                                        .executes(handlers::debugRecent)))
                         .then(LiteralArgumentBuilder.<S>literal("window")
                                 .then(RequiredArgumentBuilder.<S, String>argument("windowId", StringArgumentType.word())
                                         .suggests(windowSuggestions)
-                                        .then(RequiredArgumentBuilder.<S, String>argument("player", StringArgumentType.word())
-                                                .suggests(playerSuggestions)
-                                                .executes(context -> handlers.debugWindow(context, argWindowId(context), argPlayer(context))))))
+                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.player())
+                                                .executes(context -> handlers.debugWindow(context, argWindowId(context))))))
                         .then(LiteralArgumentBuilder.<S>literal("bindings")
-                                .then(RequiredArgumentBuilder.<S, String>argument("player", StringArgumentType.word())
-                                        .suggests(playerSuggestions)
-                                        .executes(context -> handlers.debugBindings(context, argPlayer(context))))));
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.player())
+                                        .executes(handlers::debugBindings))));
     }
 
     private static <S> LiteralArgumentBuilder<S> createLiteral(Handlers<S> handlers, PositionMode mode, String literal) {
         LiteralArgumentBuilder<S> node = LiteralArgumentBuilder.<S>literal(literal)
-                .executes(context -> handlers.create(context, argWindowId(context), argPlayer(context), mode, null));
+                .executes(context -> handlers.create(context, argWindowId(context), mode, null));
         if (mode == PositionMode.FIXED) {
             node.then(RequiredArgumentBuilder.<S, Double>argument("x", DoubleArgumentType.doubleArg())
                     .then(RequiredArgumentBuilder.<S, Double>argument("y", DoubleArgumentType.doubleArg())
                             .then(RequiredArgumentBuilder.<S, Double>argument("z", DoubleArgumentType.doubleArg())
-                                    .executes(context -> handlers.create(context, argWindowId(context), argPlayer(context), mode, argPosition(context))))));
+                                    .executes(context -> handlers.create(context, argWindowId(context), mode, argPosition(context))))));
         }
         return node;
     }
 
     private static <S> String argWindowId(CommandContext<S> context) {
         return StringArgumentType.getString(context, "windowId");
-    }
-
-    private static <S> String argPlayer(CommandContext<S> context) {
-        return StringArgumentType.getString(context, "player");
     }
 
     private static <S> Vec3d argPosition(CommandContext<S> context) {
@@ -112,9 +103,9 @@ public final class InteractiveDisplayCommandTree {
     }
 
     public interface Handlers<S> {
-        int create(CommandContext<S> context, String windowId, String playerName, PositionMode positionMode, Vec3d position) throws CommandSyntaxException;
+        int create(CommandContext<S> context, String windowId, PositionMode positionMode, Vec3d position) throws CommandSyntaxException;
 
-        int remove(CommandContext<S> context, String windowId, String playerName) throws CommandSyntaxException;
+        int remove(CommandContext<S> context, String windowId) throws CommandSyntaxException;
 
         int reload(CommandContext<S> context, String windowId) throws CommandSyntaxException;
 
@@ -122,10 +113,10 @@ public final class InteractiveDisplayCommandTree {
 
         int debugStatus(CommandContext<S> context) throws CommandSyntaxException;
 
-        int debugRecent(CommandContext<S> context, String playerName) throws CommandSyntaxException;
+        int debugRecent(CommandContext<S> context) throws CommandSyntaxException;
 
-        int debugWindow(CommandContext<S> context, String windowId, String playerName) throws CommandSyntaxException;
+        int debugWindow(CommandContext<S> context, String windowId) throws CommandSyntaxException;
 
-        int debugBindings(CommandContext<S> context, String playerName) throws CommandSyntaxException;
+        int debugBindings(CommandContext<S> context) throws CommandSyntaxException;
     }
 }

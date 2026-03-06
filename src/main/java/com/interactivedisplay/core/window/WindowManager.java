@@ -3,13 +3,9 @@ package com.interactivedisplay.core.window;
 import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentDefinition;
-import com.interactivedisplay.core.component.ImageComponentDefinition;
-import com.interactivedisplay.core.component.PanelComponentDefinition;
-import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.CommandWhitelist;
-import com.interactivedisplay.core.interaction.InteractionBinding;
-import com.interactivedisplay.core.interaction.InteractionRegistry;
+import com.interactivedisplay.core.interaction.UiHitResult;
 import com.interactivedisplay.core.layout.LayoutComponent;
 import com.interactivedisplay.core.layout.LayoutEngine;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
@@ -27,7 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,24 +30,19 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 public final class WindowManager implements WindowActionExecutor {
-    private static final double HOVER_DISTANCE = 6.0D;
-
     private final MinecraftServer server;
     private final SchemaLoader schemaLoader;
     private final LayoutEngine layoutEngine;
     private final CoordinateTransformer transformer;
     private final WindowPositionTracker positionTracker;
     private final DisplayEntityFactory entityFactory;
-    private final InteractionRegistry interactionRegistry;
     private final DebugRecorder debugRecorder;
     private final CommandWhitelist commandWhitelist;
     private final CallbackRegistry callbackRegistry;
@@ -60,6 +50,7 @@ public final class WindowManager implements WindowActionExecutor {
 
     private final Map<String, WindowDefinition> definitions = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, WindowInstance>> activeWindows = new ConcurrentHashMap<>();
+    private final Set<String> brokenWindowIds = ConcurrentHashMap.newKeySet();
 
     public WindowManager(MinecraftServer server,
                          SchemaLoader schemaLoader,
@@ -67,7 +58,6 @@ public final class WindowManager implements WindowActionExecutor {
                          CoordinateTransformer transformer,
                          WindowPositionTracker positionTracker,
                          DisplayEntityFactory entityFactory,
-                         InteractionRegistry interactionRegistry,
                          DebugRecorder debugRecorder,
                          CommandWhitelist commandWhitelist,
                          CallbackRegistry callbackRegistry) {
@@ -77,7 +67,6 @@ public final class WindowManager implements WindowActionExecutor {
         this.transformer = transformer;
         this.positionTracker = positionTracker;
         this.entityFactory = entityFactory;
-        this.interactionRegistry = interactionRegistry;
         this.debugRecorder = debugRecorder;
         this.commandWhitelist = commandWhitelist;
         this.callbackRegistry = callbackRegistry;
@@ -86,6 +75,7 @@ public final class WindowManager implements WindowActionExecutor {
     public ReloadWindowResult reloadAll() {
         tryReloadSupport();
         SchemaLoader.LoadResult loadResult = this.schemaLoader.loadAll();
+        replaceBrokenWindowIds(loadResult.brokenWindowIds());
 
         if (!loadResult.hasErrors()) {
             this.definitions.clear();
@@ -109,6 +99,7 @@ public final class WindowManager implements WindowActionExecutor {
     public ReloadWindowResult reloadOne(String windowId) {
         tryReloadSupport();
         SchemaLoader.LoadResult loadResult = this.schemaLoader.loadAll();
+        replaceBrokenWindowIds(loadResult.brokenWindowIds());
         WindowDefinition definition = loadResult.definitions().get(windowId);
         if (definition == null) {
             DebugReason reasonCode = loadResult.hasErrors() ? DebugReason.SCHEMA_VALIDATION_FAILED : DebugReason.WINDOW_DEFINITION_NOT_FOUND;
@@ -131,6 +122,14 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public CreateWindowResult createWindow(ServerPlayerEntity player, String windowId, PositionMode positionMode, Vec3d overrideAnchor) {
+        return createWindow(player, windowId, positionMode, overrideAnchor, player.getYaw());
+    }
+
+    public CreateWindowResult createWindow(ServerPlayerEntity player,
+                                           String windowId,
+                                           PositionMode positionMode,
+                                           Vec3d overrideAnchor,
+                                           float fixedYaw) {
         WindowDefinition definition = this.definitions.get(windowId);
         String playerName = player.getGameProfile().getName();
         if (definition == null) {
@@ -141,7 +140,7 @@ public final class WindowManager implements WindowActionExecutor {
 
         removeWindowInternal(player.getUuid(), windowId, false);
 
-        WindowPositionTracker.WindowTransformState transformState = this.positionTracker.resolve(player, positionMode, definition.offset(), overrideAnchor);
+        WindowPositionTracker.WindowTransformState transformState = this.positionTracker.resolve(player, positionMode, definition.offset(), overrideAnchor, fixedYaw);
         List<LayoutComponent> layout = this.layoutEngine.calculate(definition);
         ServerWorld world = player.getWorld();
         long tick = this.server.getTicks();
@@ -151,6 +150,7 @@ public final class WindowManager implements WindowActionExecutor {
                 world.getRegistryKey(),
                 positionMode,
                 positionMode == PositionMode.FIXED ? transformState.anchor() : overrideAnchor,
+                positionMode == PositionMode.FIXED ? fixedYaw : 0.0f,
                 transformState.anchor(),
                 transformState.yaw(),
                 transformState.pitch(),
@@ -166,24 +166,20 @@ public final class WindowManager implements WindowActionExecutor {
                     continue;
                 }
 
-                Vec3d worldPosition = this.transformer.toWorld(transformState.anchor(), layoutComponent.localPosition());
+                Vec3d worldPosition = this.transformer.toWorld(transformState.anchor(), layoutComponent.localPosition(), positionMode, transformState.yaw(), transformState.pitch());
                 String signature = buildSignature(component);
                 WindowComponentRuntime runtime = this.displayEntityPool.acquire(player.getUuid(), world.getRegistryKey(), signature, tick);
                 if (runtime != null) {
                     runtime.redefine(component, layoutComponent.localPosition());
-                    this.entityFactory.reconfigureRuntime(this.server, world, runtime, worldPosition, positionMode, world.getPlayers());
+                    this.entityFactory.reconfigureRuntime(this.server, world, runtime, worldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
                 } else {
-                    runtime = this.entityFactory.spawnRuntime(this.server, world, player.getUuid(), signature, component, worldPosition, positionMode, world.getPlayers());
+                    runtime = this.entityFactory.spawnRuntime(this.server, world, player.getUuid(), signature, component, worldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
                     runtime.redefine(component, layoutComponent.localPosition());
                 }
 
                 instance.addRuntime(runtime);
                 activatedRuntimes.add(runtime);
                 spawnedEntityCount += runtime.entityIds().size();
-
-                if (runtime.interactionEntityId() != null && component instanceof ButtonComponentDefinition button) {
-                    this.interactionRegistry.register(runtime.interactionEntityId(), new InteractionBinding(player.getUuid(), windowId, button.id(), button.action()));
-                }
             }
 
             this.activeWindows.computeIfAbsent(player.getUuid(), ignored -> new ConcurrentHashMap<>()).put(windowId, instance);
@@ -191,12 +187,12 @@ public final class WindowManager implements WindowActionExecutor {
             recordCreate(DebugLevel.DEBUG, positionMode, result);
             return result;
         } catch (EntitySpawnException exception) {
-            cleanupFailedCreate(player.getUuid(), windowId, activatedRuntimes);
+            cleanupFailedCreate(activatedRuntimes);
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, componentIdFrom(exception.getMessage()), transformState.anchor(), layout.size(), spawnedEntityCount, exception.getMessage());
             recordCreate(DebugLevel.WARN, positionMode, result);
             return result;
         } catch (RuntimeException exception) {
-            cleanupFailedCreate(player.getUuid(), windowId, activatedRuntimes);
+            cleanupFailedCreate(activatedRuntimes);
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, null, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 중 예외 발생: " + exception.getMessage());
             this.debugRecorder.record(DebugEventType.WINDOW_CREATE, DebugLevel.ERROR, player.getUuid(), playerName, windowId, null, null, DebugReason.ENTITY_SPAWN_FAILED, result.message(), exception);
             InteractiveDisplay.LOGGER.error("[{}] window create error player={} windowId={} mode={} anchor={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, playerName, windowId, positionMode, transformState.anchor(), result.reasonCode(), result.message(), exception);
@@ -213,7 +209,7 @@ public final class WindowManager implements WindowActionExecutor {
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, instance.currentAnchor(), 0, 0, "플레이어를 찾을 수 없음");
         }
-        return createWindow(player, windowId, instance.positionMode(), instance.fixedAnchor());
+        return createWindow(player, windowId, instance.positionMode(), instance.fixedAnchor(), instance.fixedYaw());
     }
 
     public void tick() {
@@ -226,7 +222,8 @@ public final class WindowManager implements WindowActionExecutor {
                 continue;
             }
 
-            for (WindowInstance instance : ownerEntry.getValue().values()) {
+            List<WindowInstance> windows = new ArrayList<>(ownerEntry.getValue().values());
+            for (WindowInstance instance : windows) {
                 WindowDefinition definition = this.definitions.get(instance.windowId());
                 if (definition == null) {
                     continue;
@@ -236,19 +233,17 @@ public final class WindowManager implements WindowActionExecutor {
                     continue;
                 }
 
-                WindowPositionTracker.WindowTransformState nextState = this.positionTracker.resolve(player, instance.positionMode(), definition.offset(), instance.fixedAnchor());
-                if (!this.positionTracker.shouldUpdate(instance, nextState, currentTick)) {
-                    syncCanvases(instance, player.getWorld().getPlayers());
-                    continue;
+                WindowPositionTracker.WindowTransformState nextState = this.positionTracker.resolve(player, instance.positionMode(), definition.offset(), instance.fixedAnchor(), instance.fixedYaw());
+                if (this.positionTracker.shouldUpdate(instance, nextState, currentTick)) {
+                    if (instance.positionMode() != PositionMode.FIXED || !Objects.equals(instance.currentAnchor(), nextState.anchor())) {
+                        moveWindow(instance, nextState, player.getWorld());
+                    }
+                    instance.updateTransform(nextState.anchor(), nextState.yaw(), nextState.pitch(), currentTick);
                 }
-
-                if (instance.positionMode() != PositionMode.FIXED || !Objects.equals(instance.currentAnchor(), nextState.anchor())) {
-                    moveWindow(instance, nextState, player.getWorld());
-                }
-                updateHover(instance, player);
                 syncCanvases(instance, player.getWorld().getPlayers());
-                instance.updateTransform(nextState.anchor(), nextState.yaw(), nextState.pitch(), currentTick);
             }
+
+            updateHover(player);
         }
     }
 
@@ -284,6 +279,10 @@ public final class WindowManager implements WindowActionExecutor {
         return Set.copyOf(windowIds);
     }
 
+    public Set<String> brokenWindowIds() {
+        return Set.copyOf(new TreeSet<>(this.brokenWindowIds));
+    }
+
     public int loadedWindowCount() {
         return this.definitions.size();
     }
@@ -292,6 +291,16 @@ public final class WindowManager implements WindowActionExecutor {
         int total = 0;
         for (Map<String, WindowInstance> playerWindows : this.activeWindows.values()) {
             total += playerWindows.size();
+        }
+        return total;
+    }
+
+    public int activeBindingCount() {
+        int total = 0;
+        for (Map<String, WindowInstance> playerWindows : this.activeWindows.values()) {
+            for (WindowInstance instance : playerWindows.values()) {
+                total += instance.bindingCount();
+            }
         }
         return total;
     }
@@ -313,6 +322,83 @@ public final class WindowManager implements WindowActionExecutor {
         return this.schemaLoader.mapCacheEntryCount();
     }
 
+    public UiHitResult findUiHit(ServerPlayerEntity player) {
+        Map<String, WindowInstance> windows = this.activeWindows.get(player.getUuid());
+        if (windows == null || windows.isEmpty()) {
+            return null;
+        }
+
+        Vec3d start = player.getEyePos();
+        Vec3d direction = player.getRotationVec(1.0f).normalize();
+        UiHitResult best = null;
+        double closest = Double.MAX_VALUE;
+        for (WindowInstance instance : windows.values()) {
+            if (!player.getWorld().getRegistryKey().equals(instance.worldKey())) {
+                continue;
+            }
+            CoordinateTransformer.WindowBasis basis = this.transformer.basis(instance.positionMode(), instance.currentYaw(), instance.currentPitch());
+            for (WindowComponentRuntime runtime : instance.runtimes()) {
+                if (!runtime.interactive()) {
+                    continue;
+                }
+                Vec3d center = this.transformer.toWorld(instance.currentAnchor(), runtime.localPosition(), instance.positionMode(), instance.currentYaw(), instance.currentPitch());
+                double distance = this.transformer.raycastQuadDistance(
+                        start,
+                        direction,
+                        center,
+                        basis.right(),
+                        basis.up(),
+                        basis.normal(),
+                        runtime.hitHalfWidth(),
+                        runtime.hitHalfHeight(),
+                        runtime.maxDistance()
+                );
+                if (distance < 0.0D) {
+                    continue;
+                }
+                double squared = distance * distance;
+                if (squared < closest) {
+                    closest = squared;
+                    best = new UiHitResult(
+                            instance.windowId(),
+                            runtime.definition().id(),
+                            runtime,
+                            runtime.action(),
+                            start.add(direction.multiply(distance)),
+                            squared
+                    );
+                }
+            }
+        }
+        return best;
+    }
+
+    public List<BindingSnapshot> bindingSnapshots(UUID owner) {
+        Map<String, WindowInstance> windows = this.activeWindows.get(owner);
+        if (windows == null) {
+            return List.of();
+        }
+
+        List<BindingSnapshot> snapshots = new ArrayList<>();
+        for (WindowInstance instance : windows.values()) {
+            for (WindowComponentRuntime runtime : instance.runtimes()) {
+                if (!runtime.interactive() || runtime.action() == null) {
+                    continue;
+                }
+                snapshots.add(new BindingSnapshot(
+                        instance.windowId(),
+                        runtime.definition().id(),
+                        runtime.localPosition(),
+                        runtime.hitHalfWidth(),
+                        runtime.hitHalfHeight(),
+                        runtime.action().type().name(),
+                        runtime.action().target()
+                ));
+            }
+        }
+        return snapshots;
+    }
+
     @Override
     public RemoveWindowResult closeWindow(UUID owner, String windowId) {
         return removeWindow(owner, windowId);
@@ -324,7 +410,7 @@ public final class WindowManager implements WindowActionExecutor {
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, null, 0, 0, "action 대상 플레이어를 찾을 수 없음");
         }
-        return createWindow(player, windowId, PositionMode.FIXED, null);
+        return createWindow(player, windowId, PositionMode.FIXED, null, player.getYaw());
     }
 
     @Override
@@ -365,45 +451,29 @@ public final class WindowManager implements WindowActionExecutor {
                             WindowPositionTracker.WindowTransformState nextState,
                             ServerWorld world) {
         for (WindowComponentRuntime runtime : instance.runtimes()) {
-            Vec3d worldPosition = this.transformer.toWorld(nextState.anchor(), runtime.localPosition());
-            this.entityFactory.moveRuntime(this.server, world, runtime, worldPosition, instance.positionMode());
+            Vec3d worldPosition = this.transformer.toWorld(nextState.anchor(), runtime.localPosition(), instance.positionMode(), nextState.yaw(), nextState.pitch());
+            this.entityFactory.moveRuntime(this.server, world, runtime, worldPosition, instance.positionMode(), nextState.yaw(), nextState.pitch());
         }
     }
 
-    private void updateHover(WindowInstance instance, ServerPlayerEntity player) {
-        ServerWorld world = player.getWorld();
-        Vec3d start = player.getEyePos();
-        Vec3d end = start.add(player.getRotationVec(1.0f).multiply(HOVER_DISTANCE));
-        WindowComponentRuntime hoveredRuntime = null;
-        double closest = Double.MAX_VALUE;
-
-        for (WindowComponentRuntime runtime : instance.runtimes()) {
-            if (!(runtime.definition() instanceof ButtonComponentDefinition) || runtime.interactionEntityId() == null) {
-                continue;
-            }
-            Entity entity = world.getEntity(runtime.interactionEntityId());
-            if (entity == null) {
-                continue;
-            }
-            Box box = entity.getBoundingBox();
-            var hit = box.raycast(start, end);
-            if (hit.isEmpty()) {
-                continue;
-            }
-            double distance = hit.get().squaredDistanceTo(start);
-            if (distance < closest) {
-                closest = distance;
-                hoveredRuntime = runtime;
-            }
+    private void updateHover(ServerPlayerEntity player) {
+        Map<String, WindowInstance> windows = this.activeWindows.get(player.getUuid());
+        if (windows == null || windows.isEmpty()) {
+            return;
         }
 
-        for (WindowComponentRuntime runtime : instance.runtimes()) {
-            if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
-                continue;
-            }
-            boolean shouldHover = runtime == hoveredRuntime;
-            if (runtime.hovered() != shouldHover) {
-                this.entityFactory.setButtonHover(this.server, world, runtime, button, shouldHover);
+        UiHitResult hovered = findUiHit(player);
+        WindowComponentRuntime hoveredRuntime = hovered == null ? null : hovered.runtime();
+        ServerWorld world = player.getWorld();
+        for (WindowInstance instance : windows.values()) {
+            for (WindowComponentRuntime runtime : instance.runtimes()) {
+                if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
+                    continue;
+                }
+                boolean shouldHover = runtime == hoveredRuntime && instance.worldKey().equals(world.getRegistryKey());
+                if (runtime.hovered() != shouldHover) {
+                    this.entityFactory.setButtonHover(this.server, world, runtime, button, shouldHover, instance.positionMode());
+                }
             }
         }
     }
@@ -438,9 +508,6 @@ public final class WindowManager implements WindowActionExecutor {
         ServerWorld world = this.server.getWorld(instance.worldKey());
         if (world != null) {
             for (WindowComponentRuntime runtime : instance.runtimes()) {
-                if (runtime.interactionEntityId() != null) {
-                    this.interactionRegistry.unregister(runtime.interactionEntityId());
-                }
                 this.entityFactory.deactivateRuntime(this.server, world, runtime);
                 this.displayEntityPool.release(owner, instance.worldKey(), runtime, this.server.getTicks());
             }
@@ -478,8 +545,7 @@ public final class WindowManager implements WindowActionExecutor {
         }
     }
 
-    private void cleanupFailedCreate(UUID owner, String windowId, List<WindowComponentRuntime> runtimes) {
-        this.interactionRegistry.unregisterWindow(owner, windowId);
+    private void cleanupFailedCreate(List<WindowComponentRuntime> runtimes) {
         for (WindowComponentRuntime runtime : runtimes) {
             this.entityFactory.destroyRuntime(this.server, runtime);
         }
@@ -492,6 +558,11 @@ public final class WindowManager implements WindowActionExecutor {
             this.debugRecorder.record(DebugEventType.WINDOW_RELOAD, DebugLevel.WARN, null, null, null, null, null, DebugReason.SCHEMA_VALIDATION_FAILED, "command whitelist reload 실패: " + exception.getMessage(), exception);
             InteractiveDisplay.LOGGER.warn("[{}] command whitelist reload 실패 message={}", InteractiveDisplay.MOD_ID, exception.getMessage());
         }
+    }
+
+    private void replaceBrokenWindowIds(Set<String> brokenWindowIds) {
+        this.brokenWindowIds.clear();
+        this.brokenWindowIds.addAll(brokenWindowIds);
     }
 
     private void recordCreate(DebugLevel level, PositionMode positionMode, CreateWindowResult result) {
@@ -522,24 +593,12 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     private static String buildSignature(ComponentDefinition component) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(component.id()).append('|').append(component.type()).append('|').append(component.size().width()).append('|').append(component.size().height()).append('|').append(component.opacity());
-        if (component instanceof TextComponentDefinition text) {
-            builder.append('|').append(text.content()).append('|').append(text.fontSize()).append('|').append(text.color()).append('|').append(text.background()).append('|').append(text.lineWidth());
-        } else if (component instanceof ButtonComponentDefinition button) {
-            builder.append('|').append(button.label()).append('|').append(button.hoverColor()).append('|').append(button.action().type()).append('|').append(button.action().target());
-        } else if (component instanceof ImageComponentDefinition image) {
-            builder.append('|').append(image.imageType()).append('|').append(image.value()).append('|').append(image.scale());
-            if (image.source() != null) {
-                builder.append('|').append(image.source().resolvedPath());
-            }
-        } else if (component instanceof PanelComponentDefinition panel) {
-            builder.append('|').append(panel.backgroundColor()).append('|').append(panel.padding()).append('|').append(panel.layoutMode());
-            for (ComponentDefinition child : panel.children()) {
-                builder.append('{').append(buildSignature(child)).append('}');
-            }
-        }
-        return builder.toString();
+        return switch (component.type()) {
+            case TEXT -> "text:" + component.id();
+            case BUTTON -> "button:" + component.id();
+            case IMAGE -> "image:" + component.id();
+            case PANEL -> "panel:" + component.id();
+        };
     }
 
     private static String componentIdFrom(String message) {
@@ -550,8 +609,19 @@ public final class WindowManager implements WindowActionExecutor {
         if (index < 0) {
             return null;
         }
-        String tail = message.substring(index + "componentId=".length());
-        int end = tail.indexOf(' ');
-        return end < 0 ? tail : tail.substring(0, end);
+        int valueStart = index + "componentId=".length();
+        int end = message.indexOf(' ', valueStart);
+        return end < 0 ? message.substring(valueStart) : message.substring(valueStart, end);
+    }
+
+    public record BindingSnapshot(
+            String windowId,
+            String componentId,
+            org.joml.Vector3f localCenter,
+            float halfWidth,
+            float halfHeight,
+            String actionType,
+            String target
+    ) {
     }
 }

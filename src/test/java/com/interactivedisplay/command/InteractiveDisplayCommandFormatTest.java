@@ -2,21 +2,19 @@ package com.interactivedisplay.command;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.TextComponentDefinition;
-import com.interactivedisplay.core.interaction.InteractionBinding;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.core.window.WindowInstance;
+import com.interactivedisplay.core.window.WindowManager;
 import com.interactivedisplay.debug.DebugEvent;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.util.math.Vec3d;
@@ -79,26 +77,30 @@ class InteractiveDisplayCommandFormatTest {
                 true,
                 "#00000000"
         );
-        WindowInstance instance = new WindowInstance(UUID.randomUUID(), "main_menu", World.OVERWORLD, PositionMode.FIXED, new Vec3d(1, 2, 3), new Vec3d(1, 2, 3), 0.0f, 0.0f, 0L);
-        instance.addRuntime(new WindowComponentRuntime(World.OVERWORLD, "sig-a", text, new Vector3f(), UUID.randomUUID(), null, null));
-        instance.addRuntime(new WindowComponentRuntime(World.OVERWORLD, "sig-b", text2, new Vector3f(), UUID.randomUUID(), UUID.randomUUID(), null));
+        WindowInstance instance = new WindowInstance(UUID.randomUUID(), "main_menu", World.OVERWORLD, PositionMode.FIXED, new Vec3d(1, 2, 3), 90.0f, new Vec3d(1, 2, 3), 90.0f, 0.0f, 0L);
+        instance.addRuntime(new WindowComponentRuntime(World.OVERWORLD, "sig-a", text, new Vector3f(), UUID.randomUUID(), null));
+        instance.addRuntime(new WindowComponentRuntime(World.OVERWORLD, "sig-b", new com.interactivedisplay.core.component.ButtonComponentDefinition("close", new ComponentPosition(0.0f, 0.0f, 0.0f), new ComponentSize(1.0f, 0.3f), true, 1.0f, "닫기", "#44FFFFFF", com.interactivedisplay.core.component.ClickType.RIGHT, com.interactivedisplay.core.component.ComponentAction.closeWindow()), new Vector3f(), UUID.randomUUID(), null));
+        instance.addRuntime(new WindowComponentRuntime(World.OVERWORLD, "sig-c", text2, new Vector3f(), UUID.randomUUID(), null));
 
         List<String> lines = InteractiveDisplayCommand.buildWindowLines("main_menu", true, instance, null);
 
         assertTrue(lines.get(0).contains("entityCount=3"));
         assertTrue(lines.get(0).contains("bindings=1"));
         assertTrue(lines.get(0).contains(PositionMode.FIXED.name()));
+        assertTrue(lines.get(0).contains("fixedYaw=90.0"));
     }
 
     @Test
     void bindingLinesShouldContainBindingSummary() {
-        Map<UUID, InteractionBinding> bindings = Map.of(
-                UUID.randomUUID(),
-                new InteractionBinding(
-                        UUID.randomUUID(),
+        List<WindowManager.BindingSnapshot> bindings = List.of(
+                new WindowManager.BindingSnapshot(
                         "main_menu",
                         "close",
-                        ComponentAction.closeWindow()
+                        new Vector3f(0.0f, 0.5f, 0.01f),
+                        0.8f,
+                        0.15f,
+                        "CLOSE_WINDOW",
+                        null
                 )
         );
 
@@ -110,11 +112,12 @@ class InteractiveDisplayCommandFormatTest {
     }
 
     @Test
-    void listLinesShouldContainLoadedWindowsAndCandidates() {
-        List<String> lines = InteractiveDisplayCommand.buildListLines(Set.of("main_menu"), Set.of("main_menu", "gallery"));
+    void listLinesShouldContainLoadedBrokenAndCandidates() {
+        List<String> lines = InteractiveDisplayCommand.buildListLines(Set.of("main_menu"), Set.of("main_menu", "gallery", "broken_menu"), Set.of("broken_menu"));
 
         assertTrue(lines.get(0).contains("loaded=1"));
-        assertTrue(lines.get(1).contains("main_menu"));
-        assertTrue(lines.get(2).contains("gallery"));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("loaded: main_menu")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("broken: broken_menu")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("configured-only: gallery")));
     }
 }

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.CommandWhitelist;
-import com.interactivedisplay.core.interaction.InteractionRegistry;
 import com.interactivedisplay.core.layout.MeditateLayoutEngine;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.WindowPositionTracker;
@@ -56,7 +55,6 @@ class WindowManagerReloadTest {
                 transformer,
                 new WindowPositionTracker(transformer),
                 new DisplayEntityFactory(debugRecorder),
-                new InteractionRegistry(),
                 debugRecorder,
                 new CommandWhitelist(tempDir),
                 new CallbackRegistry()
@@ -86,6 +84,7 @@ class WindowManagerReloadTest {
         assertEquals(false, second.success());
         assertEquals(DebugReason.SCHEMA_VALIDATION_FAILED, second.reasonCode());
         assertTrue(manager.loadedWindowIds().contains("main_menu"));
+        assertTrue(manager.brokenWindowIds().contains("main_menu"));
     }
 
     @Test
@@ -99,7 +98,6 @@ class WindowManagerReloadTest {
                 transformer,
                 new WindowPositionTracker(transformer),
                 new DisplayEntityFactory(debugRecorder),
-                new InteractionRegistry(),
                 debugRecorder,
                 new CommandWhitelist(tempDir),
                 new CallbackRegistry()

@@ -17,6 +17,7 @@ public final class WindowInstance {
     private final RegistryKey<World> worldKey;
     private final PositionMode positionMode;
     private final Vec3d fixedAnchor;
+    private final float fixedYaw;
     private final Map<String, WindowComponentRuntime> components = new LinkedHashMap<>();
     private Vec3d currentAnchor;
     private float currentYaw;
@@ -28,6 +29,7 @@ public final class WindowInstance {
                           RegistryKey<World> worldKey,
                           PositionMode positionMode,
                           Vec3d fixedAnchor,
+                          float fixedYaw,
                           Vec3d currentAnchor,
                           float currentYaw,
                           float currentPitch,
@@ -37,6 +39,7 @@ public final class WindowInstance {
         this.worldKey = worldKey;
         this.positionMode = positionMode;
         this.fixedAnchor = fixedAnchor;
+        this.fixedYaw = fixedYaw;
         this.currentAnchor = currentAnchor;
         this.currentYaw = currentYaw;
         this.currentPitch = currentPitch;
@@ -61,6 +64,10 @@ public final class WindowInstance {
 
     public Vec3d fixedAnchor() {
         return this.fixedAnchor;
+    }
+
+    public float fixedYaw() {
+        return this.fixedYaw;
     }
 
     public Vec3d currentAnchor() {
@@ -109,7 +116,7 @@ public final class WindowInstance {
     public int bindingCount() {
         int count = 0;
         for (WindowComponentRuntime runtime : this.components.values()) {
-            if (runtime.interactionEntityId() != null) {
+            if (runtime.interactive()) {
                 count++;
             }
         }

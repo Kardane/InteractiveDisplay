@@ -1,5 +1,7 @@
 package com.interactivedisplay.core.window;
 
+import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import java.util.ArrayList;
@@ -10,12 +12,13 @@ import net.minecraft.world.World;
 import org.joml.Vector3f;
 
 public final class WindowComponentRuntime {
+    private static final double DEFAULT_MAX_DISTANCE = 6.0D;
+
     private final RegistryKey<World> worldKey;
     private final String signature;
     private ComponentDefinition definition;
     private Vector3f localPosition;
     private UUID displayEntityId;
-    private UUID interactionEntityId;
     private PlayerCanvas mapCanvas;
     private boolean hovered;
 
@@ -24,14 +27,12 @@ public final class WindowComponentRuntime {
                                   ComponentDefinition definition,
                                   Vector3f localPosition,
                                   UUID displayEntityId,
-                                  UUID interactionEntityId,
                                   PlayerCanvas mapCanvas) {
         this.worldKey = worldKey;
         this.signature = signature;
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
         this.displayEntityId = displayEntityId;
-        this.interactionEntityId = interactionEntityId;
         this.mapCanvas = mapCanvas;
     }
 
@@ -61,10 +62,6 @@ public final class WindowComponentRuntime {
         return this.displayEntityId;
     }
 
-    public UUID interactionEntityId() {
-        return this.interactionEntityId;
-    }
-
     public PlayerCanvas mapCanvas() {
         return this.mapCanvas;
     }
@@ -81,13 +78,39 @@ public final class WindowComponentRuntime {
         this.hovered = hovered;
     }
 
+    public boolean interactive() {
+        return this.definition instanceof ButtonComponentDefinition;
+    }
+
+    public float hitHalfWidth() {
+        if (this.definition instanceof ButtonComponentDefinition button) {
+            return button.size().width() / 2.0f;
+        }
+        return 0.0f;
+    }
+
+    public float hitHalfHeight() {
+        if (this.definition instanceof ButtonComponentDefinition button) {
+            return button.size().height() / 2.0f;
+        }
+        return 0.0f;
+    }
+
+    public double maxDistance() {
+        return DEFAULT_MAX_DISTANCE;
+    }
+
+    public ComponentAction action() {
+        if (this.definition instanceof ButtonComponentDefinition button) {
+            return button.action();
+        }
+        return null;
+    }
+
     public List<UUID> entityIds() {
         List<UUID> ids = new ArrayList<>();
         if (this.displayEntityId != null) {
             ids.add(this.displayEntityId);
-        }
-        if (this.interactionEntityId != null) {
-            ids.add(this.interactionEntityId);
         }
         return ids;
     }

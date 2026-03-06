@@ -65,6 +65,7 @@ public final class SchemaLoader {
     public LoadResult loadAll() {
         Map<String, WindowDefinition> definitions = new HashMap<>();
         List<String> errors = new ArrayList<>();
+        Set<String> brokenWindowIds = new TreeSet<>();
 
         try {
             Files.createDirectories(this.windowsDir);
@@ -74,20 +75,20 @@ public final class SchemaLoader {
             String message = "window config 디렉터리 준비 실패: " + exception.getMessage();
             errors.add(message);
             recordSchemaFailure(null, message, exception);
-            return new LoadResult(definitions, errors);
+            return new LoadResult(definitions, errors, brokenWindowIds);
         }
 
         try (var paths = Files.list(this.windowsDir)) {
             paths.filter(path -> path.getFileName().toString().endsWith(".json"))
                     .sorted()
-                    .forEach(path -> loadSingleFile(path, definitions, errors));
+                    .forEach(path -> loadSingleFile(path, definitions, errors, brokenWindowIds));
         } catch (IOException exception) {
             String message = "window definition 목록 조회 실패: " + exception.getMessage();
             errors.add(message);
             recordSchemaFailure(null, message, exception);
         }
 
-        return new LoadResult(definitions, errors);
+        return new LoadResult(definitions, errors, brokenWindowIds);
     }
 
     public int mapCacheEntryCount() {
@@ -110,7 +111,10 @@ public final class SchemaLoader {
         return windowIds;
     }
 
-    private void loadSingleFile(Path path, Map<String, WindowDefinition> definitions, List<String> errors) {
+    private void loadSingleFile(Path path,
+                                Map<String, WindowDefinition> definitions,
+                                List<String> errors,
+                                Set<String> brokenWindowIds) {
         String sourceName = path.getFileName().toString();
 
         try {
@@ -118,6 +122,7 @@ public final class SchemaLoader {
             List<String> validationErrors = this.validator.validate(root, sourceName);
             if (!validationErrors.isEmpty()) {
                 errors.addAll(validationErrors);
+                brokenWindowIds.add(root.has("id") ? root.get("id").getAsString() : stripJsonExtension(sourceName));
                 recordSchemaValidationFailure(sourceName, validationErrors);
                 return;
             }
@@ -127,6 +132,7 @@ public final class SchemaLoader {
         } catch (Exception exception) {
             String message = sourceName + ": " + exception.getMessage();
             errors.add(message);
+            brokenWindowIds.add(readWindowId(path));
             recordSchemaFailure(sourceName, message, exception);
         }
     }
@@ -485,7 +491,7 @@ public final class SchemaLoader {
         return object.has(key) ? object.get(key).getAsString() : defaultValue;
     }
 
-    public record LoadResult(Map<String, WindowDefinition> definitions, List<String> errors) {
+    public record LoadResult(Map<String, WindowDefinition> definitions, List<String> errors, Set<String> brokenWindowIds) {
         public boolean hasErrors() {
             return !this.errors.isEmpty();
         }

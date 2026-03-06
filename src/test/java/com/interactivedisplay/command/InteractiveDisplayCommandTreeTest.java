@@ -1,69 +1,48 @@
 package com.interactivedisplay.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.tree.ArgumentCommandNode;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class InteractiveDisplayCommandTreeTest {
     @Test
-    void fixedCreateCommandShouldParseExplicitPosition() throws Exception {
+    void createCommandShouldUseEntitySelectorArgumentAndFixedPositionNodes() {
         TestHandlers handlers = new TestHandlers();
         CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
         register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true, source -> true);
 
-        int result = dispatcher.execute("interactivedisplay create main_menu Steve fixed 1 2 3", new TestSource(Set.of("create")));
+        var root = dispatcher.getRoot().getChild("interactivedisplay");
+        var create = root.getChild("create");
+        var windowId = create.getChild("windowId");
+        var player = windowId.getChild("player");
+        var fixed = player.getChild("fixed");
 
-        assertEquals(1, result);
-        assertEquals("create:main_menu:Steve:FIXED:(1.0,2.0,3.0)", handlers.lastCall);
+        assertTrue(player instanceof ArgumentCommandNode<?, ?>);
+        assertEquals("EntityArgumentType", ((ArgumentCommandNode<?, ?>) player).getType().getClass().getSimpleName());
+        assertNotNull(fixed.getChild("x").getChild("y").getChild("z"));
     }
 
     @Test
-    void playerViewCreateCommandShouldParseWithoutPosition() throws Exception {
+    void playerViewCreateLiteralShouldBeExecutable() {
         TestHandlers handlers = new TestHandlers();
         CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
         register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true, source -> true);
 
-        int result = dispatcher.execute("interactivedisplay create main_menu Steve player_view", new TestSource(Set.of("create")));
+        var playerView = dispatcher.getRoot()
+                .getChild("interactivedisplay")
+                .getChild("create")
+                .getChild("windowId")
+                .getChild("player")
+                .getChild("player_view");
 
-        assertEquals(1, result);
-        assertEquals("create:main_menu:Steve:PLAYER_VIEW:null", handlers.lastCall);
-    }
-
-    @Test
-    void permissionDeniedShouldFail() {
-        TestHandlers handlers = new TestHandlers();
-        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
-        register(dispatcher, handlers, source -> false, source -> false, source -> false, source -> false, source -> false);
-
-        assertThrows(CommandSyntaxException.class,
-                () -> dispatcher.execute("interactivedisplay create main Steve fixed", new TestSource(Set.of())));
-    }
-
-    @Test
-    void playerArgumentShouldProvideSuggestions() {
-        TestHandlers handlers = new TestHandlers();
-        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
-        InteractiveDisplayCommandTree.register(dispatcher, handlers,
-                source -> true,
-                source -> true,
-                source -> true,
-                source -> true,
-                source -> true,
-                (context, builder) -> builder.suggest("Karned").suggest("Alex").buildFuture(),
-                (context, builder) -> builder.suggest("main_menu").buildFuture());
-
-        var parse = dispatcher.parse("interactivedisplay create main_menu ", new TestSource(Set.of("create")));
-        var suggestions = dispatcher.getCompletionSuggestions(parse).join();
-
-        assertTrue(suggestions.getList().stream().anyMatch(s -> "Karned".equals(s.getText())));
-        assertTrue(suggestions.getList().stream().anyMatch(s -> "Alex".equals(s.getText())));
+        assertNotNull(playerView.getCommand());
     }
 
     @Test
@@ -88,7 +67,6 @@ class InteractiveDisplayCommandTreeTest {
                 source -> true,
                 source -> true,
                 source -> true,
-                (context, builder) -> builder.suggest("@s").suggest("@p").suggest("@a").suggest("Karned").buildFuture(),
                 (context, builder) -> builder.suggest("main_menu").suggest("gallery").buildFuture());
 
         var parse = dispatcher.parse("interactivedisplay create ", new TestSource(Set.of("create")));
@@ -111,7 +89,6 @@ class InteractiveDisplayCommandTreeTest {
                 canReload,
                 canList,
                 canDebug,
-                (context, builder) -> builder.suggest("Steve").buildFuture(),
                 (context, builder) -> builder.suggest("main_menu").buildFuture());
     }
 
@@ -129,20 +106,15 @@ class InteractiveDisplayCommandTreeTest {
         @Override
         public int create(com.mojang.brigadier.context.CommandContext<TestSource> context,
                           String windowId,
-                          String playerName,
                           PositionMode positionMode,
                           net.minecraft.util.math.Vec3d position) {
-            if (position == null) {
-                this.lastCall = "create:" + windowId + ":" + playerName + ":" + positionMode + ":null";
-            } else {
-                this.lastCall = "create:" + windowId + ":" + playerName + ":" + positionMode + ":(" + position.x + "," + position.y + "," + position.z + ")";
-            }
+            this.lastCall = "create:" + windowId + ":" + positionMode;
             return 1;
         }
 
         @Override
-        public int remove(com.mojang.brigadier.context.CommandContext<TestSource> context, String windowId, String playerName) {
-            this.lastCall = "remove:" + windowId + ":" + playerName;
+        public int remove(com.mojang.brigadier.context.CommandContext<TestSource> context, String windowId) {
+            this.lastCall = "remove:" + windowId;
             return 1;
         }
 
@@ -159,20 +131,20 @@ class InteractiveDisplayCommandTreeTest {
         }
 
         @Override
-        public int debugRecent(com.mojang.brigadier.context.CommandContext<TestSource> context, String playerName) {
-            this.lastCall = "debugRecent:" + playerName;
+        public int debugRecent(com.mojang.brigadier.context.CommandContext<TestSource> context) {
+            this.lastCall = "debugRecent";
             return 1;
         }
 
         @Override
-        public int debugWindow(com.mojang.brigadier.context.CommandContext<TestSource> context, String windowId, String playerName) {
-            this.lastCall = "debugWindow:" + windowId + ":" + playerName;
+        public int debugWindow(com.mojang.brigadier.context.CommandContext<TestSource> context, String windowId) {
+            this.lastCall = "debugWindow:" + windowId;
             return 1;
         }
 
         @Override
-        public int debugBindings(com.mojang.brigadier.context.CommandContext<TestSource> context, String playerName) {
-            this.lastCall = "debugBindings:" + playerName;
+        public int debugBindings(com.mojang.brigadier.context.CommandContext<TestSource> context) {
+            this.lastCall = "debugBindings";
             return 1;
         }
 

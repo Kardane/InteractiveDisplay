@@ -17,7 +17,8 @@ public final class WindowPositionTracker {
     public WindowTransformState resolve(ServerPlayerEntity player,
                                         PositionMode positionMode,
                                         WindowOffset offset,
-                                        Vec3d fixedAnchor) {
+                                        Vec3d fixedAnchor,
+                                        float fixedYaw) {
         Vec3d look = player.getRotationVec(1.0f);
         Vec3d anchor = switch (positionMode) {
             case FIXED -> fixedAnchor != null
@@ -26,7 +27,13 @@ public final class WindowPositionTracker {
             case PLAYER_FIXED -> this.transformer.toPlayerFixedAnchor(player.getEyePos(), offset);
             case PLAYER_VIEW -> this.transformer.toPlayerViewAnchor(player.getEyePos(), look, offset);
         };
-        return new WindowTransformState(anchor, player.getYaw(), player.getPitch());
+        float resolvedYaw = switch (positionMode) {
+            case FIXED -> fixedYaw;
+            case PLAYER_FIXED -> 0.0f;
+            case PLAYER_VIEW -> player.getYaw();
+        };
+        float resolvedPitch = positionMode == PositionMode.PLAYER_VIEW ? player.getPitch() : 0.0f;
+        return new WindowTransformState(anchor, resolvedYaw, resolvedPitch);
     }
 
     public boolean shouldUpdate(WindowInstance instance, WindowTransformState nextState, long tick) {
