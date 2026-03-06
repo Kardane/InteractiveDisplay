@@ -3,17 +3,19 @@ package com.interactivedisplay.schema;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.interactivedisplay.core.positioning.PositionMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 public final class SchemaValidator {
     private static final Set<String> COMPONENT_TYPES = Set.of("text", "button", "image", "panel");
-    private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "run_command", "callback");
+    private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "switch_mode_fixed", "switch_mode_player_fixed", "run_command", "callback");
     private static final Set<String> IMAGE_TYPES = Set.of("item", "block", "map");
     private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal");
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
+    private static final Set<String> POSITION_MODES = Set.of("fixed", "player_fixed", "player_view");
 
     public List<String> validate(JsonObject root, String sourceName) {
         List<String> errors = new ArrayList<>();
@@ -35,6 +37,23 @@ public final class SchemaValidator {
             validateComponents(components, sourceName + ".components", errors);
         }
 
+        return errors;
+    }
+
+    public List<String> validateGroup(JsonObject root, String sourceName) {
+        List<String> errors = new ArrayList<>();
+        requireString(root, "id", sourceName, errors);
+        requireString(root, "initialWindowId", sourceName, errors);
+        String defaultMode = requireString(root, "defaultMode", sourceName, errors);
+        if (defaultMode != null && !POSITION_MODES.contains(defaultMode.toLowerCase())) {
+            errors.add(sourceName + ": defaultMode must be " + String.join(", ", POSITION_MODES));
+        }
+        requireArray(root, "windows", sourceName, errors);
+
+        JsonArray windows = getArray(root, "windows");
+        if (windows != null) {
+            validateGroupWindows(windows, sourceName + ".windows", errors);
+        }
         return errors;
     }
 
@@ -126,6 +145,30 @@ public final class SchemaValidator {
             requireString(action, "command", sourceName + ".action", errors);
         } else if ("callback".equals(type)) {
             requireString(action, "id", sourceName + ".action", errors);
+        }
+    }
+
+    private static void validateGroupWindows(JsonArray windows, String sourceName, List<String> errors) {
+        for (int i = 0; i < windows.size(); i++) {
+            JsonElement element = windows.get(i);
+            if (!element.isJsonObject()) {
+                errors.add(sourceName + "[" + i + "]: window entry must be object");
+                continue;
+            }
+            JsonObject entry = element.getAsJsonObject();
+            String entryName = sourceName + "[" + i + "]";
+            requireString(entry, "windowId", entryName, errors);
+            JsonObject offset = getObject(entry, "offset");
+            if (offset != null) {
+                requireNumber(offset, "forward", entryName + ".offset", errors);
+                requireNumber(offset, "horizontal", entryName + ".offset", errors);
+                requireNumber(offset, "vertical", entryName + ".offset", errors);
+            }
+            JsonObject orbit = getObject(entry, "orbit");
+            if (orbit != null) {
+                requireNumber(orbit, "yaw", entryName + ".orbit", errors);
+                requireNumber(orbit, "pitch", entryName + ".orbit", errors);
+            }
         }
     }
 

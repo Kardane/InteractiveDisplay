@@ -182,4 +182,119 @@ class SchemaLoaderDebugTest {
         assertEquals(0.7f, button.fontSize());
         assertEquals("minecraft:ui.button.click", button.clickSound());
     }
+
+    @Test
+    void groupDefinitionShouldLoadWithOffsetAndOrbit(@TempDir Path tempDir) throws Exception {
+        DebugRecorder recorder = new DebugRecorder(10);
+        Path root = tempDir.resolve("interactivedisplay");
+        Path windows = root.resolve("windows");
+        Path groups = root.resolve("groups");
+        Files.createDirectories(windows);
+        Files.createDirectories(groups);
+
+        Files.writeString(windows.resolve("main_menu.json"), """
+                {
+                  "id": "main_menu",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "title",
+                      "type": "text",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "content": "hello"
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+        Files.writeString(windows.resolve("settings.json"), """
+                {
+                  "id": "settings",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "title",
+                      "type": "text",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "content": "settings"
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+        Files.writeString(groups.resolve("menu_group.json"), """
+                {
+                  "id": "menu_group",
+                  "initialWindowId": "main_menu",
+                  "defaultMode": "player_fixed",
+                  "windows": [
+                    {
+                      "windowId": "main_menu",
+                      "offset": {"forward": 2.0, "horizontal": 0.0, "vertical": 0.5},
+                      "orbit": {"yaw": 0.0, "pitch": 0.0}
+                    },
+                    {
+                      "windowId": "settings",
+                      "offset": {"forward": 2.0, "horizontal": 1.0, "vertical": 0.5},
+                      "orbit": {"yaw": 90.0, "pitch": 0.0}
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+
+        SchemaLoader loader = new SchemaLoader(tempDir, new SchemaValidator(), recorder);
+        SchemaLoader.LoadResult result = loader.loadAll();
+        var group = result.groups().get("menu_group");
+
+        assertFalse(result.hasErrors());
+        assertTrue(result.groups().containsKey("menu_group"));
+        assertEquals("main_menu", group.initialWindowId());
+        assertEquals(com.interactivedisplay.core.positioning.PositionMode.PLAYER_FIXED, group.defaultMode());
+        assertEquals(2, group.windows().size());
+        assertEquals("settings", group.windows().get(1).windowId());
+        assertEquals(1.0f, group.windows().get(1).offset().horizontal());
+        assertEquals(90.0f, group.windows().get(1).orbit().yaw());
+    }
+
+    @Test
+    void buttonActionShouldSupportModeSwitchTypes(@TempDir Path tempDir) throws Exception {
+        DebugRecorder recorder = new DebugRecorder(10);
+        Path windows = tempDir.resolve("interactivedisplay").resolve("windows");
+        Files.createDirectories(windows);
+        Files.writeString(windows.resolve("button.json"), """
+                {
+                  "id": "button_only",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "switch_fixed",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.35},
+                      "label": "고정",
+                      "action": {"type": "switch_mode_fixed"}
+                    },
+                    {
+                      "id": "switch_player_fixed",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": -0.4, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.35},
+                      "label": "플레이어 고정",
+                      "action": {"type": "switch_mode_player_fixed"}
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+
+        SchemaLoader loader = new SchemaLoader(tempDir, new SchemaValidator(), recorder);
+        SchemaLoader.LoadResult result = loader.loadAll();
+
+        assertFalse(result.hasErrors());
+        assertEquals(
+                com.interactivedisplay.core.component.ComponentActionType.SWITCH_MODE_FIXED,
+                ((com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions().get("button_only").components().get(0)).action().type()
+        );
+        assertEquals(
+                com.interactivedisplay.core.component.ComponentActionType.SWITCH_MODE_PLAYER_FIXED,
+                ((com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions().get("button_only").components().get(1)).action().type()
+        );
+    }
 }

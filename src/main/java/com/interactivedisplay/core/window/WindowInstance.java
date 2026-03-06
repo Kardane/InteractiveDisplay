@@ -14,6 +14,8 @@ import net.minecraft.world.World;
 public final class WindowInstance {
     private final UUID owner;
     private final String windowId;
+    private final String groupId;
+    private final String groupWindowId;
     private final RegistryKey<World> worldKey;
     private final PositionMode positionMode;
     private final Vec3d fixedAnchor;
@@ -44,8 +46,30 @@ public final class WindowInstance {
                           float currentYaw,
                           float currentPitch,
                           long lastUpdateTick) {
+        this(owner, windowId, null, null, worldKey, positionMode, fixedAnchor, fixedYaw, fixedPitch, rootEntityId, targetAnchor, targetYaw, targetPitch, currentAnchor, currentYaw, currentPitch, lastUpdateTick);
+    }
+
+    public WindowInstance(UUID owner,
+                          String windowId,
+                          String groupId,
+                          String groupWindowId,
+                          RegistryKey<World> worldKey,
+                          PositionMode positionMode,
+                          Vec3d fixedAnchor,
+                          float fixedYaw,
+                          float fixedPitch,
+                          UUID rootEntityId,
+                          Vec3d targetAnchor,
+                          float targetYaw,
+                          float targetPitch,
+                          Vec3d currentAnchor,
+                          float currentYaw,
+                          float currentPitch,
+                          long lastUpdateTick) {
         this.owner = owner;
         this.windowId = windowId;
+        this.groupId = groupId;
+        this.groupWindowId = groupWindowId;
         this.worldKey = worldKey;
         this.positionMode = positionMode;
         this.fixedAnchor = fixedAnchor;
@@ -67,6 +91,14 @@ public final class WindowInstance {
 
     public String windowId() {
         return this.windowId;
+    }
+
+    public String groupId() {
+        return this.groupId;
+    }
+
+    public String groupWindowId() {
+        return this.groupWindowId;
     }
 
     public RegistryKey<World> worldKey() {

@@ -10,6 +10,7 @@ import com.interactivedisplay.core.layout.LayoutComponent;
 import com.interactivedisplay.core.layout.LayoutEngine;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.PositionMode;
+import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.positioning.WindowPositionTracker;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
@@ -36,6 +37,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 public final class WindowManager implements WindowActionExecutor {
@@ -53,8 +55,11 @@ public final class WindowManager implements WindowActionExecutor {
     private final DisplayEntityPool displayEntityPool = new DisplayEntityPool();
 
     private final Map<String, WindowDefinition> definitions = new ConcurrentHashMap<>();
+    private final Map<String, WindowGroupDefinition> groupDefinitions = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, WindowInstance>> activeWindows = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<String, WindowGroupInstance>> activeGroups = new ConcurrentHashMap<>();
     private final Set<String> brokenWindowIds = ConcurrentHashMap.newKeySet();
+    private final Set<String> brokenGroupIds = ConcurrentHashMap.newKeySet();
 
     public WindowManager(MinecraftServer server,
                          SchemaLoader schemaLoader,
@@ -80,11 +85,15 @@ public final class WindowManager implements WindowActionExecutor {
         tryReloadSupport();
         SchemaLoader.LoadResult loadResult = this.schemaLoader.loadAll();
         replaceBrokenWindowIds(loadResult.brokenWindowIds());
+        replaceBrokenGroupIds(loadResult.brokenGroupIds());
 
         if (!loadResult.hasErrors()) {
             this.definitions.clear();
             this.definitions.putAll(loadResult.definitions());
+            this.groupDefinitions.clear();
+            this.groupDefinitions.putAll(loadResult.groups());
             rebuildActiveWindows(loadResult.definitions().keySet());
+            rebuildActiveGroups(loadResult.groups().keySet(), loadResult.definitions().keySet());
             ReloadWindowResult result = ReloadWindowResult.success(null, this.definitions.size(), 0, loadResult.errors(), "전체 창 리로드 완료");
             recordReload(DebugLevel.DEBUG, result);
             return result;
@@ -94,7 +103,12 @@ public final class WindowManager implements WindowActionExecutor {
         merged.putAll(loadResult.definitions());
         this.definitions.clear();
         this.definitions.putAll(merged);
+        Map<String, WindowGroupDefinition> mergedGroups = new HashMap<>(this.groupDefinitions);
+        mergedGroups.putAll(loadResult.groups());
+        this.groupDefinitions.clear();
+        this.groupDefinitions.putAll(mergedGroups);
         rebuildActiveWindows(loadResult.definitions().keySet());
+        rebuildActiveGroups(loadResult.groups().keySet(), loadResult.definitions().keySet());
         ReloadWindowResult result = ReloadWindowResult.failure(DebugReason.SCHEMA_VALIDATION_FAILED, null, this.definitions.size(), loadResult.errors().size(), loadResult.errors(), "전체 창 리로드 완료 (오류 " + loadResult.errors().size() + "건)");
         recordReload(DebugLevel.WARN, result);
         return result;
@@ -104,6 +118,7 @@ public final class WindowManager implements WindowActionExecutor {
         tryReloadSupport();
         SchemaLoader.LoadResult loadResult = this.schemaLoader.loadAll();
         replaceBrokenWindowIds(loadResult.brokenWindowIds());
+        replaceBrokenGroupIds(loadResult.brokenGroupIds());
         WindowDefinition definition = loadResult.definitions().get(windowId);
         if (definition == null) {
             DebugReason reasonCode = loadResult.hasErrors() ? DebugReason.SCHEMA_VALIDATION_FAILED : DebugReason.WINDOW_DEFINITION_NOT_FOUND;
@@ -114,6 +129,7 @@ public final class WindowManager implements WindowActionExecutor {
 
         this.definitions.put(windowId, definition);
         rebuildActiveWindowDefinitions(windowId);
+        rebuildActiveGroupsContainingWindow(windowId);
         if (loadResult.hasErrors()) {
             ReloadWindowResult result = ReloadWindowResult.failure(DebugReason.SCHEMA_VALIDATION_FAILED, windowId, this.definitions.size(), loadResult.errors().size(), loadResult.errors(), "창 리로드 완료 (오류 " + loadResult.errors().size() + "건): " + windowId);
             recordReload(DebugLevel.WARN, result);
@@ -136,17 +152,103 @@ public final class WindowManager implements WindowActionExecutor {
                                            Vec3d overrideAnchor,
                                            float fixedYaw,
                                            float fixedPitch) {
+        removeWindowInternal(player.getUuid(), windowId, false);
+        SpawnedWindow spawned = spawnWindowInstance(
+                player,
+                windowId,
+                positionMode,
+                overrideAnchor,
+                fixedYaw,
+                fixedPitch,
+                null,
+                null,
+                null
+        );
+        if (!spawned.result().success()) {
+            return spawned.result();
+        }
+        this.activeWindows.computeIfAbsent(player.getUuid(), ignored -> new ConcurrentHashMap<>()).put(windowId, spawned.instance());
+        return spawned.result();
+    }
+
+    public CreateWindowResult createGroup(ServerPlayerEntity player,
+                                          String groupId,
+                                          PositionMode positionMode,
+                                          Vec3d baseAnchor,
+                                          float baseYaw,
+                                          float basePitch) {
+        WindowGroupDefinition groupDefinition = this.groupDefinitions.get(groupId);
+        if (groupDefinition == null) {
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), player.getGameProfile().getName(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
+        }
+        WindowGroupEntry initialEntry = groupDefinition.entry(groupDefinition.initialWindowId());
+        if (initialEntry == null) {
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), player.getGameProfile().getName(), groupDefinition.initialWindowId(), null, null, 0, 0, "초기 그룹 창 정의를 찾을 수 없음");
+        }
+
+        removeGroupInternal(player.getUuid(), groupId, false);
+        GroupPlacement placement = initialGroupPlacement(player, positionMode, baseAnchor, baseYaw, basePitch);
+        SpawnedWindow spawned = spawnGroupWindow(player, groupDefinition, initialEntry, positionMode, placement.baseAnchor(), placement.baseYaw(), placement.basePitch());
+        if (!spawned.result().success()) {
+            return spawned.result();
+        }
+        WindowGroupInstance groupInstance = new WindowGroupInstance(
+                player.getUuid(),
+                groupId,
+                placement.baseAnchor(),
+                placement.baseYaw(),
+                placement.basePitch(),
+                positionMode,
+                initialEntry.windowId(),
+                spawned.instance()
+        );
+        this.activeGroups.computeIfAbsent(player.getUuid(), ignored -> new ConcurrentHashMap<>()).put(groupId, groupInstance);
+        return spawned.result();
+    }
+
+    public CreateWindowResult rebuildWindow(UUID owner, String windowId) {
+        WindowInstance instance = findActiveWindow(owner, windowId);
+        if (instance == null) {
+            return CreateWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, null, windowId, null, null, 0, 0, "재구성 대상 활성 창이 없음");
+        }
+        ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(owner);
+        if (player == null) {
+            return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, instance.currentAnchor(), 0, 0, "플레이어를 찾을 수 없음");
+        }
+        return createWindow(player, windowId, instance.positionMode(), instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
+    }
+
+    public CreateWindowResult rebuildGroup(UUID owner, String groupId) {
+        WindowGroupInstance instance = findActiveGroup(owner, groupId);
+        if (instance == null) {
+            return CreateWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, null, groupId, null, null, 0, 0, "재구성 대상 활성 그룹이 없음");
+        }
+        ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(owner);
+        if (player == null) {
+            return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, instance.currentWindowId(), null, null, 0, 0, "플레이어를 찾을 수 없음");
+        }
+        return openGroupWindow(owner, groupId, instance.currentMode(), instance.currentWindowId(), instance.baseAnchor(), instance.baseYaw(), instance.basePitch(), player);
+    }
+
+    private SpawnedWindow spawnWindowInstance(ServerPlayerEntity player,
+                                              String windowId,
+                                              PositionMode positionMode,
+                                              Vec3d overrideAnchor,
+                                              float fixedYaw,
+                                              float fixedPitch,
+                                              WindowOffset offsetOverride,
+                                              String groupId,
+                                              String groupWindowId) {
         WindowDefinition definition = this.definitions.get(windowId);
         String playerName = player.getGameProfile().getName();
         if (definition == null) {
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), playerName, windowId, null, overrideAnchor, 0, 0, "창 정의를 찾을 수 없음");
             recordCreate(DebugLevel.WARN, positionMode, result);
-            return result;
+            return new SpawnedWindow(null, result);
         }
 
-        removeWindowInternal(player.getUuid(), windowId, false);
-
-        WindowPositionTracker.WindowTransformState transformState = this.positionTracker.resolve(player, positionMode, definition.offset(), overrideAnchor, fixedYaw, fixedPitch);
+        WindowOffset effectiveOffset = offsetOverride == null ? definition.offset() : offsetOverride;
+        WindowPositionTracker.WindowTransformState transformState = this.positionTracker.resolve(player, positionMode, effectiveOffset, overrideAnchor, fixedYaw, fixedPitch);
         List<LayoutComponent> layout = this.layoutEngine.calculate(definition);
         ServerWorld world = player.getWorld();
         long tick = this.server.getTicks();
@@ -154,6 +256,8 @@ public final class WindowManager implements WindowActionExecutor {
         WindowInstance instance = new WindowInstance(
                 player.getUuid(),
                 windowId,
+                groupId,
+                groupWindowId,
                 world.getRegistryKey(),
                 positionMode,
                 positionMode == PositionMode.FIXED ? transformState.anchor() : overrideAnchor,
@@ -199,57 +303,50 @@ public final class WindowManager implements WindowActionExecutor {
                 activatedRuntimes.add(runtime);
                 spawnedEntityCount += runtime.entityIds().size();
             }
-
-            this.activeWindows.computeIfAbsent(player.getUuid(), ignored -> new ConcurrentHashMap<>()).put(windowId, instance);
             CreateWindowResult result = CreateWindowResult.success(player.getUuid(), playerName, windowId, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 완료");
             recordCreate(DebugLevel.DEBUG, positionMode, result);
-            return result;
+            return new SpawnedWindow(instance, result);
         } catch (EntitySpawnException exception) {
             cleanupFailedCreate(activatedRuntimes);
             this.entityFactory.destroyRoot(this.server, world.getRegistryKey(), rootEntityId);
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, componentIdFrom(exception.getMessage()), transformState.anchor(), layout.size(), spawnedEntityCount, exception.getMessage());
             recordCreate(DebugLevel.WARN, positionMode, result);
-            return result;
+            return new SpawnedWindow(null, result);
         } catch (RuntimeException exception) {
             cleanupFailedCreate(activatedRuntimes);
             this.entityFactory.destroyRoot(this.server, world.getRegistryKey(), rootEntityId);
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, null, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 중 예외 발생: " + exception.getMessage());
             this.debugRecorder.record(DebugEventType.WINDOW_CREATE, DebugLevel.ERROR, player.getUuid(), playerName, windowId, null, null, DebugReason.ENTITY_SPAWN_FAILED, result.message(), exception);
             InteractiveDisplay.LOGGER.error("[{}] window create error player={} windowId={} mode={} anchor={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, playerName, windowId, positionMode, transformState.anchor(), result.reasonCode(), result.message(), exception);
-            return result;
+            return new SpawnedWindow(null, result);
         }
-    }
-
-    public CreateWindowResult rebuildWindow(UUID owner, String windowId) {
-        WindowInstance instance = findActiveWindow(owner, windowId);
-        if (instance == null) {
-            return CreateWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, null, windowId, null, null, 0, 0, "재구성 대상 활성 창이 없음");
-        }
-        ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(owner);
-        if (player == null) {
-            return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, instance.currentAnchor(), 0, 0, "플레이어를 찾을 수 없음");
-        }
-        return createWindow(player, windowId, instance.positionMode(), instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
     }
 
     public void tick() {
         long currentTick = this.server.getTicks();
         this.displayEntityPool.expire(currentTick, runtime -> this.entityFactory.destroyRuntime(this.server, runtime));
 
-        for (Map.Entry<UUID, Map<String, WindowInstance>> ownerEntry : this.activeWindows.entrySet()) {
-            ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(ownerEntry.getKey());
+        Set<UUID> owners = new TreeSet<>((left, right) -> left.compareTo(right));
+        owners.addAll(this.activeWindows.keySet());
+        owners.addAll(this.activeGroups.keySet());
+        for (UUID owner : owners) {
+            ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(owner);
             if (player == null) {
                 continue;
             }
 
-            List<WindowInstance> windows = new ArrayList<>(ownerEntry.getValue().values());
+            List<WindowInstance> windows = ownerWindows(owner);
             for (WindowInstance instance : windows) {
                 WindowDefinition definition = this.definitions.get(instance.windowId());
                 if (definition == null) {
                     continue;
                 }
                 if (!player.getWorld().getRegistryKey().equals(instance.worldKey())) {
-                    removeWindowInternal(ownerEntry.getKey(), instance.windowId(), false);
+                    if (instance.groupId() != null) {
+                        removeGroupInternal(owner, instance.groupId(), false);
+                    } else {
+                        removeWindowInternal(owner, instance.windowId(), false);
+                    }
                     continue;
                 }
 
@@ -271,10 +368,8 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public void handlePlayerJoin(ServerPlayerEntity player) {
-        for (Map<String, WindowInstance> windows : this.activeWindows.values()) {
-            for (WindowInstance instance : windows.values()) {
-                syncCanvases(instance, List.of(player));
-            }
+        for (WindowInstance instance : ownerWindows(player.getUuid())) {
+            syncCanvases(instance, List.of(player));
         }
     }
 
@@ -282,13 +377,28 @@ public final class WindowManager implements WindowActionExecutor {
         return removeWindowInternal(owner, windowId, true);
     }
 
+    public RemoveWindowResult removeGroup(UUID owner, String groupId) {
+        return removeGroupInternal(owner, groupId, true);
+    }
+
     public void removeAll(UUID owner) {
         Map<String, WindowInstance> playerWindows = this.activeWindows.get(owner);
         if (playerWindows == null) {
-            return;
+            Map<String, WindowGroupInstance> playerGroups = this.activeGroups.get(owner);
+            if (playerGroups == null) {
+                return;
+            }
         }
-        for (String windowId : new ArrayList<>(playerWindows.keySet())) {
-            removeWindowInternal(owner, windowId, false);
+        if (playerWindows != null) {
+            for (String windowId : new ArrayList<>(playerWindows.keySet())) {
+                removeWindowInternal(owner, windowId, false);
+            }
+        }
+        Map<String, WindowGroupInstance> playerGroups = this.activeGroups.get(owner);
+        if (playerGroups != null) {
+            for (String groupId : new ArrayList<>(playerGroups.keySet())) {
+                removeGroupInternal(owner, groupId, false);
+            }
         }
     }
 
@@ -315,6 +425,9 @@ public final class WindowManager implements WindowActionExecutor {
         for (Map<String, WindowInstance> playerWindows : this.activeWindows.values()) {
             total += playerWindows.size();
         }
+        for (Map<String, WindowGroupInstance> playerGroups : this.activeGroups.values()) {
+            total += playerGroups.size();
+        }
         return total;
     }
 
@@ -325,6 +438,11 @@ public final class WindowManager implements WindowActionExecutor {
                 total += instance.bindingCount();
             }
         }
+        for (Map<String, WindowGroupInstance> playerGroups : this.activeGroups.values()) {
+            for (WindowGroupInstance group : playerGroups.values()) {
+                total += group.currentWindow().bindingCount();
+            }
+        }
         return total;
     }
 
@@ -333,8 +451,44 @@ public final class WindowManager implements WindowActionExecutor {
         return windows == null ? null : windows.get(windowId);
     }
 
+    public WindowGroupInstance findActiveGroup(UUID owner, String groupId) {
+        Map<String, WindowGroupInstance> groups = this.activeGroups.get(owner);
+        return groups == null ? null : groups.get(groupId);
+    }
+
+    public WindowInstance findWindow(UUID owner, String windowId) {
+        WindowInstance standalone = findActiveWindow(owner, windowId);
+        if (standalone != null) {
+            return standalone;
+        }
+        Map<String, WindowGroupInstance> groups = this.activeGroups.get(owner);
+        if (groups == null) {
+            return null;
+        }
+        for (WindowGroupInstance group : groups.values()) {
+            if (group.currentWindowId().equals(windowId)) {
+                return group.currentWindow();
+            }
+        }
+        return null;
+    }
+
     public boolean hasDefinition(String windowId) {
         return this.definitions.containsKey(windowId);
+    }
+
+    public Set<String> loadedGroupIds() {
+        return Set.copyOf(new TreeSet<>(this.groupDefinitions.keySet()));
+    }
+
+    public Set<String> availableGroupIds() {
+        Set<String> groupIds = new TreeSet<>(this.schemaLoader.discoverGroupIds());
+        groupIds.addAll(this.groupDefinitions.keySet());
+        return Set.copyOf(groupIds);
+    }
+
+    public Set<String> brokenGroupIds() {
+        return Set.copyOf(new TreeSet<>(this.brokenGroupIds));
     }
 
     public int pooledEntityCount() {
@@ -346,8 +500,8 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public UiHitResult findUiHit(ServerPlayerEntity player) {
-        Map<String, WindowInstance> windows = this.activeWindows.get(player.getUuid());
-        if (windows == null || windows.isEmpty()) {
+        List<WindowContext> windows = ownerWindowContexts(player.getUuid());
+        if (windows.isEmpty()) {
             return null;
         }
 
@@ -355,7 +509,8 @@ public final class WindowManager implements WindowActionExecutor {
         Vec3d direction = player.getRotationVec(1.0f).normalize();
         UiHitResult best = null;
         double closest = Double.MAX_VALUE;
-        for (WindowInstance instance : windows.values()) {
+        for (WindowContext windowContext : windows) {
+            WindowInstance instance = windowContext.instance();
             if (!player.getWorld().getRegistryKey().equals(instance.worldKey())) {
                 continue;
             }
@@ -384,6 +539,7 @@ public final class WindowManager implements WindowActionExecutor {
                     closest = squared;
                     best = new UiHitResult(
                             instance.windowId(),
+                            windowContext.navigationContext(),
                             runtime.definition().id(),
                             runtime,
                             runtime.action(),
@@ -397,13 +553,14 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public List<BindingSnapshot> bindingSnapshots(UUID owner) {
-        Map<String, WindowInstance> windows = this.activeWindows.get(owner);
-        if (windows == null) {
+        List<WindowContext> windows = ownerWindowContexts(owner);
+        if (windows.isEmpty()) {
             return List.of();
         }
 
         List<BindingSnapshot> snapshots = new ArrayList<>();
-        for (WindowInstance instance : windows.values()) {
+        for (WindowContext windowContext : windows) {
+            WindowInstance instance = windowContext.instance();
             for (WindowComponentRuntime runtime : instance.runtimes()) {
                 if (!runtime.interactive() || runtime.action() == null) {
                     continue;
@@ -423,17 +580,45 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     @Override
-    public RemoveWindowResult closeWindow(UUID owner, String windowId) {
-        return removeWindow(owner, windowId);
+    public RemoveWindowResult closeWindow(UUID owner, WindowNavigationContext context) {
+        if (context.groupId() != null) {
+            return removeGroup(owner, context.groupId());
+        }
+        return removeWindow(owner, context.windowId());
     }
 
     @Override
-    public CreateWindowResult openWindow(UUID owner, String windowId) {
+    public CreateWindowResult openWindow(UUID owner, WindowNavigationContext context, String windowId) {
         ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(owner);
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, null, 0, 0, "action 대상 플레이어를 찾을 수 없음");
         }
-        return createWindow(player, windowId, PositionMode.FIXED, null, player.getYaw(), 0.0f);
+        if (context.groupId() != null) {
+            return openGroupWindow(owner, context.groupId(), context.positionMode(), windowId, context.fixedAnchor(), context.fixedYaw(), context.fixedPitch(), player);
+        }
+        if (!this.definitions.containsKey(windowId)) {
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().getName(), windowId, null, null, 0, 0, "창 정의를 찾을 수 없음");
+        }
+        removeWindowInternal(owner, context.windowId(), false);
+        return createWindow(player, windowId, context.positionMode(), context.fixedAnchor(), context.fixedYaw(), context.fixedPitch());
+    }
+
+    @Override
+    public CreateWindowResult switchMode(UUID owner, WindowNavigationContext context, PositionMode positionMode) {
+        ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(owner);
+        if (player == null) {
+            return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, context.windowId(), null, null, 0, 0, "action 대상 플레이어를 찾을 수 없음");
+        }
+        if (context.groupId() != null) {
+            return openGroupWindow(owner, context.groupId(), positionMode, context.windowId(), context.fixedAnchor(), 0.0f, 0.0f, player);
+        }
+
+        removeWindowInternal(owner, context.windowId(), false);
+        return switch (positionMode) {
+            case FIXED -> createWindow(player, context.windowId(), PositionMode.FIXED, context.fixedAnchor(), context.fixedYaw(), 0.0f);
+            case PLAYER_FIXED -> createWindow(player, context.windowId(), PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            case PLAYER_VIEW -> createWindow(player, context.windowId(), PositionMode.PLAYER_VIEW, null, 0.0f, 0.0f);
+        };
     }
 
     @Override
@@ -487,8 +672,8 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     private void updateHover(ServerPlayerEntity player) {
-        Map<String, WindowInstance> windows = this.activeWindows.get(player.getUuid());
-        if (windows == null || windows.isEmpty()) {
+        List<WindowInstance> windows = ownerWindows(player.getUuid());
+        if (windows.isEmpty()) {
             return;
         }
 
@@ -503,7 +688,7 @@ public final class WindowManager implements WindowActionExecutor {
             Vec3d hit = hovered.hitPosition();
             player.getWorld().spawnParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
         }
-        for (WindowInstance instance : windows.values()) {
+        for (WindowInstance instance : windows) {
             ServerWorld world = this.server.getWorld(instance.worldKey());
             if (world == null) {
                 continue;
@@ -547,20 +732,44 @@ public final class WindowManager implements WindowActionExecutor {
             return result;
         }
 
-        ServerWorld world = this.server.getWorld(instance.worldKey());
-        if (world != null) {
-            for (WindowComponentRuntime runtime : instance.runtimes()) {
-                this.entityFactory.deactivateRuntime(this.server, world, runtime);
-                this.displayEntityPool.release(owner, instance.worldKey(), runtime, this.server.getTicks());
-            }
-            this.entityFactory.destroyRoot(this.server, instance.worldKey(), instance.rootEntityId());
-        }
+        releaseWindowInstance(instance, owner);
 
         if (playerWindows.isEmpty()) {
             this.activeWindows.remove(owner);
         }
 
         RemoveWindowResult result = RemoveWindowResult.success(owner, windowId, instance.entityIds().size(), "창 제거 완료");
+        if (recordDebug) {
+            recordRemove(DebugLevel.DEBUG, result);
+        }
+        return result;
+    }
+
+    private RemoveWindowResult removeGroupInternal(UUID owner, String groupId, boolean recordDebug) {
+        Map<String, WindowGroupInstance> playerGroups = this.activeGroups.get(owner);
+        if (playerGroups == null) {
+            RemoveWindowResult result = RemoveWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, groupId, "활성 그룹이 없음");
+            if (recordDebug) {
+                recordRemove(DebugLevel.WARN, result);
+            }
+            return result;
+        }
+
+        WindowGroupInstance groupInstance = playerGroups.remove(groupId);
+        if (groupInstance == null) {
+            RemoveWindowResult result = RemoveWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, groupId, "제거 대상 그룹이 없음");
+            if (recordDebug) {
+                recordRemove(DebugLevel.WARN, result);
+            }
+            return result;
+        }
+
+        releaseWindowInstance(groupInstance.currentWindow(), owner);
+        if (playerGroups.isEmpty()) {
+            this.activeGroups.remove(owner);
+        }
+
+        RemoveWindowResult result = RemoveWindowResult.success(owner, groupId, groupInstance.currentWindow().entityIds().size(), "그룹 제거 완료");
         if (recordDebug) {
             recordRemove(DebugLevel.DEBUG, result);
         }
@@ -588,6 +797,187 @@ public final class WindowManager implements WindowActionExecutor {
         }
     }
 
+    private void rebuildActiveGroups(Set<String> groupIds, Set<String> changedWindowIds) {
+        for (String groupId : groupIds) {
+            List<UUID> owners = new ArrayList<>();
+            for (Map.Entry<UUID, Map<String, WindowGroupInstance>> entry : this.activeGroups.entrySet()) {
+                if (entry.getValue().containsKey(groupId)) {
+                    owners.add(entry.getKey());
+                }
+            }
+            for (UUID owner : owners) {
+                CreateWindowResult rebuild = rebuildGroup(owner, groupId);
+                if (!rebuild.success()) {
+                    InteractiveDisplay.LOGGER.warn("[{}] group rebuild failed owner={} groupId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, owner, groupId, rebuild.reasonCode(), rebuild.message());
+                }
+            }
+        }
+        for (String changedWindowId : changedWindowIds) {
+            rebuildActiveGroupsContainingWindow(changedWindowId);
+        }
+    }
+
+    private void rebuildActiveGroupsContainingWindow(String windowId) {
+        List<GroupOwnerRef> affected = new ArrayList<>();
+        for (Map.Entry<UUID, Map<String, WindowGroupInstance>> ownerEntry : this.activeGroups.entrySet()) {
+            for (WindowGroupInstance groupInstance : ownerEntry.getValue().values()) {
+                if (groupInstance.currentWindowId().equals(windowId)) {
+                    affected.add(new GroupOwnerRef(ownerEntry.getKey(), groupInstance.groupId()));
+                }
+            }
+        }
+        for (GroupOwnerRef ref : affected) {
+            CreateWindowResult rebuild = rebuildGroup(ref.owner(), ref.groupId());
+            if (!rebuild.success()) {
+                InteractiveDisplay.LOGGER.warn("[{}] group rebuild failed owner={} groupId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, ref.owner(), ref.groupId(), rebuild.reasonCode(), rebuild.message());
+            }
+        }
+    }
+
+    private void releaseWindowInstance(WindowInstance instance, UUID owner) {
+        ServerWorld world = this.server.getWorld(instance.worldKey());
+        if (world == null) {
+            return;
+        }
+        for (WindowComponentRuntime runtime : instance.runtimes()) {
+            this.entityFactory.deactivateRuntime(this.server, world, runtime);
+            this.displayEntityPool.release(owner, instance.worldKey(), runtime, this.server.getTicks());
+        }
+        this.entityFactory.destroyRoot(this.server, instance.worldKey(), instance.rootEntityId());
+    }
+
+    private List<WindowInstance> ownerWindows(UUID owner) {
+        List<WindowInstance> windows = new ArrayList<>();
+        Map<String, WindowInstance> standalone = this.activeWindows.get(owner);
+        if (standalone != null) {
+            windows.addAll(standalone.values());
+        }
+        Map<String, WindowGroupInstance> groups = this.activeGroups.get(owner);
+        if (groups != null) {
+            for (WindowGroupInstance group : groups.values()) {
+                windows.add(group.currentWindow());
+            }
+        }
+        return windows;
+    }
+
+    private List<WindowContext> ownerWindowContexts(UUID owner) {
+        List<WindowContext> windows = new ArrayList<>();
+        Map<String, WindowInstance> standalone = this.activeWindows.get(owner);
+        if (standalone != null) {
+            for (WindowInstance instance : standalone.values()) {
+                windows.add(new WindowContext(instance, new WindowNavigationContext(
+                        instance.windowId(),
+                        null,
+                        instance.positionMode(),
+                        instance.positionMode() == PositionMode.FIXED ? instance.currentAnchor() : instance.fixedAnchor(),
+                        instance.currentYaw(),
+                        instance.currentPitch()
+                )));
+            }
+        }
+        Map<String, WindowGroupInstance> groups = this.activeGroups.get(owner);
+        if (groups != null) {
+            for (WindowGroupInstance group : groups.values()) {
+                windows.add(new WindowContext(group.currentWindow(), new WindowNavigationContext(
+                        group.currentWindowId(),
+                        group.groupId(),
+                        group.currentMode(),
+                        group.baseAnchor(),
+                        group.baseYaw(),
+                        group.basePitch()
+                )));
+            }
+        }
+        return windows;
+    }
+
+    private SpawnedWindow spawnGroupWindow(ServerPlayerEntity player,
+                                           WindowGroupDefinition groupDefinition,
+                                           WindowGroupEntry entry,
+                                           PositionMode positionMode,
+                                           Vec3d baseAnchor,
+                                           float baseYaw,
+                                           float basePitch) {
+        WindowDefinition definition = this.definitions.get(entry.windowId());
+        if (definition == null) {
+            CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), player.getGameProfile().getName(), entry.windowId(), null, null, 0, 0, "그룹 대상 창 정의를 찾을 수 없음");
+            return new SpawnedWindow(null, result);
+        }
+        WindowOffset effectiveOffset = definition.offset().plus(entry.offset());
+        float resolvedYaw = MathHelper.wrapDegrees(baseYaw + entry.orbit().yaw());
+        float resolvedPitch = MathHelper.clamp(basePitch + entry.orbit().pitch(), -90.0f, 90.0f);
+        Vec3d overrideAnchor = positionMode == PositionMode.FIXED
+                ? baseAnchor.add(this.transformer.orbitOffset(effectiveOffset, resolvedYaw, resolvedPitch))
+                : null;
+        WindowOffset runtimeOffset = positionMode == PositionMode.FIXED ? WindowOffset.zero() : effectiveOffset;
+        return spawnWindowInstance(
+                player,
+                entry.windowId(),
+                positionMode,
+                overrideAnchor,
+                positionMode == PositionMode.PLAYER_FIXED ? resolvedYaw : baseYaw,
+                positionMode == PositionMode.PLAYER_FIXED ? resolvedPitch : basePitch,
+                runtimeOffset,
+                groupDefinition.id(),
+                entry.windowId()
+        );
+    }
+
+    private CreateWindowResult openGroupWindow(UUID owner,
+                                               String groupId,
+                                               PositionMode positionMode,
+                                               String windowId,
+                                               Vec3d baseAnchor,
+                                               float baseYaw,
+                                               float basePitch,
+                                               ServerPlayerEntity player) {
+        WindowGroupDefinition groupDefinition = this.groupDefinitions.get(groupId);
+        if (groupDefinition == null) {
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().getName(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
+        }
+        WindowGroupEntry entry = groupDefinition.entry(windowId);
+        if (entry == null) {
+            if (!this.definitions.containsKey(windowId)) {
+                return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().getName(), windowId, null, null, 0, 0, "창 정의를 찾을 수 없음");
+            }
+            removeGroupInternal(owner, groupId, false);
+            return createWindow(player, windowId, positionMode, baseAnchor, baseYaw, basePitch);
+        }
+        WindowGroupInstance currentGroup = findActiveGroup(owner, groupId);
+        Vec3d resolvedBaseAnchor = baseAnchor;
+        if (resolvedBaseAnchor == null) {
+            resolvedBaseAnchor = positionMode == PositionMode.FIXED ? player.getEyePos() : currentGroup != null ? currentGroup.baseAnchor() : null;
+        }
+        float resolvedBaseYaw = positionMode == PositionMode.PLAYER_FIXED ? baseYaw : baseYaw;
+        float resolvedBasePitch = positionMode == PositionMode.PLAYER_FIXED ? basePitch : basePitch;
+        SpawnedWindow spawned = spawnGroupWindow(player, groupDefinition, entry, positionMode, resolvedBaseAnchor, resolvedBaseYaw, resolvedBasePitch);
+        if (!spawned.result().success()) {
+            return spawned.result();
+        }
+        if (currentGroup != null) {
+            releaseWindowInstance(currentGroup.currentWindow(), owner);
+        }
+        WindowGroupInstance nextGroup = new WindowGroupInstance(owner, groupId, resolvedBaseAnchor, resolvedBaseYaw, resolvedBasePitch, positionMode, windowId, spawned.instance());
+        this.activeGroups.computeIfAbsent(owner, ignored -> new ConcurrentHashMap<>()).put(groupId, nextGroup);
+        return spawned.result();
+    }
+
+    private GroupPlacement initialGroupPlacement(ServerPlayerEntity player,
+                                                 PositionMode positionMode,
+                                                 Vec3d baseAnchor,
+                                                 float baseYaw,
+                                                 float basePitch) {
+        Vec3d resolvedBaseAnchor = baseAnchor;
+        if (positionMode == PositionMode.FIXED) {
+            if (resolvedBaseAnchor == null) {
+                resolvedBaseAnchor = player.getEyePos();
+            }
+            return new GroupPlacement(resolvedBaseAnchor, baseYaw, basePitch);
+        }
+        return new GroupPlacement(resolvedBaseAnchor, baseYaw, basePitch);
+    }
+
     private void cleanupFailedCreate(List<WindowComponentRuntime> runtimes) {
         for (WindowComponentRuntime runtime : runtimes) {
             this.entityFactory.destroyRuntime(this.server, runtime);
@@ -606,6 +996,11 @@ public final class WindowManager implements WindowActionExecutor {
     private void replaceBrokenWindowIds(Set<String> brokenWindowIds) {
         this.brokenWindowIds.clear();
         this.brokenWindowIds.addAll(brokenWindowIds);
+    }
+
+    private void replaceBrokenGroupIds(Set<String> brokenGroupIds) {
+        this.brokenGroupIds.clear();
+        this.brokenGroupIds.addAll(brokenGroupIds);
     }
 
     private void recordCreate(DebugLevel level, PositionMode positionMode, CreateWindowResult result) {
@@ -657,8 +1052,8 @@ public final class WindowManager implements WindowActionExecutor {
         return end < 0 ? message.substring(valueStart) : message.substring(valueStart, end);
     }
 
-    private void clearHover(Map<String, WindowInstance> windows) {
-        for (WindowInstance instance : windows.values()) {
+    private void clearHover(Collection<WindowInstance> windows) {
+        for (WindowInstance instance : windows) {
             ServerWorld world = this.server.getWorld(instance.worldKey());
             if (world == null) {
                 continue;
@@ -683,5 +1078,17 @@ public final class WindowManager implements WindowActionExecutor {
             String actionType,
             String target
     ) {
+    }
+
+    private record SpawnedWindow(WindowInstance instance, CreateWindowResult result) {
+    }
+
+    private record GroupPlacement(Vec3d baseAnchor, float baseYaw, float basePitch) {
+    }
+
+    private record GroupOwnerRef(UUID owner, String groupId) {
+    }
+
+    private record WindowContext(WindowInstance instance, WindowNavigationContext navigationContext) {
     }
 }

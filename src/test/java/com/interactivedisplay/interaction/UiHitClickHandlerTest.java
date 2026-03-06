@@ -15,6 +15,7 @@ import com.interactivedisplay.core.window.CreateWindowResult;
 import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowActionExecutor;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
+import com.interactivedisplay.core.window.WindowNavigationContext;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import java.util.UUID;
@@ -92,7 +93,7 @@ class UiHitClickHandlerTest {
                 action
         );
         WindowComponentRuntime runtime = new WindowComponentRuntime(World.OVERWORLD, "sig", button, new Vector3f(), UUID.randomUUID(), null);
-        return new UiHitResult("main", componentId, runtime, action, Vec3d.ZERO, 1.0D);
+        return new UiHitResult("main", new WindowNavigationContext("main", null, com.interactivedisplay.core.positioning.PositionMode.FIXED, Vec3d.ZERO, 0.0f, 0.0f), componentId, runtime, action, Vec3d.ZERO, 1.0D);
     }
 
     private static final class TrackingExecutor implements WindowActionExecutor {
@@ -106,13 +107,19 @@ class UiHitClickHandlerTest {
         ActionExecutionResult callbackResult = ActionExecutionResult.success("callback 처리 완료");
 
         @Override
-        public RemoveWindowResult closeWindow(UUID owner, String windowId) {
+        public RemoveWindowResult closeWindow(UUID owner, WindowNavigationContext context) {
             this.closeCalls++;
             return this.closeResult;
         }
 
         @Override
-        public CreateWindowResult openWindow(UUID owner, String windowId) {
+        public CreateWindowResult openWindow(UUID owner, WindowNavigationContext context, String windowId) {
+            this.openCalls++;
+            return this.openResult;
+        }
+
+        @Override
+        public CreateWindowResult switchMode(UUID owner, WindowNavigationContext context, com.interactivedisplay.core.positioning.PositionMode positionMode) {
             this.openCalls++;
             return this.openResult;
         }

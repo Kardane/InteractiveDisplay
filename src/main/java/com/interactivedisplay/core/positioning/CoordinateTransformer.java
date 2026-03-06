@@ -32,15 +32,20 @@ public final class CoordinateTransformer {
     }
 
     public Vec3d toPlayerFixedAnchor(Vec3d eyePos, WindowOffset offset, float yaw, float pitch) {
+        Vec3d orbitOffset = orbitOffset(offset, yaw, pitch);
+        return eyePos.add(orbitOffset);
+    }
+
+    public Vec3d orbitOffset(WindowOffset offset, float yaw, float pitch) {
         Vec3d orbitDirection = Vec3d.fromPolar(pitch, yaw);
         Vector3f look = normalize(orbitDirection);
         Vector3f right = right(look);
         Vector3f up = up(look, right);
-        Vector3f anchor = new Vector3f((float) eyePos.x, (float) eyePos.y, (float) eyePos.z);
-        anchor.add(look.mul(offset.forward(), new Vector3f()));
-        anchor.add(right.mul(offset.horizontal(), new Vector3f()));
-        anchor.add(up.mul(offset.vertical(), new Vector3f()));
-        return new Vec3d(anchor.x, anchor.y, anchor.z);
+        Vector3f delta = new Vector3f();
+        delta.add(look.mul(offset.forward(), new Vector3f()));
+        delta.add(right.mul(offset.horizontal(), new Vector3f()));
+        delta.add(up.mul(offset.vertical(), new Vector3f()));
+        return new Vec3d(delta.x, delta.y, delta.z);
     }
 
     public ViewRotation facingRotation(Vec3d anchor, Vec3d targetEyePos) {
@@ -52,6 +57,16 @@ public final class CoordinateTransformer {
         float yaw = MathHelper.wrapDegrees((float) Math.toDegrees(Math.atan2(-direction.x, direction.z)));
         float pitch = (float) MathHelper.clamp(-Math.toDegrees(Math.atan2(direction.y, horizontal)), -90.0D, 90.0D);
         return new ViewRotation(yaw, pitch);
+    }
+
+    public ViewRotation facingYawOnly(Vec3d anchor, Vec3d targetEyePos) {
+        Vec3d direction = anchor.subtract(targetEyePos);
+        double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+        if (horizontal < 1.0E-6D) {
+            return new ViewRotation(0.0f, 0.0f);
+        }
+        float yaw = MathHelper.wrapDegrees((float) Math.toDegrees(Math.atan2(-direction.x, direction.z)));
+        return new ViewRotation(yaw, 0.0f);
     }
 
     public Vec3d toPlayerViewAnchor(Vec3d eyePos, Vec3d lookDirection, WindowOffset offset) {

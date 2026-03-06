@@ -9,6 +9,14 @@ public record ComponentAction(ComponentActionType type, String target) {
         return new ComponentAction(ComponentActionType.OPEN_WINDOW, targetWindowId);
     }
 
+    public static ComponentAction switchModeFixed() {
+        return new ComponentAction(ComponentActionType.SWITCH_MODE_FIXED, null);
+    }
+
+    public static ComponentAction switchModePlayerFixed() {
+        return new ComponentAction(ComponentActionType.SWITCH_MODE_PLAYER_FIXED, null);
+    }
+
     public static ComponentAction runCommand(String command) {
         return new ComponentAction(ComponentActionType.RUN_COMMAND, command);
     }

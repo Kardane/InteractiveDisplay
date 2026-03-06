@@ -26,6 +26,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.entity.Entity;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -35,6 +36,7 @@ import org.joml.Vector3f;
 
 public final class InteractiveDisplayCommand {
     private static final SimpleCommandExceptionType MANAGER_NOT_READY = new SimpleCommandExceptionType(Text.literal("InteractiveDisplay 런타임이 아직 준비되지 않음"));
+    private static final SimpleCommandExceptionType RELATIVE_ROTATION_REQUIRES_ENTITY = new SimpleCommandExceptionType(Text.literal("상대 yaw/pitch(~)는 엔티티 기준 명령에서만 사용 가능"));
 
     private InteractiveDisplayCommand() {
     }
@@ -63,9 +65,7 @@ public final class InteractiveDisplayCommand {
                         for (ServerPlayerEntity target : targets) {
                             InteractiveDisplayCommandTree.Rotation resolvedRotation = resolveRotationForTarget(
                                     positionMode,
-                                    commandSourceYaw(context.getSource()),
-                                    target.getYaw(),
-                                    target.getPitch(),
+                                    context.getSource(),
                                     rotation
                             );
                             CreateWindowResult result = windowManager.createWindow(
@@ -147,6 +147,70 @@ public final class InteractiveDisplayCommand {
                     }
 
                     @Override
+                    public int groupCreate(CommandContext<ServerCommandSource> context,
+                                           String groupId,
+                                           PositionMode positionMode,
+                                           Vec3d position,
+                                           InteractiveDisplayCommandTree.Rotation rotation) throws CommandSyntaxException {
+                        WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_CREATE, null, groupId);
+                        List<ServerPlayerEntity> targets = resolvePlayers(context);
+                        int successCount = 0;
+                        List<String> failures = new ArrayList<>();
+                        for (ServerPlayerEntity target : targets) {
+                            InteractiveDisplayCommandTree.Rotation resolvedRotation = resolveRotationForTarget(positionMode, context.getSource(), rotation);
+                            CreateWindowResult result = windowManager.createGroup(target, groupId, positionMode, position, resolvedRotation.yaw(), resolvedRotation.pitch());
+                            if (!result.success()) {
+                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                continue;
+                            }
+                            successCount++;
+                        }
+                        if (successCount == 0) {
+                            context.getSource().sendError(Text.literal("그룹 생성 실패: " + groupId + (failures.isEmpty() ? "" : " " + String.join(", ", failures))));
+                            return 0;
+                        }
+                        if (!failures.isEmpty()) {
+                            context.getSource().sendError(Text.literal("부분 실패: " + String.join(", ", failures)));
+                        }
+                        int finalSuccessCount = successCount;
+                        context.getSource().sendFeedback(() -> Text.literal(formatSuccessMessage("그룹 생성 완료", groupId, finalSuccessCount)), false);
+                        return successCount;
+                    }
+
+                    @Override
+                    public int groupRemove(CommandContext<ServerCommandSource> context, String groupId) throws CommandSyntaxException {
+                        WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_REMOVE, null, groupId);
+                        List<ServerPlayerEntity> targets = resolvePlayers(context);
+                        int successCount = 0;
+                        List<String> failures = new ArrayList<>();
+                        for (ServerPlayerEntity target : targets) {
+                            RemoveWindowResult result = windowManager.removeGroup(target.getUuid(), groupId);
+                            if (!result.success()) {
+                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                continue;
+                            }
+                            successCount++;
+                        }
+                        if (successCount == 0) {
+                            context.getSource().sendError(Text.literal("그룹 제거 실패: " + groupId + (failures.isEmpty() ? "" : " " + String.join(", ", failures))));
+                            return 0;
+                        }
+                        if (!failures.isEmpty()) {
+                            context.getSource().sendError(Text.literal("부분 실패: " + String.join(", ", failures)));
+                        }
+                        int finalSuccessCount = successCount;
+                        context.getSource().sendFeedback(() -> Text.literal(formatSuccessMessage("그룹 제거 완료", groupId, finalSuccessCount)), false);
+                        return successCount;
+                    }
+
+                    @Override
+                    public int groupList(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+                        WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_RELOAD, null, null);
+                        sendLines(context, buildGroupListLines(windowManager.loadedGroupIds(), windowManager.availableGroupIds(), windowManager.brokenGroupIds()), false);
+                        return 1;
+                    }
+
+                    @Override
                     public int debugStatus(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
                         WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_RELOAD, null, null);
                         List<String> lines = buildStatusLines(
@@ -174,7 +238,7 @@ public final class InteractiveDisplayCommand {
                                            String windowId) throws CommandSyntaxException {
                         WindowManager windowManager = getManager(managerSupplier, debugRecorder, DebugEventType.WINDOW_RELOAD, null, windowId);
                         ServerPlayerEntity player = EntityArgumentType.getPlayer(context, "player");
-                        WindowInstance instance = windowManager.findActiveWindow(player.getUuid(), windowId);
+                        WindowInstance instance = windowManager.findWindow(player.getUuid(), windowId);
                         sendLines(context, buildWindowLines(windowId, windowManager.hasDefinition(windowId), instance, debugRecorder.latestFailure(player.getUuid(), windowId).orElse(null)), false);
                         return 1;
                     }
@@ -197,6 +261,13 @@ public final class InteractiveDisplayCommand {
                         return builder.buildFuture();
                     }
                     return net.minecraft.command.CommandSource.suggestMatching(manager.availableWindowIds(), builder);
+                },
+                (context, builder) -> {
+                    WindowManager manager = managerSupplier.get();
+                    if (manager == null) {
+                        return builder.buildFuture();
+                    }
+                    return net.minecraft.command.CommandSource.suggestMatching(manager.availableGroupIds(), builder);
                 }
         );
 
@@ -289,6 +360,30 @@ public final class InteractiveDisplayCommand {
         return lines;
     }
 
+    static List<String> buildGroupListLines(Set<String> loadedGroupIds, Set<String> availableGroupIds, Set<String> brokenGroupIds) {
+        TreeSet<String> sortedLoaded = new TreeSet<>(loadedGroupIds);
+        TreeSet<String> sortedAvailable = new TreeSet<>(availableGroupIds);
+        TreeSet<String> sortedBroken = new TreeSet<>(brokenGroupIds);
+        List<String> lines = new ArrayList<>();
+        lines.add("그룹 목록 loaded=" + sortedLoaded.size() + " configured=" + sortedAvailable.size() + " broken=" + sortedBroken.size());
+        if (sortedLoaded.isEmpty()) {
+            lines.add("로드된 그룹 없음");
+        } else {
+            for (String groupId : sortedLoaded) {
+                lines.add("loaded: " + groupId);
+            }
+        }
+        for (String groupId : sortedBroken) {
+            lines.add("broken: " + groupId);
+        }
+        sortedAvailable.removeAll(sortedLoaded);
+        sortedAvailable.removeAll(sortedBroken);
+        for (String groupId : sortedAvailable) {
+            lines.add("configured-only: " + groupId);
+        }
+        return lines;
+    }
+
     private static WindowManager getManager(Supplier<WindowManager> managerSupplier,
                                             DebugRecorder debugRecorder,
                                             DebugEventType eventType,
@@ -314,8 +409,25 @@ public final class InteractiveDisplayCommand {
         return List.copyOf(EntityArgumentType.getPlayers(context, "player"));
     }
 
-    private static float commandSourceYaw(ServerCommandSource source) {
-        return source.getEntity() instanceof ServerPlayerEntity player ? player.getYaw() : 0.0f;
+    static InteractiveDisplayCommandTree.Rotation resolveRotationForTarget(PositionMode positionMode,
+                                                                           ServerCommandSource source,
+                                                                           InteractiveDisplayCommandTree.Rotation requestedRotation) throws CommandSyntaxException {
+        return switch (positionMode) {
+            case FIXED -> new InteractiveDisplayCommandTree.Rotation(source.getRotation().y, 0.0f);
+            case PLAYER_FIXED -> {
+                if (requestedRotation == null) {
+                    yield new InteractiveDisplayCommandTree.Rotation(0.0f, 0.0f);
+                }
+                validateRelativeRotationSource(source, requestedRotation);
+                float yawValue = requestedRotation.yawInput().resolveYaw(source);
+                float pitchValue = requestedRotation.pitchInput().resolvePitch(source);
+                yield new InteractiveDisplayCommandTree.Rotation(
+                        MathHelper.wrapDegrees(yawValue),
+                        MathHelper.clamp(pitchValue, -90.0f, 90.0f)
+                );
+            }
+            case PLAYER_VIEW -> new InteractiveDisplayCommandTree.Rotation(0.0f, 0.0f);
+        };
     }
 
     static InteractiveDisplayCommandTree.Rotation resolveRotationForTarget(PositionMode positionMode,
@@ -335,6 +447,17 @@ public final class InteractiveDisplayCommand {
             }
             case PLAYER_VIEW -> new InteractiveDisplayCommandTree.Rotation(0.0f, 0.0f);
         };
+    }
+
+    private static void validateRelativeRotationSource(ServerCommandSource source,
+                                                       InteractiveDisplayCommandTree.Rotation requestedRotation) throws CommandSyntaxException {
+        if (!requestedRotation.yawInput().relative() && !requestedRotation.pitchInput().relative()) {
+            return;
+        }
+        Entity entity = source.getEntity();
+        if (entity == null) {
+            throw RELATIVE_ROTATION_REQUIRES_ENTITY.create();
+        }
     }
 
     private static boolean hasArgument(CommandContext<?> context, String name) {

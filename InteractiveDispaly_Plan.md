@@ -2,7 +2,56 @@
 
 > **기준 버전**: Minecraft Java Edition 1.21.8 · Fabric · JDK 21  
 > **최종 수정**: 2026-03-06  
-> **상태**: 설계 v2 (업그레이드)
+> **상태**: 구현 진행 중 (Phase 1 / 1.5 / 2 주요 항목 반영)
+
+---
+
+## 0. 진행 현황
+
+### 2026-03-06 기준 완료
+
+- `Phase 1`
+  - 창 정의 로드/검증
+  - `text`, `button`, `panel`, `image` 기본 렌더
+  - `FIXED` 생성/제거/리로드
+  - 명령어/디버그 명령
+- `Phase 1.5`
+  - 구조화 로그
+  - 최근 실패 스냅샷
+  - 디버그 status/recent/window/bindings
+- `Phase 2 핵심`
+  - `PLAYER_FIXED`, `PLAYER_VIEW`
+  - hover, pooling, interpolation
+  - `run_command`, `callback`
+  - `Polymer` 자동 리소스팩 빌드/호스팅
+  - config 이미지 -> Polymer source asset 병합
+  - 포인터 아이템 기반 입력
+  - `interaction` 엔티티 제거 후 raycast 기반 hit-test
+- `추가 확장`
+  - 버튼 `fontSize`, `clickSound`
+  - `switch_mode_fixed`, `switch_mode_player_fixed`
+  - `open_window`를 현재 창 교체 방식으로 전환
+  - 그룹 정의 `groups/*.json`
+  - `/interactivedisplay group create/remove/list`
+  - `player_fixed` 상대 각도 `~ ~`, `~15 ~-10`
+  - `PLAYER_FIXED` orbit yaw/pitch 의미 재정의
+  - `PLAYER_FIXED`, `PLAYER_VIEW` deadzone/smoothing/threshold 적용
+
+### 현재 구현 기준으로 원안과 달라진 점
+
+- 원안의 `interaction` 엔티티 기반 입력은 폐기됨
+- 현재 입력은 `포인터 아이템 + 서버 raycast + packet mixin` 기준
+- `PLAYER_FIXED`의 `yaw/pitch`는 창 자체 회전이 아니라 orbit 각도 의미
+- `PLAYER_FIXED` 표시 pitch는 항상 `0`
+- `open_window`는 추가 창 오픈이 아니라 현재 창 교체 의미
+- 그룹 시스템이 별도 루트 JSON로 추가됨
+
+### 현재 남은 리스크 / 후속 후보
+
+- 창 전환 중 새 창 spawn 실패 시 완전 롤백은 아직 미흡
+- `meditate-layout` 의존성은 남아 있지만 실제 레이아웃 계산에는 미사용
+- Polymer 리소스팩 강제 적용/거부 플로우는 런타임 수동 검증 계속 필요
+- 그룹 전환과 standalone 전환이 함께 섞일 때 UX 규칙은 추가 정리 여지 있음
 
 ---
 

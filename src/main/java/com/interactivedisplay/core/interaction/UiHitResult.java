@@ -1,11 +1,13 @@
 package com.interactivedisplay.core.interaction;
 
 import com.interactivedisplay.core.component.ComponentAction;
+import com.interactivedisplay.core.window.WindowNavigationContext;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import net.minecraft.util.math.Vec3d;
 
 public record UiHitResult(
         String windowId,
+        WindowNavigationContext navigationContext,
         String componentId,
         WindowComponentRuntime runtime,
         ComponentAction action,

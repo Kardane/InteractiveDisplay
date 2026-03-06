@@ -11,6 +11,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.util.function.Predicate;
 import net.minecraft.command.EntitySelector;
+import net.minecraft.command.argument.AngleArgumentType;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.util.math.Vec3d;
 
@@ -25,8 +26,20 @@ public final class InteractiveDisplayCommandTree {
                                     Predicate<S> canReload,
                                     Predicate<S> canList,
                                     Predicate<S> canDebug,
+                                    SuggestionProvider<S> windowSuggestions,
+                                    SuggestionProvider<S> groupSuggestions) {
+        dispatcher.register(buildTree(handlers, canCreate, canRemove, canReload, canList, canDebug, windowSuggestions, groupSuggestions));
+    }
+
+    public static <S> void register(CommandDispatcher<S> dispatcher,
+                                    Handlers<S> handlers,
+                                    Predicate<S> canCreate,
+                                    Predicate<S> canRemove,
+                                    Predicate<S> canReload,
+                                    Predicate<S> canList,
+                                    Predicate<S> canDebug,
                                     SuggestionProvider<S> windowSuggestions) {
-        dispatcher.register(buildTree(handlers, canCreate, canRemove, canReload, canList, canDebug, windowSuggestions));
+        register(dispatcher, handlers, canCreate, canRemove, canReload, canList, canDebug, windowSuggestions, (context, builder) -> builder.buildFuture());
     }
 
     private static <S> LiteralArgumentBuilder<S> buildTree(Handlers<S> handlers,
@@ -35,7 +48,8 @@ public final class InteractiveDisplayCommandTree {
                                                            Predicate<S> canReload,
                                                            Predicate<S> canList,
                                                            Predicate<S> canDebug,
-                                                           SuggestionProvider<S> windowSuggestions) {
+                                                           SuggestionProvider<S> windowSuggestions,
+                                                           SuggestionProvider<S> groupSuggestions) {
         return LiteralArgumentBuilder.<S>literal("interactivedisplay")
                 .then(LiteralArgumentBuilder.<S>literal("create")
                         .requires(canCreate)
@@ -60,6 +74,22 @@ public final class InteractiveDisplayCommandTree {
                 .then(LiteralArgumentBuilder.<S>literal("list")
                         .requires(canList)
                         .executes(handlers::list))
+                .then(LiteralArgumentBuilder.<S>literal("group")
+                        .requires(canCreate)
+                        .then(LiteralArgumentBuilder.<S>literal("create")
+                                .then(RequiredArgumentBuilder.<S, String>argument("groupId", StringArgumentType.word())
+                                        .suggests(groupSuggestions)
+                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
+                                                .then(createLiteral(handlers, PositionMode.FIXED, "fixed", true))
+                                                .then(createLiteral(handlers, PositionMode.PLAYER_FIXED, "player_fixed", true))
+                                                .then(createLiteral(handlers, PositionMode.PLAYER_VIEW, "player_view", true)))))
+                        .then(LiteralArgumentBuilder.<S>literal("remove")
+                                .then(RequiredArgumentBuilder.<S, String>argument("groupId", StringArgumentType.word())
+                                        .suggests(groupSuggestions)
+                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
+                                                .executes(context -> handlers.groupRemove(context, argGroupId(context))))))
+                        .then(LiteralArgumentBuilder.<S>literal("list")
+                                .executes(handlers::groupList)))
                 .then(LiteralArgumentBuilder.<S>literal("debug")
                         .requires(canDebug)
                         .then(LiteralArgumentBuilder.<S>literal("status")
@@ -79,23 +109,43 @@ public final class InteractiveDisplayCommandTree {
     }
 
     private static <S> LiteralArgumentBuilder<S> createLiteral(Handlers<S> handlers, PositionMode mode, String literal) {
+        return createLiteral(handlers, mode, literal, false);
+    }
+
+    private static <S> LiteralArgumentBuilder<S> createLiteral(Handlers<S> handlers, PositionMode mode, String literal, boolean group) {
         LiteralArgumentBuilder<S> node = LiteralArgumentBuilder.<S>literal(literal)
-                .executes(context -> handlers.create(context, argWindowId(context), mode, null, null));
+                .executes(context -> group
+                        ? handlers.groupCreate(context, argGroupId(context), mode, null, null)
+                        : handlers.create(context, argWindowId(context), mode, null, null));
         if (mode == PositionMode.FIXED) {
             node.then(RequiredArgumentBuilder.<S, Double>argument("x", DoubleArgumentType.doubleArg())
                     .then(RequiredArgumentBuilder.<S, Double>argument("y", DoubleArgumentType.doubleArg())
                             .then(RequiredArgumentBuilder.<S, Double>argument("z", DoubleArgumentType.doubleArg())
-                                    .executes(context -> handlers.create(context, argWindowId(context), mode, argPosition(context), null)))));
+                                    .executes(context -> group
+                                            ? handlers.groupCreate(context, argGroupId(context), mode, argPosition(context), null)
+                                            : handlers.create(context, argWindowId(context), mode, argPosition(context), null)))));
         } else if (mode == PositionMode.PLAYER_FIXED) {
-            node.then(RequiredArgumentBuilder.<S, Double>argument("yaw", DoubleArgumentType.doubleArg())
-                    .then(RequiredArgumentBuilder.<S, Double>argument("pitch", DoubleArgumentType.doubleArg())
-                            .executes(context -> handlers.create(context, argWindowId(context), mode, null, argRotation(context)))));
+            RequiredArgumentBuilder<S, AngleArgumentType.Angle> yawArgument = InteractiveDisplayCommandTree.<S>angleArgument("yaw");
+            RequiredArgumentBuilder<S, AngleArgumentType.Angle> pitchArgument = InteractiveDisplayCommandTree.<S>angleArgument("pitch")
+                    .executes(context -> group
+                            ? handlers.groupCreate(context, argGroupId(context), mode, null, argRotation(context))
+                            : handlers.create(context, argWindowId(context), mode, null, argRotation(context)));
+            yawArgument.then(pitchArgument);
+            node.then(yawArgument);
         }
         return node;
     }
 
+    private static <S> RequiredArgumentBuilder<S, AngleArgumentType.Angle> angleArgument(String name) {
+        return RequiredArgumentBuilder.<S, AngleArgumentType.Angle>argument(name, AngleArgumentType.angle());
+    }
+
     private static <S> String argWindowId(CommandContext<S> context) {
         return StringArgumentType.getString(context, "windowId");
+    }
+
+    private static <S> String argGroupId(CommandContext<S> context) {
+        return StringArgumentType.getString(context, "groupId");
     }
 
     private static <S> Vec3d argPosition(CommandContext<S> context) {
@@ -108,8 +158,8 @@ public final class InteractiveDisplayCommandTree {
 
     private static <S> Rotation argRotation(CommandContext<S> context) {
         return new Rotation(
-                (float) DoubleArgumentType.getDouble(context, "yaw"),
-                (float) DoubleArgumentType.getDouble(context, "pitch")
+                AngleInput.fromParsed(context.getArgument("yaw", AngleArgumentType.Angle.class)),
+                AngleInput.fromParsed(context.getArgument("pitch", AngleArgumentType.Angle.class))
         );
     }
 
@@ -122,6 +172,12 @@ public final class InteractiveDisplayCommandTree {
 
         int list(CommandContext<S> context) throws CommandSyntaxException;
 
+        int groupCreate(CommandContext<S> context, String groupId, PositionMode positionMode, Vec3d position, Rotation rotation) throws CommandSyntaxException;
+
+        int groupRemove(CommandContext<S> context, String groupId) throws CommandSyntaxException;
+
+        int groupList(CommandContext<S> context) throws CommandSyntaxException;
+
         int debugStatus(CommandContext<S> context) throws CommandSyntaxException;
 
         int debugRecent(CommandContext<S> context) throws CommandSyntaxException;
@@ -131,6 +187,33 @@ public final class InteractiveDisplayCommandTree {
         int debugBindings(CommandContext<S> context) throws CommandSyntaxException;
     }
 
-    public record Rotation(float yaw, float pitch) {
+    public static final class Rotation {
+        private final AngleInput yawInput;
+        private final AngleInput pitchInput;
+
+        public Rotation(AngleInput yawInput, AngleInput pitchInput) {
+            this.yawInput = yawInput;
+            this.pitchInput = pitchInput;
+        }
+
+        public Rotation(float yaw, float pitch) {
+            this(AngleInput.absolute(yaw), AngleInput.absolute(pitch));
+        }
+
+        public AngleInput yawInput() {
+            return this.yawInput;
+        }
+
+        public AngleInput pitchInput() {
+            return this.pitchInput;
+        }
+
+        public float yaw() {
+            return this.yawInput.value();
+        }
+
+        public float pitch() {
+            return this.pitchInput.value();
+        }
     }
 }

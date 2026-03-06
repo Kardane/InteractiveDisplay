@@ -6,6 +6,8 @@ import com.interactivedisplay.core.window.ActionExecutionResult;
 import com.interactivedisplay.core.window.CreateWindowResult;
 import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowActionExecutor;
+import com.interactivedisplay.core.window.WindowNavigationContext;
+import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
@@ -25,9 +27,10 @@ public final class ClickHandler {
         if (hitResult == null) {
             return pass(DebugLevel.DEBUG, DebugReason.INTERACTION_NOT_FOUND, playerId, playerName, null, null, null, "선택된 UI hit 없음");
         }
+        WindowNavigationContext context = hitResult.navigationContext();
 
         if (hitResult.action().type() == ComponentActionType.CLOSE_WINDOW) {
-            RemoveWindowResult result = this.actionExecutor.closeWindow(playerId, hitResult.windowId());
+            RemoveWindowResult result = this.actionExecutor.closeWindow(playerId, context);
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, result.message());
             }
@@ -41,11 +44,31 @@ public final class ClickHandler {
             if (targetWindowId == null || targetWindowId.isBlank()) {
                 return pass(DebugLevel.WARN, DebugReason.ACTION_TARGET_NOT_FOUND, playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, "open_window target 없음");
             }
-            CreateWindowResult result = this.actionExecutor.openWindow(playerId, targetWindowId);
+            CreateWindowResult result = this.actionExecutor.openWindow(playerId, context, targetWindowId);
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), targetWindowId, result.message());
             }
             ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), targetWindowId, "open_window 처리 완료");
+            record(DebugLevel.DEBUG, clickResult);
+            return clickResult;
+        }
+
+        if (hitResult.action().type() == ComponentActionType.SWITCH_MODE_FIXED) {
+            CreateWindowResult result = this.actionExecutor.switchMode(playerId, context, PositionMode.FIXED);
+            if (!result.success()) {
+                return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), PositionMode.FIXED.name(), result.message());
+            }
+            ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), PositionMode.FIXED.name(), "switch_mode_fixed 처리 완료");
+            record(DebugLevel.DEBUG, clickResult);
+            return clickResult;
+        }
+
+        if (hitResult.action().type() == ComponentActionType.SWITCH_MODE_PLAYER_FIXED) {
+            CreateWindowResult result = this.actionExecutor.switchMode(playerId, context, PositionMode.PLAYER_FIXED);
+            if (!result.success()) {
+                return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), PositionMode.PLAYER_FIXED.name(), result.message());
+            }
+            ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), PositionMode.PLAYER_FIXED.name(), "switch_mode_player_fixed 처리 완료");
             record(DebugLevel.DEBUG, clickResult);
             return clickResult;
         }

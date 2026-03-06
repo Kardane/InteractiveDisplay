@@ -17,8 +17,12 @@ import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
+import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
+import com.interactivedisplay.core.window.WindowGroupDefinition;
+import com.interactivedisplay.core.window.WindowGroupEntry;
 import com.interactivedisplay.core.window.WindowDefinition;
+import com.interactivedisplay.core.window.WindowOrbit;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
@@ -41,11 +45,13 @@ import javax.imageio.ImageIO;
 public final class SchemaLoader {
     private static final String DEFAULT_WINDOW_FILE = "main_menu.json";
     private static final String DEFAULT_GALLERY_FILE = "gallery.json";
+    private static final String DEFAULT_GROUP_FILE = "menu_group.json";
     private static final String DEFAULT_REMOTE_EXAMPLE_FILE = "gallery_remote.example.json.disabled";
     private static final String DEFAULT_SAMPLE_IMAGE = "sample_local.png";
 
     private final Path configRoot;
     private final Path windowsDir;
+    private final Path groupsDir;
     private final Path imagesDir;
     private final SchemaValidator validator;
     private final DebugRecorder debugRecorder;
@@ -55,6 +61,7 @@ public final class SchemaLoader {
     public SchemaLoader(Path configDir, SchemaValidator validator, DebugRecorder debugRecorder) {
         this.configRoot = configDir.resolve("interactivedisplay");
         this.windowsDir = this.configRoot.resolve("windows");
+        this.groupsDir = this.configRoot.resolve("groups");
         this.imagesDir = this.configRoot.resolve("images");
         this.validator = validator;
         this.debugRecorder = debugRecorder;
@@ -64,18 +71,21 @@ public final class SchemaLoader {
 
     public LoadResult loadAll() {
         Map<String, WindowDefinition> definitions = new HashMap<>();
+        Map<String, WindowGroupDefinition> groups = new HashMap<>();
         List<String> errors = new ArrayList<>();
         Set<String> brokenWindowIds = new TreeSet<>();
+        Set<String> brokenGroupIds = new TreeSet<>();
 
         try {
             Files.createDirectories(this.windowsDir);
+            Files.createDirectories(this.groupsDir);
             Files.createDirectories(this.imagesDir);
             this.ensureDefaultAssets();
         } catch (IOException exception) {
             String message = "window config 디렉터리 준비 실패: " + exception.getMessage();
             errors.add(message);
             recordSchemaFailure(null, message, exception);
-            return new LoadResult(definitions, errors, brokenWindowIds);
+            return new LoadResult(definitions, groups, errors, brokenWindowIds, brokenGroupIds);
         }
 
         try (var paths = Files.list(this.windowsDir)) {
@@ -88,7 +98,17 @@ public final class SchemaLoader {
             recordSchemaFailure(null, message, exception);
         }
 
-        return new LoadResult(definitions, errors, brokenWindowIds);
+        try (var paths = Files.list(this.groupsDir)) {
+            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+                    .sorted()
+                    .forEach(path -> loadSingleGroupFile(path, groups, errors, brokenGroupIds));
+        } catch (IOException exception) {
+            String message = "group definition 목록 조회 실패: " + exception.getMessage();
+            errors.add(message);
+            recordSchemaFailure(null, message, exception);
+        }
+
+        return new LoadResult(definitions, groups, errors, brokenWindowIds, brokenGroupIds);
     }
 
     public int mapCacheEntryCount() {
@@ -109,6 +129,22 @@ public final class SchemaLoader {
             recordSchemaFailure(null, "window id 목록 조회 실패: " + exception.getMessage(), exception);
         }
         return windowIds;
+    }
+
+    public Set<String> discoverGroupIds() {
+        Set<String> groupIds = new TreeSet<>();
+        if (!Files.isDirectory(this.groupsDir)) {
+            return groupIds;
+        }
+
+        try (var paths = Files.list(this.groupsDir)) {
+            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+                    .sorted()
+                    .forEach(path -> groupIds.add(readGroupId(path)));
+        } catch (IOException exception) {
+            recordSchemaFailure(null, "group id 목록 조회 실패: " + exception.getMessage(), exception);
+        }
+        return groupIds;
     }
 
     private void loadSingleFile(Path path,
@@ -137,7 +173,46 @@ public final class SchemaLoader {
         }
     }
 
+    private void loadSingleGroupFile(Path path,
+                                     Map<String, WindowGroupDefinition> groups,
+                                     List<String> errors,
+                                     Set<String> brokenGroupIds) {
+        String sourceName = path.getFileName().toString();
+
+        try {
+            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+            List<String> validationErrors = this.validator.validateGroup(root, sourceName);
+            if (!validationErrors.isEmpty()) {
+                errors.addAll(validationErrors);
+                brokenGroupIds.add(root.has("id") ? root.get("id").getAsString() : stripJsonExtension(sourceName));
+                recordSchemaValidationFailure(sourceName, validationErrors);
+                return;
+            }
+
+            WindowGroupDefinition definition = parseGroupDefinition(root);
+            groups.put(definition.id(), definition);
+        } catch (Exception exception) {
+            String message = sourceName + ": " + exception.getMessage();
+            errors.add(message);
+            brokenGroupIds.add(readGroupId(path));
+            recordSchemaFailure(sourceName, message, exception);
+        }
+    }
+
     private String readWindowId(Path path) {
+        String fileName = path.getFileName().toString();
+        try {
+            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+            if (root.has("id") && root.get("id").isJsonPrimitive() && root.get("id").getAsJsonPrimitive().isString()) {
+                return root.get("id").getAsString();
+            }
+        } catch (Exception ignored) {
+            return stripJsonExtension(fileName);
+        }
+        return stripJsonExtension(fileName);
+    }
+
+    private String readGroupId(Path path) {
         String fileName = path.getFileName().toString();
         try {
             JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -153,10 +228,27 @@ public final class SchemaLoader {
     private WindowDefinition parseDefinition(JsonObject root, String sourceName) throws IOException, InterruptedException {
         String id = root.get("id").getAsString();
         ComponentSize size = parseSize(root, 1.0f, 1.0f);
-        WindowOffset offset = parseOffset(root);
+        WindowOffset offset = parseOffset(root, WindowOffset.defaults());
         LayoutMode layoutMode = LayoutMode.fromString(getString(root, "layout", null));
         List<ComponentDefinition> components = parseComponents(root.getAsJsonArray("components"), sourceName + ".components");
         return new WindowDefinition(id, size, offset, layoutMode, components);
+    }
+
+    private WindowGroupDefinition parseGroupDefinition(JsonObject root) {
+        String id = root.get("id").getAsString();
+        String initialWindowId = root.get("initialWindowId").getAsString();
+        PositionMode defaultMode = PositionMode.fromArgument(root.get("defaultMode").getAsString());
+        JsonArray windows = root.getAsJsonArray("windows");
+        List<WindowGroupEntry> entries = new ArrayList<>();
+        for (int i = 0; i < windows.size(); i++) {
+            JsonObject entry = windows.get(i).getAsJsonObject();
+            entries.add(new WindowGroupEntry(
+                    entry.get("windowId").getAsString(),
+                    parseOffset(entry, WindowOffset.zero()),
+                    parseOrbit(entry.getAsJsonObject("orbit"))
+            ));
+        }
+        return new WindowGroupDefinition(id, initialWindowId, defaultMode, entries);
     }
 
     private List<ComponentDefinition> parseComponents(JsonArray array, String sourceName) throws IOException, InterruptedException {
@@ -271,21 +363,33 @@ public final class SchemaLoader {
         return switch (actionType) {
             case "close_window" -> ComponentAction.closeWindow();
             case "open_window" -> ComponentAction.openWindow(action.get("target").getAsString());
+            case "switch_mode_fixed" -> ComponentAction.switchModeFixed();
+            case "switch_mode_player_fixed" -> ComponentAction.switchModePlayerFixed();
             case "run_command" -> ComponentAction.runCommand(action.get("command").getAsString());
             case "callback" -> ComponentAction.callback(action.get("id").getAsString());
             default -> throw new SchemaValidationException("지원하지 않는 action type: " + actionType);
         };
     }
 
-    private WindowOffset parseOffset(JsonObject root) {
+    private WindowOffset parseOffset(JsonObject root, WindowOffset fallback) {
         JsonObject offsetObject = root.getAsJsonObject("offset");
         if (offsetObject == null) {
-            return WindowOffset.defaults();
+            return fallback;
         }
         return new WindowOffset(
-                getFloat(offsetObject, "forward", 2.0f),
-                getFloat(offsetObject, "horizontal", 0.0f),
-                getFloat(offsetObject, "vertical", 0.5f)
+                getFloat(offsetObject, "forward", fallback.forward()),
+                getFloat(offsetObject, "horizontal", fallback.horizontal()),
+                getFloat(offsetObject, "vertical", fallback.vertical())
+        );
+    }
+
+    private WindowOrbit parseOrbit(JsonObject orbitObject) {
+        if (orbitObject == null) {
+            return WindowOrbit.zero();
+        }
+        return new WindowOrbit(
+                getFloat(orbitObject, "yaw", 0.0f),
+                getFloat(orbitObject, "pitch", 0.0f)
         );
     }
 
@@ -311,6 +415,7 @@ public final class SchemaLoader {
     private void ensureDefaultAssets() throws IOException {
         ensureDefaultWindowFile();
         ensureGalleryWindowFile();
+        ensureDefaultGroupFile();
         ensureRemoteExampleFile();
         ensureSampleImage();
     }
@@ -394,6 +499,33 @@ public final class SchemaLoader {
                       "imageType": "MAP",
                       "value": "sample_local.png",
                       "scale": 1.0
+                    }
+                  ]
+                }
+                """;
+        Files.writeString(path, json, StandardCharsets.UTF_8);
+    }
+
+    private void ensureDefaultGroupFile() throws IOException {
+        Path path = this.groupsDir.resolve(DEFAULT_GROUP_FILE);
+        if (Files.exists(path)) {
+            return;
+        }
+        String json = """
+                {
+                  "id": "menu_group",
+                  "initialWindowId": "main_menu",
+                  "defaultMode": "player_fixed",
+                  "windows": [
+                    {
+                      "windowId": "main_menu",
+                      "offset": { "forward": 2.0, "horizontal": 0.0, "vertical": 0.5 },
+                      "orbit": { "yaw": 0.0, "pitch": 0.0 }
+                    },
+                    {
+                      "windowId": "gallery",
+                      "offset": { "forward": 2.0, "horizontal": 0.75, "vertical": 0.5 },
+                      "orbit": { "yaw": 25.0, "pitch": 0.0 }
                     }
                   ]
                 }
@@ -517,7 +649,11 @@ public final class SchemaLoader {
         return object.has(key) ? object.get(key).getAsString() : defaultValue;
     }
 
-    public record LoadResult(Map<String, WindowDefinition> definitions, List<String> errors, Set<String> brokenWindowIds) {
+    public record LoadResult(Map<String, WindowDefinition> definitions,
+                             Map<String, WindowGroupDefinition> groups,
+                             List<String> errors,
+                             Set<String> brokenWindowIds,
+                             Set<String> brokenGroupIds) {
         public boolean hasErrors() {
             return !this.errors.isEmpty();
         }

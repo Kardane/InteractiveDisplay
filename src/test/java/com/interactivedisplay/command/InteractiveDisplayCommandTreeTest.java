@@ -59,6 +59,20 @@ class InteractiveDisplayCommandTreeTest {
                 .getChild("player_fixed");
 
         assertNotNull(playerFixed.getChild("yaw").getChild("pitch"));
+        assertEquals("AngleArgumentType", ((ArgumentCommandNode<?, ?>) playerFixed.getChild("yaw")).getType().getClass().getSimpleName());
+    }
+
+    @Test
+    void groupCommandsShouldExposeCreateRemoveAndList() {
+        TestHandlers handlers = new TestHandlers();
+        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
+        register(dispatcher, handlers, source -> source.permissions.contains("create"), source -> true, source -> true, source -> true, source -> true);
+
+        var group = dispatcher.getRoot().getChild("interactivedisplay").getChild("group");
+        assertNotNull(group.getChild("create"));
+        assertNotNull(group.getChild("remove"));
+        assertNotNull(group.getChild("list"));
+        assertNotNull(group.getChild("create").getChild("groupId").getChild("player").getChild("player_fixed").getChild("yaw").getChild("pitch"));
     }
 
     @Test
@@ -168,6 +182,28 @@ class InteractiveDisplayCommandTreeTest {
         @Override
         public int list(com.mojang.brigadier.context.CommandContext<TestSource> context) {
             this.lastCall = "list";
+            return 1;
+        }
+
+        @Override
+        public int groupCreate(com.mojang.brigadier.context.CommandContext<TestSource> context,
+                               String groupId,
+                               PositionMode positionMode,
+                               net.minecraft.util.math.Vec3d position,
+                               InteractiveDisplayCommandTree.Rotation rotation) {
+            this.lastCall = "groupCreate:" + groupId + ":" + positionMode;
+            return 1;
+        }
+
+        @Override
+        public int groupRemove(com.mojang.brigadier.context.CommandContext<TestSource> context, String groupId) {
+            this.lastCall = "groupRemove:" + groupId;
+            return 1;
+        }
+
+        @Override
+        public int groupList(com.mojang.brigadier.context.CommandContext<TestSource> context) {
+            this.lastCall = "groupList";
             return 1;
         }
     }
