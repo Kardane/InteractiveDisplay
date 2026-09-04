@@ -14,8 +14,8 @@ import com.interactivedisplay.core.interaction.UiHitResult;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.PositionMode;
 import java.util.UUID;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -26,15 +26,15 @@ class UiHitResolverTest {
     @Test
     void shouldReturnClosestInteractiveRuntime() {
         UUID owner = UUID.randomUUID();
-        WindowInstance farWindow = window(owner, "far", null, null, World.OVERWORLD, new Vec3d(0.0, 0.0, 4.0));
+        WindowInstance farWindow = window(owner, "far", null, null, Level.OVERWORLD, new Vec3(0.0, 0.0, 4.0));
         farWindow.addRuntime(buttonRuntime("far_button", new Vector3f(0.0f, 0.0f, 0.0f)));
-        WindowInstance nearWindow = window(owner, "near", null, null, World.OVERWORLD, new Vec3d(0.0, 0.0, 2.0));
+        WindowInstance nearWindow = window(owner, "near", null, null, Level.OVERWORLD, new Vec3(0.0, 0.0, 2.0));
         nearWindow.addRuntime(buttonRuntime("near_button", new Vector3f(0.0f, 0.0f, 0.0f)));
 
         store.putActiveWindow(owner, farWindow.windowId(), farWindow);
         store.putActiveWindow(owner, nearWindow.windowId(), nearWindow);
 
-        UiHitResult hit = resolver.findUiHit(owner, World.OVERWORLD, Vec3d.ZERO, new Vec3d(0.0, 0.0, 1.0));
+        UiHitResult hit = resolver.findUiHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0));
 
         assertNotNull(hit);
         assertEquals("near", hit.windowId());
@@ -42,17 +42,31 @@ class UiHitResolverTest {
     }
 
     @Test
+    void shouldReturnClosestRuntimeWithinOneWindow() {
+        UUID owner = UUID.randomUUID();
+        WindowInstance window = window(owner, "main_menu", null, null, Level.OVERWORLD, new Vec3(0.0, 0.0, 2.0));
+        window.addRuntime(buttonRuntime("far_button", new Vector3f(0.0f, 0.0f, -0.5f)));
+        window.addRuntime(buttonRuntime("near_button", new Vector3f(0.0f, 0.0f, 0.0f)));
+        store.putActiveWindow(owner, window.windowId(), window);
+
+        UiHitResult hit = resolver.findUiHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0));
+
+        assertNotNull(hit);
+        assertEquals("near_button", hit.componentId());
+    }
+
+    @Test
     void shouldIgnoreNonInteractiveRuntime() {
         UUID owner = UUID.randomUUID();
-        WindowInstance textWindow = window(owner, "text_only", null, null, World.OVERWORLD, new Vec3d(0.0, 0.0, 2.0));
+        WindowInstance textWindow = window(owner, "text_only", null, null, Level.OVERWORLD, new Vec3(0.0, 0.0, 2.0));
         textWindow.addRuntime(textRuntime("title", new Vector3f(0.0f, 0.0f, 0.0f)));
-        WindowInstance buttonWindow = window(owner, "button_only", null, null, World.OVERWORLD, new Vec3d(0.0, 0.0, 4.0));
+        WindowInstance buttonWindow = window(owner, "button_only", null, null, Level.OVERWORLD, new Vec3(0.0, 0.0, 4.0));
         buttonWindow.addRuntime(buttonRuntime("submit", new Vector3f(0.0f, 0.0f, 0.0f)));
 
         store.putActiveWindow(owner, textWindow.windowId(), textWindow);
         store.putActiveWindow(owner, buttonWindow.windowId(), buttonWindow);
 
-        UiHitResult hit = resolver.findUiHit(owner, World.OVERWORLD, Vec3d.ZERO, new Vec3d(0.0, 0.0, 1.0));
+        UiHitResult hit = resolver.findUiHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0));
 
         assertNotNull(hit);
         assertEquals("button_only", hit.windowId());
@@ -62,16 +76,16 @@ class UiHitResolverTest {
     @Test
     void shouldIgnoreOtherWorldAndPreserveGroupId() {
         UUID owner = UUID.randomUUID();
-        WindowInstance otherWorld = window(owner, "nether_window", null, null, World.NETHER, new Vec3d(0.0, 0.0, 1.0));
+        WindowInstance otherWorld = window(owner, "nether_window", null, null, Level.NETHER, new Vec3(0.0, 0.0, 1.0));
         otherWorld.addRuntime(buttonRuntime("nether_button", new Vector3f(0.0f, 0.0f, 0.0f)));
-        WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", World.OVERWORLD, new Vec3d(0.0, 0.0, 3.0));
+        WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", Level.OVERWORLD, new Vec3(0.0, 0.0, 3.0));
         groupWindow.addRuntime(buttonRuntime("apply", new Vector3f(0.0f, 0.0f, 0.0f)));
 
         store.putActiveWindow(owner, otherWorld.windowId(), otherWorld);
         store.putActiveGroup(owner, "menu_group", new WindowGroupInstance(
                 owner,
                 "menu_group",
-                new Vec3d(1.0, 2.0, 3.0),
+                new Vec3(1.0, 2.0, 3.0),
                 25.0f,
                 -10.0f,
                 PositionMode.PLAYER_FIXED,
@@ -79,7 +93,7 @@ class UiHitResolverTest {
                 groupWindow
         ));
 
-        UiHitResult hit = resolver.findUiHit(owner, World.OVERWORLD, Vec3d.ZERO, new Vec3d(0.0, 0.0, 1.0));
+        UiHitResult hit = resolver.findUiHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0));
 
         assertNotNull(hit);
         assertEquals("settings", hit.windowId());
@@ -90,11 +104,11 @@ class UiHitResolverTest {
     @Test
     void shouldReturnNullWhenNothingHits() {
         UUID owner = UUID.randomUUID();
-        WindowInstance window = window(owner, "main_menu", null, null, World.OVERWORLD, new Vec3d(5.0, 0.0, 2.0));
+        WindowInstance window = window(owner, "main_menu", null, null, Level.OVERWORLD, new Vec3(5.0, 0.0, 2.0));
         window.addRuntime(buttonRuntime("close", new Vector3f(0.0f, 0.0f, 0.0f)));
         store.putActiveWindow(owner, window.windowId(), window);
 
-        UiHitResult hit = resolver.findUiHit(owner, World.OVERWORLD, Vec3d.ZERO, new Vec3d(0.0, 0.0, 1.0));
+        UiHitResult hit = resolver.findUiHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0));
 
         assertNull(hit);
     }
@@ -103,8 +117,8 @@ class UiHitResolverTest {
                                          String windowId,
                                          String groupId,
                                          String groupWindowId,
-                                         net.minecraft.registry.RegistryKey<World> worldKey,
-                                         Vec3d anchor) {
+                                         net.minecraft.resources.ResourceKey<Level> worldKey,
+                                         Vec3 anchor) {
         return new WindowInstance(
                 owner,
                 windowId,
@@ -128,7 +142,7 @@ class UiHitResolverTest {
 
     private static WindowComponentRuntime buttonRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
-                World.OVERWORLD,
+                Level.OVERWORLD,
                 "button:" + componentId,
                 new ButtonComponentDefinition(
                         componentId,
@@ -152,7 +166,7 @@ class UiHitResolverTest {
 
     private static WindowComponentRuntime textRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
-                World.OVERWORLD,
+                Level.OVERWORLD,
                 "text:" + componentId,
                 new TextComponentDefinition(
                         componentId,

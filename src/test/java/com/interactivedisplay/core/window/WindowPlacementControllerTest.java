@@ -11,8 +11,8 @@ import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import java.util.List;
 import java.util.UUID;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 class WindowPlacementControllerTest {
@@ -20,7 +20,7 @@ class WindowPlacementControllerTest {
     void startAndStopShouldTrackStandaloneWindow() {
         WindowPlacementController controller = new WindowPlacementController(new CoordinateTransformer());
         UUID owner = UUID.randomUUID();
-        WindowNavigationContext context = new WindowNavigationContext("main_menu", null, PositionMode.FIXED, Vec3d.ZERO, 0.0f, 0.0f);
+        WindowNavigationContext context = new WindowNavigationContext("main_menu", null, PositionMode.FIXED, Vec3.ZERO, 0.0f, 0.0f);
 
         controller.start(owner, context);
         assertTrue(controller.isTracking(owner, context));
@@ -33,9 +33,9 @@ class WindowPlacementControllerTest {
     void commitStandalonePlayerFixedShouldUseCurrentViewRotation() {
         WindowPlacementController controller = new WindowPlacementController(new CoordinateTransformer());
         WindowDefinition definition = new WindowDefinition("main_menu", new ComponentSize(1.0f, 1.0f), new WindowOffset(2.0f, 0.0f, 0.0f), LayoutMode.ABSOLUTE, List.of());
-        WindowInstance instance = new WindowInstance(UUID.randomUUID(), "main_menu", World.OVERWORLD, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f, UUID.randomUUID(), Vec3d.ZERO, 0.0f, 0.0f, Vec3d.ZERO, 0.0f, 0.0f, 0L);
+        WindowInstance instance = new WindowInstance(UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f, UUID.randomUUID(), Vec3.ZERO, 0.0f, 0.0f, Vec3.ZERO, 0.0f, 0.0f, 0L);
 
-        WindowPlacementController.StandaloneCommit commit = controller.commitStandalone(instance, definition, new Vec3d(0.0, 64.0, 0.0), 35.0f, -15.0f);
+        WindowPlacementController.StandaloneCommit commit = controller.commitStandalone(instance, definition, new Vec3(0.0, 64.0, 0.0), 35.0f, -15.0f);
 
         assertEquals(35.0f, commit.fixedYaw(), 0.0001f);
         assertEquals(-15.0f, commit.fixedPitch(), 0.0001f);
@@ -59,10 +59,10 @@ class WindowPlacementControllerTest {
                 0.0f,
                 PositionMode.PLAYER_FIXED,
                 "settings",
-                new WindowInstance(UUID.randomUUID(), "settings", "menu_group", "settings", World.OVERWORLD, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f, UUID.randomUUID(), Vec3d.ZERO, 0.0f, 0.0f, Vec3d.ZERO, 0.0f, 0.0f, 0L)
+                new WindowInstance(UUID.randomUUID(), "settings", "menu_group", "settings", Level.OVERWORLD, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f, UUID.randomUUID(), Vec3.ZERO, 0.0f, 0.0f, Vec3.ZERO, 0.0f, 0.0f, 0L)
         );
 
-        WindowPlacementController.GroupCommit commit = controller.commitGroup(groupInstance, groupDefinition, definition, new Vec3d(0.0, 64.0, 0.0), 60.0f, -15.0f);
+        WindowPlacementController.GroupCommit commit = controller.commitGroup(groupInstance, groupDefinition, definition, new Vec3(0.0, 64.0, 0.0), 60.0f, -15.0f);
 
         assertEquals(35.0f, commit.baseYaw(), 0.0001f);
         assertEquals(-10.0f, commit.basePitch(), 0.0001f);

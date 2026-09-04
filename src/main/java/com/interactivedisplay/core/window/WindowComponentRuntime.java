@@ -7,8 +7,8 @@ import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.world.World;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 
 public final class WindowComponentRuntime {
@@ -18,7 +18,7 @@ public final class WindowComponentRuntime {
     private static final float GLYPH_WIDTH_FACTOR = 0.72f;
     private static final float HORIZONTAL_PADDING_FACTOR = 0.5f;
 
-    private final RegistryKey<World> worldKey;
+    private final ResourceKey<Level> worldKey;
     private final String signature;
     private ComponentDefinition definition;
     private Vector3f localPosition;
@@ -26,7 +26,7 @@ public final class WindowComponentRuntime {
     private PlayerCanvas mapCanvas;
     private boolean hovered;
 
-    public WindowComponentRuntime(RegistryKey<World> worldKey,
+    public WindowComponentRuntime(ResourceKey<Level> worldKey,
                                   String signature,
                                   ComponentDefinition definition,
                                   Vector3f localPosition,
@@ -40,7 +40,7 @@ public final class WindowComponentRuntime {
         this.mapCanvas = mapCanvas;
     }
 
-    public RegistryKey<World> worldKey() {
+    public ResourceKey<Level> worldKey() {
         return this.worldKey;
     }
 

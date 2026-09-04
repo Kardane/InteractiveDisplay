@@ -26,4 +26,21 @@ class CommandWhitelistTest {
         assertTrue(whitelist.isAllowed("trigger test"));
         assertFalse(whitelist.isAllowed("/op Steve"));
     }
+
+    @Test
+    void prefixBoundaryTrimAndNullShouldBeHandled(@TempDir Path tempDir) throws Exception {
+        Path config = tempDir.resolve("interactivedisplay");
+        Files.createDirectories(config);
+        Files.writeString(config.resolve("command_whitelist.json"),
+                "{\"allowedPrefixes\":[\"say \"]}",
+                StandardCharsets.UTF_8);
+
+        CommandWhitelist whitelist = new CommandWhitelist(tempDir);
+        whitelist.reload();
+
+        assertTrue(whitelist.isAllowed("  /say hello  "));
+        assertFalse(whitelist.isAllowed("say"));
+        assertFalse(whitelist.isAllowed("/say"));
+        assertFalse(whitelist.isAllowed(null));
+    }
 }

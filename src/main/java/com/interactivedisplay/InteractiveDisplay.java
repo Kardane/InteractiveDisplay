@@ -26,11 +26,11 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import java.nio.file.Path;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,15 +119,15 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             WindowManager manager = this.windowManager;
             if (manager != null) {
-                manager.removeAll(handler.player.getUuid());
+                manager.removeAll(handler.player.getUUID());
             }
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             WindowManager manager = this.windowManager;
             if (manager != null) {
-                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                    manager.removeAll(player.getUuid());
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    manager.removeAll(player.getUUID());
                 }
             }
             this.clickHandler = null;
@@ -137,13 +137,13 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         LOGGER.info("[{}] 이벤트/명령 등록 완료", MOD_ID);
     }
 
-    public boolean consumeUiRightClick(ServerPlayerEntity player) {
+    public boolean consumeUiRightClick(ServerPlayer player) {
         WindowManager manager = this.windowManager;
         ClickHandler handler = this.clickHandler;
         if (manager == null || handler == null) {
             return false;
         }
-        if (!InteractiveDisplayItems.isPointer(player.getMainHandStack())) {
+        if (!InteractiveDisplayItems.isPointer(player.getMainHandItem())) {
             return false;
         }
 
@@ -152,7 +152,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             return false;
         }
 
-        ClickHandleResult result = handler.handle(player.getUuid(), player.getGameProfile().getName(), hitResult);
+        ClickHandleResult result = handler.handle(player.getUUID(), player.getGameProfile().getName(), hitResult);
         if (result.consumed()) {
             playButtonSound(player, hitResult);
         }
@@ -168,18 +168,18 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         return bootstrap != null && bootstrap.bootstrap(MOD_ID);
     }
 
-    private static void playButtonSound(ServerPlayerEntity player, UiHitResult hitResult) {
+    private static void playButtonSound(ServerPlayer player, UiHitResult hitResult) {
         if (!(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
             return;
         }
         if (button.clickSound() == null || button.clickSound().isBlank()) {
             return;
         }
-        Identifier soundId = Identifier.tryParse(button.clickSound());
+        ResourceLocation soundId = ResourceLocation.tryParse(button.clickSound());
         if (soundId == null) {
             LOGGER.warn("[{}] invalid clickSound componentId={} value={}", MOD_ID, hitResult.componentId(), button.clickSound());
             return;
         }
-        player.playSoundToPlayer(SoundEvent.of(soundId), SoundCategory.PLAYERS, 1.0f, 1.0f);
+        player.playNotifySound(SoundEvent.createVariableRangeEvent(soundId), SoundSource.PLAYERS, 1.0f, 1.0f);
     }
 }

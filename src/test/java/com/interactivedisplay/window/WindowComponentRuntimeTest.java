@@ -9,7 +9,7 @@ import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import java.util.UUID;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +46,6 @@ class WindowComponentRuntimeTest {
                 ClickType.RIGHT,
                 ComponentAction.closeWindow()
         );
-        return new WindowComponentRuntime(World.OVERWORLD, "sig", button, new Vector3f(), UUID.randomUUID(), null);
+        return new WindowComponentRuntime(Level.OVERWORLD, "sig", button, new Vector3f(), UUID.randomUUID(), null);
     }
 }

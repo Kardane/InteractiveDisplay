@@ -3,24 +3,24 @@ package com.interactivedisplay.core.window;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 class CommandActionSourceContextTest {
     @Test
     void sourceContextShouldKeepHitPositionRotationAndPermissionLevel() {
         CommandActionSourceContext context = CommandActionSourceContext.of(
-                World.NETHER,
-                new Vec3d(1.5, 64.0, -3.0),
+                Level.NETHER,
+                new Vec3(1.5, 64.0, -3.0),
                 40.0f,
                 -12.0f,
                 3,
                 "/say hi"
         );
 
-        assertEquals(World.NETHER, context.worldKey());
-        assertEquals(new Vec3d(1.5, 64.0, -3.0), context.position());
+        assertEquals(Level.NETHER, context.worldKey());
+        assertEquals(new Vec3(1.5, 64.0, -3.0), context.position());
         assertEquals(40.0f, context.yaw(), 0.0001f);
         assertEquals(-12.0f, context.pitch(), 0.0001f);
         assertEquals(3, context.permissionLevel());
@@ -30,8 +30,8 @@ class CommandActionSourceContextTest {
     @Test
     void sourceContextShouldKeepNullPermissionLevelWhenNotRequested() {
         CommandActionSourceContext context = CommandActionSourceContext.of(
-                World.OVERWORLD,
-                Vec3d.ZERO,
+                Level.OVERWORLD,
+                Vec3.ZERO,
                 0.0f,
                 0.0f,
                 null,

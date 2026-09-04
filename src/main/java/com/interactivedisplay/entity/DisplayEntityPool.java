@@ -8,15 +8,15 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.world.World;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 
 public final class DisplayEntityPool {
     private static final long RETENTION_TICKS = 100L;
 
     private final Map<PoolKey, Deque<PooledRuntime>> pool = new HashMap<>();
 
-    public WindowComponentRuntime acquire(UUID owner, RegistryKey<World> worldKey, String signature, long currentTick) {
+    public WindowComponentRuntime acquire(UUID owner, ResourceKey<Level> worldKey, String signature, long currentTick) {
         PoolKey key = new PoolKey(owner, worldKey, signature);
         Deque<PooledRuntime> runtimes = this.pool.get(key);
         if (runtimes == null) {
@@ -35,7 +35,7 @@ public final class DisplayEntityPool {
         return null;
     }
 
-    public void release(UUID owner, RegistryKey<World> worldKey, WindowComponentRuntime runtime, long currentTick) {
+    public void release(UUID owner, ResourceKey<Level> worldKey, WindowComponentRuntime runtime, long currentTick) {
         PoolKey key = new PoolKey(owner, worldKey, runtime.signature());
         this.pool.computeIfAbsent(key, ignored -> new ArrayDeque<>()).addLast(new PooledRuntime(runtime, currentTick));
     }
@@ -62,7 +62,7 @@ public final class DisplayEntityPool {
         return count;
     }
 
-    private record PoolKey(UUID owner, RegistryKey<World> worldKey, String signature) {
+    private record PoolKey(UUID owner, ResourceKey<Level> worldKey, String signature) {
     }
 
     private record PooledRuntime(WindowComponentRuntime runtime, long releasedTick) {

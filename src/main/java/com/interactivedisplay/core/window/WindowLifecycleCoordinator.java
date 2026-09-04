@@ -24,17 +24,17 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import net.minecraft.particle.DustParticleEffect;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec2;
+import net.minecraft.world.phys.Vec3;
 
 final class WindowLifecycleCoordinator {
-    private static final DustParticleEffect BUTTON_HOVER_PARTICLE = new DustParticleEffect(DustParticleEffect.RED, 0.5f);
+    private static final DustParticleOptions BUTTON_HOVER_PARTICLE = new DustParticleOptions(DustParticleOptions.REDSTONE_PARTICLE_COLOR, 0.5f);
 
     private final MinecraftServer server;
     private final WindowStateStore stateStore;
@@ -69,18 +69,18 @@ final class WindowLifecycleCoordinator {
         this.placementController = new WindowPlacementController(transformer);
     }
 
-    CreateWindowResult createWindow(ServerPlayerEntity player, String windowId, PositionMode positionMode, Vec3d overrideAnchor) {
-        float fixedYaw = positionMode == PositionMode.FIXED ? player.getYaw() : 0.0f;
+    CreateWindowResult createWindow(ServerPlayer player, String windowId, PositionMode positionMode, Vec3 overrideAnchor) {
+        float fixedYaw = positionMode == PositionMode.FIXED ? player.getYRot() : 0.0f;
         return createWindow(player, windowId, positionMode, overrideAnchor, fixedYaw, 0.0f);
     }
 
-    CreateWindowResult createWindow(ServerPlayerEntity player,
+    CreateWindowResult createWindow(ServerPlayer player,
                                     String windowId,
                                     PositionMode positionMode,
-                                    Vec3d overrideAnchor,
+                                    Vec3 overrideAnchor,
                                     float fixedYaw,
                                     float fixedPitch) {
-        removeWindowInternal(player.getUuid(), windowId, false);
+        removeWindowInternal(player.getUUID(), windowId, false);
         SpawnedWindow spawned = spawnWindowInstance(
                 player,
                 windowId,
@@ -95,33 +95,33 @@ final class WindowLifecycleCoordinator {
         if (!spawned.result().success()) {
             return spawned.result();
         }
-        this.stateStore.putActiveWindow(player.getUuid(), windowId, spawned.instance());
+        this.stateStore.putActiveWindow(player.getUUID(), windowId, spawned.instance());
         return spawned.result();
     }
 
-    CreateWindowResult createGroup(ServerPlayerEntity player,
+    CreateWindowResult createGroup(ServerPlayer player,
                                    String groupId,
                                    PositionMode positionMode,
-                                   Vec3d baseAnchor,
+                                   Vec3 baseAnchor,
                                    float baseYaw,
                                    float basePitch) {
         WindowGroupDefinition groupDefinition = this.stateStore.groupDefinition(groupId);
         if (groupDefinition == null) {
-            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), player.getGameProfile().getName(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().getName(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
         }
         WindowGroupEntry initialEntry = groupDefinition.entry(groupDefinition.initialWindowId());
         if (initialEntry == null) {
-            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), player.getGameProfile().getName(), groupDefinition.initialWindowId(), null, null, 0, 0, "초기 그룹 창 정의를 찾을 수 없음");
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().getName(), groupDefinition.initialWindowId(), null, null, 0, 0, "초기 그룹 창 정의를 찾을 수 없음");
         }
 
-        removeGroupInternal(player.getUuid(), groupId, false);
+        removeGroupInternal(player.getUUID(), groupId, false);
         GroupPlacement placement = initialGroupPlacement(player, positionMode, baseAnchor, baseYaw, basePitch);
         SpawnedWindow spawned = spawnGroupWindow(player, groupDefinition, initialEntry, positionMode, placement.baseAnchor(), placement.baseYaw(), placement.basePitch());
         if (!spawned.result().success()) {
             return spawned.result();
         }
-        this.stateStore.putActiveGroup(player.getUuid(), groupId, new WindowGroupInstance(
-                player.getUuid(),
+        this.stateStore.putActiveGroup(player.getUUID(), groupId, new WindowGroupInstance(
+                player.getUUID(),
                 groupId,
                 placement.baseAnchor(),
                 placement.baseYaw(),
@@ -138,7 +138,7 @@ final class WindowLifecycleCoordinator {
         if (instance == null) {
             return CreateWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, null, windowId, null, null, 0, 0, "재구성 대상 활성 창이 없음");
         }
-        ServerPlayerEntity player = player(owner);
+        ServerPlayer player = player(owner);
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, instance.currentAnchor(), 0, 0, "플레이어를 찾을 수 없음");
         }
@@ -150,7 +150,7 @@ final class WindowLifecycleCoordinator {
         if (instance == null) {
             return CreateWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, null, groupId, null, null, 0, 0, "재구성 대상 활성 그룹이 없음");
         }
-        ServerPlayerEntity player = player(owner);
+        ServerPlayer player = player(owner);
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, instance.currentWindowId(), null, null, 0, 0, "플레이어를 찾을 수 없음");
         }
@@ -165,8 +165,8 @@ final class WindowLifecycleCoordinator {
         return this.displayEntityPool.size();
     }
 
-    void handlePlayerJoin(ServerPlayerEntity player) {
-        for (WindowInstance instance : this.stateStore.ownerWindows(player.getUuid())) {
+    void handlePlayerJoin(ServerPlayer player) {
+        for (WindowInstance instance : this.stateStore.ownerWindows(player.getUUID())) {
             syncCanvases(instance, List.of(player));
         }
     }
@@ -204,7 +204,7 @@ final class WindowLifecycleCoordinator {
     }
 
     CreateWindowResult openWindow(UUID owner, WindowNavigationContext context, String windowId) {
-        ServerPlayerEntity player = player(owner);
+        ServerPlayer player = player(owner);
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, null, 0, 0, "action 대상 플레이어를 찾을 수 없음");
         }
@@ -219,7 +219,7 @@ final class WindowLifecycleCoordinator {
     }
 
     CreateWindowResult switchMode(UUID owner, WindowNavigationContext context, PositionMode positionMode) {
-        ServerPlayerEntity player = player(owner);
+        ServerPlayer player = player(owner);
         if (player == null) {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, context.windowId(), null, null, 0, 0, "action 대상 플레이어를 찾을 수 없음");
         }
@@ -236,7 +236,7 @@ final class WindowLifecycleCoordinator {
     }
 
     ActionExecutionResult runCommand(UUID owner, UiHitResult hitResult, Integer permissionLevel, String command) {
-        ServerPlayerEntity player = player(owner);
+        ServerPlayer player = player(owner);
         if (player == null) {
             return ActionExecutionResult.failure(DebugReason.ACTION_EXECUTION_FAILED, "command 대상 플레이어를 찾을 수 없음");
         }
@@ -245,24 +245,24 @@ final class WindowLifecycleCoordinator {
         }
 
         try {
-            ServerWorld commandWorld = world(hitResult.runtime().worldKey());
+            ServerLevel commandWorld = world(hitResult.runtime().worldKey());
             CommandActionSourceContext sourceContext = CommandActionSourceContext.of(
                     hitResult.runtime().worldKey(),
                     hitResult.hitPosition(),
-                    player.getYaw(),
-                    player.getPitch(),
+                    player.getYRot(),
+                    player.getXRot(),
                     permissionLevel,
                     command
             );
-            ServerCommandSource source = player.getCommandSource()
-                    .withSilent()
-                    .withWorld(commandWorld == null ? player.getWorld() : commandWorld)
+            CommandSourceStack source = player.createCommandSourceStack()
+                    .withSuppressedOutput()
+                    .withLevel(commandWorld == null ? player.level() : commandWorld)
                     .withPosition(sourceContext.position())
-                    .withRotation(new Vec2f(sourceContext.pitch(), sourceContext.yaw()));
+                    .withRotation(new Vec2(sourceContext.pitch(), sourceContext.yaw()));
             if (sourceContext.hasPermissionOverride()) {
-                source = source.withLevel(sourceContext.permissionLevel());
+                source = source.withPermission(sourceContext.permissionLevel());
             }
-            this.server.getCommandManager().executeWithPrefix(source, sourceContext.normalizedCommand());
+            this.server.getCommands().performPrefixedCommand(source, sourceContext.normalizedCommand());
             InteractiveDisplay.LOGGER.info("[{}] run_command player={} windowId={} componentId={} command={}", InteractiveDisplay.MOD_ID, player.getGameProfile().getName(), hitResult.windowId(), hitResult.componentId(), command);
             return ActionExecutionResult.success("run_command 처리 완료");
         } catch (RuntimeException exception) {
@@ -271,7 +271,7 @@ final class WindowLifecycleCoordinator {
     }
 
     ActionExecutionResult executeCallback(UUID owner, String windowId, String componentId, String callbackId) {
-        ServerPlayerEntity player = player(owner);
+        ServerPlayer player = player(owner);
         if (player == null) {
             return ActionExecutionResult.failure(DebugReason.ACTION_EXECUTION_FAILED, "callback 대상 플레이어를 찾을 수 없음");
         }
@@ -284,7 +284,7 @@ final class WindowLifecycleCoordinator {
     }
 
     ActionExecutionResult togglePlacementTracking(UUID owner, WindowNavigationContext context) {
-        ServerPlayerEntity player = player(owner);
+        ServerPlayer player = player(owner);
         if (player == null) {
             return ActionExecutionResult.failure(DebugReason.ACTION_EXECUTION_FAILED, "action 대상 플레이어를 찾을 수 없음");
         }
@@ -306,7 +306,7 @@ final class WindowLifecycleCoordinator {
                 if (groupDefinition == null || definition == null) {
                     return ActionExecutionResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, "배치 추적 커밋 대상 정의를 찾을 수 없음");
                 }
-                WindowPlacementController.GroupCommit commit = this.placementController.commitGroup(groupInstance, groupDefinition, definition, player.getEyePos(), player.getYaw(), player.getPitch());
+                WindowPlacementController.GroupCommit commit = this.placementController.commitGroup(groupInstance, groupDefinition, definition, player.getEyePosition(), player.getYRot(), player.getXRot());
                 CreateWindowResult result = openGroupWindow(owner, context.groupId(), groupInstance.currentMode(), groupInstance.currentWindowId(), commit.baseAnchor(), commit.baseYaw(), commit.basePitch(), player);
                 return result.success()
                         ? ActionExecutionResult.success("toggle_placement_tracking 처리 완료")
@@ -326,7 +326,7 @@ final class WindowLifecycleCoordinator {
             if (definition == null) {
                 return ActionExecutionResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, "배치 추적 커밋 대상 창 정의를 찾을 수 없음");
             }
-            WindowPlacementController.StandaloneCommit commit = this.placementController.commitStandalone(instance, definition, player.getEyePos(), player.getYaw(), player.getPitch());
+            WindowPlacementController.StandaloneCommit commit = this.placementController.commitStandalone(instance, definition, player.getEyePosition(), player.getYRot(), player.getXRot());
             CreateWindowResult result = createWindow(player, context.windowId(), instance.positionMode(), commit.fixedAnchor(), commit.fixedYaw(), commit.fixedPitch());
             return result.success()
                     ? ActionExecutionResult.success("toggle_placement_tracking 처리 완료")
@@ -340,26 +340,26 @@ final class WindowLifecycleCoordinator {
         return this.placementController.isTracking(owner, instance);
     }
 
-    WindowPositionTracker.WindowTransformState resolveTransform(ServerPlayerEntity player, WindowInstance instance, WindowDefinition definition) {
-        if (!this.placementController.isTracking(player.getUuid(), instance)) {
+    WindowPositionTracker.WindowTransformState resolveTransform(ServerPlayer player, WindowInstance instance, WindowDefinition definition) {
+        if (!this.placementController.isTracking(player.getUUID(), instance)) {
             return this.positionTracker.resolve(player, instance.positionMode(), definition.offset(), instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
         }
         if (instance.groupId() != null) {
-            WindowGroupInstance groupInstance = this.stateStore.findActiveGroup(player.getUuid(), instance.groupId());
+            WindowGroupInstance groupInstance = this.stateStore.findActiveGroup(player.getUUID(), instance.groupId());
             WindowGroupDefinition groupDefinition = this.stateStore.groupDefinition(instance.groupId());
             if (groupInstance != null && groupDefinition != null) {
-                return this.placementController.previewGroup(groupInstance, groupDefinition, definition, player.getEyePos(), player.getYaw(), player.getPitch());
+                return this.placementController.previewGroup(groupInstance, groupDefinition, definition, player.getEyePosition(), player.getYRot(), player.getXRot());
             }
         }
-        return this.placementController.previewStandalone(instance, definition, player.getEyePos(), player.getYaw(), player.getPitch());
+        return this.placementController.previewStandalone(instance, definition, player.getEyePosition(), player.getYRot(), player.getXRot());
     }
 
     void moveWindow(WindowInstance instance,
                     WindowPositionTracker.WindowTransformState nextState,
-                    ServerWorld world) {
+                    ServerLevel world) {
         this.entityFactory.moveRoot(world, instance.rootEntityId(), nextState.anchor(), instance.positionMode(), nextState.yaw(), nextState.pitch());
         for (WindowComponentRuntime runtime : instance.runtimes()) {
-            Vec3d componentWorldPosition = this.transformer.toWorld(
+            Vec3 componentWorldPosition = this.transformer.toWorld(
                     nextState.anchor(),
                     runtime.localPosition(),
                     instance.positionMode(),
@@ -370,7 +370,7 @@ final class WindowLifecycleCoordinator {
         }
     }
 
-    void syncCanvases(WindowInstance instance, Collection<ServerPlayerEntity> viewers) {
+    void syncCanvases(WindowInstance instance, Collection<ServerPlayer> viewers) {
         for (WindowComponentRuntime runtime : instance.runtimes()) {
             if (runtime.mapCanvas() != null) {
                 this.entityFactory.syncMapCanvas(runtime.mapCanvas(), viewers);
@@ -378,23 +378,23 @@ final class WindowLifecycleCoordinator {
         }
     }
 
-    void updateHover(ServerPlayerEntity player, List<WindowInstance> windows, UiHitResult hovered) {
+    void updateHover(ServerPlayer player, List<WindowInstance> windows, UiHitResult hovered) {
         if (windows.isEmpty()) {
             return;
         }
 
-        if (!InteractiveDisplayItems.isPointer(player.getMainHandStack())) {
+        if (!InteractiveDisplayItems.isPointer(player.getMainHandItem())) {
             clearHover(windows);
             return;
         }
 
         WindowComponentRuntime hoveredRuntime = hovered == null ? null : hovered.runtime();
         if (hovered != null) {
-            Vec3d hit = hovered.hitPosition();
-            player.getWorld().spawnParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            Vec3 hit = hovered.hitPosition();
+            player.level().sendParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
         }
         for (WindowInstance instance : windows) {
-            ServerWorld world = world(instance.worldKey());
+            ServerLevel world = world(instance.worldKey());
             if (world == null) {
                 continue;
             }
@@ -402,18 +402,18 @@ final class WindowLifecycleCoordinator {
                 if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
                     continue;
                 }
-                boolean shouldHover = runtime == hoveredRuntime && instance.worldKey().equals(player.getWorld().getRegistryKey());
+                boolean shouldHover = runtime == hoveredRuntime && instance.worldKey().equals(player.level().dimension());
                 if (runtime.hovered() != shouldHover) {
-                    this.entityFactory.setButtonHover(this.server, world, player.getUuid(), runtime, button, shouldHover, instance.positionMode());
+                    this.entityFactory.setButtonHover(this.server, world, player.getUUID(), runtime, button, shouldHover, instance.positionMode());
                 }
             }
         }
     }
 
-    private SpawnedWindow spawnWindowInstance(ServerPlayerEntity player,
+    private SpawnedWindow spawnWindowInstance(ServerPlayer player,
                                               String windowId,
                                               PositionMode positionMode,
-                                              Vec3d overrideAnchor,
+                                              Vec3 overrideAnchor,
                                               float fixedYaw,
                                               float fixedPitch,
                                               WindowOffset offsetOverride,
@@ -422,7 +422,7 @@ final class WindowLifecycleCoordinator {
         WindowDefinition definition = this.stateStore.definition(windowId);
         String playerName = player.getGameProfile().getName();
         if (definition == null) {
-            CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), playerName, windowId, null, overrideAnchor, 0, 0, "창 정의를 찾을 수 없음");
+            CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), playerName, windowId, null, overrideAnchor, 0, 0, "창 정의를 찾을 수 없음");
             recordCreate(DebugLevel.WARN, positionMode, result);
             return new SpawnedWindow(null, result);
         }
@@ -430,15 +430,15 @@ final class WindowLifecycleCoordinator {
         WindowOffset effectiveOffset = offsetOverride == null ? definition.offset() : offsetOverride;
         WindowPositionTracker.WindowTransformState transformState = this.positionTracker.resolve(player, positionMode, effectiveOffset, overrideAnchor, fixedYaw, fixedPitch);
         List<LayoutComponent> layout = this.layoutEngine.calculate(definition);
-        ServerWorld world = player.getWorld();
-        long tick = this.server == null ? 0L : this.server.getTicks();
+        ServerLevel world = player.level();
+        long tick = this.server == null ? 0L : this.server.getTickCount();
         UUID rootEntityId = this.entityFactory.spawnRoot(this.server, world, transformState.anchor(), positionMode, transformState.yaw(), transformState.pitch());
         WindowInstance instance = new WindowInstance(
-                player.getUuid(),
+                player.getUUID(),
                 windowId,
                 groupId,
                 groupWindowId,
-                world.getRegistryKey(),
+                world.dimension(),
                 positionMode,
                 positionMode == PositionMode.FIXED ? transformState.anchor() : overrideAnchor,
                 fixedYaw,
@@ -463,19 +463,19 @@ final class WindowLifecycleCoordinator {
                 }
 
                 String signature = buildSignature(component);
-                Vec3d componentWorldPosition = this.transformer.toWorld(
+                Vec3 componentWorldPosition = this.transformer.toWorld(
                         transformState.anchor(),
                         layoutComponent.localPosition(),
                         positionMode,
                         transformState.yaw(),
                         transformState.pitch()
                 );
-                WindowComponentRuntime runtime = this.displayEntityPool.acquire(player.getUuid(), world.getRegistryKey(), signature, tick);
+                WindowComponentRuntime runtime = this.displayEntityPool.acquire(player.getUUID(), world.dimension(), signature, tick);
                 if (runtime != null) {
                     runtime.redefine(component, layoutComponent.localPosition());
-                    this.entityFactory.reconfigureRuntime(this.server, world, player.getUuid(), runtime, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
+                    this.entityFactory.reconfigureRuntime(this.server, world, player.getUUID(), runtime, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.players());
                 } else {
-                    runtime = this.entityFactory.spawnRuntime(this.server, world, player.getUuid(), signature, component, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.getPlayers());
+                    runtime = this.entityFactory.spawnRuntime(this.server, world, player.getUUID(), signature, component, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.players());
                     runtime.redefine(component, layoutComponent.localPosition());
                 }
 
@@ -483,20 +483,20 @@ final class WindowLifecycleCoordinator {
                 activatedRuntimes.add(runtime);
                 spawnedEntityCount += runtime.entityIds().size();
             }
-            CreateWindowResult result = CreateWindowResult.success(player.getUuid(), playerName, windowId, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 완료");
+            CreateWindowResult result = CreateWindowResult.success(player.getUUID(), playerName, windowId, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 완료");
             recordCreate(DebugLevel.DEBUG, positionMode, result);
             return new SpawnedWindow(instance, result);
         } catch (EntitySpawnException exception) {
             cleanupFailedCreate(activatedRuntimes);
-            this.entityFactory.destroyRoot(this.server, world.getRegistryKey(), rootEntityId);
-            CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, componentIdFrom(exception.getMessage()), transformState.anchor(), layout.size(), spawnedEntityCount, exception.getMessage());
+            this.entityFactory.destroyRoot(this.server, world.dimension(), rootEntityId);
+            CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUUID(), playerName, windowId, componentIdFrom(exception.getMessage()), transformState.anchor(), layout.size(), spawnedEntityCount, exception.getMessage());
             recordCreate(DebugLevel.WARN, positionMode, result);
             return new SpawnedWindow(null, result);
         } catch (RuntimeException exception) {
             cleanupFailedCreate(activatedRuntimes);
-            this.entityFactory.destroyRoot(this.server, world.getRegistryKey(), rootEntityId);
-            CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUuid(), playerName, windowId, null, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 중 예외 발생: " + exception.getMessage());
-            this.debugRecorder.record(DebugEventType.WINDOW_CREATE, DebugLevel.ERROR, player.getUuid(), playerName, windowId, null, null, DebugReason.ENTITY_SPAWN_FAILED, result.message(), exception);
+            this.entityFactory.destroyRoot(this.server, world.dimension(), rootEntityId);
+            CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUUID(), playerName, windowId, null, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 중 예외 발생: " + exception.getMessage());
+            this.debugRecorder.record(DebugEventType.WINDOW_CREATE, DebugLevel.ERROR, player.getUUID(), playerName, windowId, null, null, DebugReason.ENTITY_SPAWN_FAILED, result.message(), exception);
             InteractiveDisplay.LOGGER.error("[{}] window create error player={} windowId={} mode={} anchor={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, playerName, windowId, positionMode, transformState.anchor(), result.reasonCode(), result.message(), exception);
             return new SpawnedWindow(null, result);
         }
@@ -559,11 +559,11 @@ final class WindowLifecycleCoordinator {
     }
 
     private void releaseWindowInstance(WindowInstance instance, UUID owner) {
-        ServerWorld world = world(instance.worldKey());
+        ServerLevel world = world(instance.worldKey());
         if (world == null) {
             return;
         }
-        long tick = this.server == null ? 0L : this.server.getTicks();
+        long tick = this.server == null ? 0L : this.server.getTickCount();
         for (WindowComponentRuntime runtime : instance.runtimes()) {
             this.entityFactory.deactivateRuntime(this.server, world, runtime);
             this.displayEntityPool.release(owner, instance.worldKey(), runtime, tick);
@@ -571,22 +571,22 @@ final class WindowLifecycleCoordinator {
         this.entityFactory.destroyRoot(this.server, instance.worldKey(), instance.rootEntityId());
     }
 
-    private SpawnedWindow spawnGroupWindow(ServerPlayerEntity player,
+    private SpawnedWindow spawnGroupWindow(ServerPlayer player,
                                            WindowGroupDefinition groupDefinition,
                                            WindowGroupEntry entry,
                                            PositionMode positionMode,
-                                           Vec3d baseAnchor,
+                                           Vec3 baseAnchor,
                                            float baseYaw,
                                            float basePitch) {
         WindowDefinition definition = this.stateStore.definition(entry.windowId());
         if (definition == null) {
-            CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUuid(), player.getGameProfile().getName(), entry.windowId(), null, null, 0, 0, "그룹 대상 창 정의를 찾을 수 없음");
+            CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().getName(), entry.windowId(), null, null, 0, 0, "그룹 대상 창 정의를 찾을 수 없음");
             return new SpawnedWindow(null, result);
         }
         WindowOffset effectiveOffset = definition.offset().plus(entry.offset());
-        float resolvedYaw = MathHelper.wrapDegrees(baseYaw + entry.orbit().yaw());
-        float resolvedPitch = MathHelper.clamp(basePitch + entry.orbit().pitch(), -90.0f, 90.0f);
-        Vec3d overrideAnchor = positionMode == PositionMode.FIXED
+        float resolvedYaw = Mth.wrapDegrees(baseYaw + entry.orbit().yaw());
+        float resolvedPitch = Mth.clamp(basePitch + entry.orbit().pitch(), -90.0f, 90.0f);
+        Vec3 overrideAnchor = positionMode == PositionMode.FIXED
                 ? baseAnchor.add(this.transformer.orbitOffset(effectiveOffset, resolvedYaw, resolvedPitch))
                 : null;
         WindowOffset runtimeOffset = positionMode == PositionMode.FIXED ? WindowOffset.zero() : effectiveOffset;
@@ -607,10 +607,10 @@ final class WindowLifecycleCoordinator {
                                                String groupId,
                                                PositionMode positionMode,
                                                String windowId,
-                                               Vec3d baseAnchor,
+                                               Vec3 baseAnchor,
                                                float baseYaw,
                                                float basePitch,
-                                               ServerPlayerEntity player) {
+                                               ServerPlayer player) {
         WindowGroupDefinition groupDefinition = this.stateStore.groupDefinition(groupId);
         if (groupDefinition == null) {
             return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().getName(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
@@ -624,9 +624,9 @@ final class WindowLifecycleCoordinator {
             return createWindow(player, windowId, positionMode, baseAnchor, baseYaw, basePitch);
         }
         WindowGroupInstance currentGroup = this.stateStore.findActiveGroup(owner, groupId);
-        Vec3d resolvedBaseAnchor = baseAnchor;
+        Vec3 resolvedBaseAnchor = baseAnchor;
         if (resolvedBaseAnchor == null) {
-            resolvedBaseAnchor = positionMode == PositionMode.FIXED ? player.getEyePos() : currentGroup != null ? currentGroup.baseAnchor() : null;
+            resolvedBaseAnchor = positionMode == PositionMode.FIXED ? player.getEyePosition() : currentGroup != null ? currentGroup.baseAnchor() : null;
         }
         SpawnedWindow spawned = spawnGroupWindow(player, groupDefinition, entry, positionMode, resolvedBaseAnchor, baseYaw, basePitch);
         if (!spawned.result().success()) {
@@ -639,14 +639,14 @@ final class WindowLifecycleCoordinator {
         return spawned.result();
     }
 
-    private GroupPlacement initialGroupPlacement(ServerPlayerEntity player,
+    private GroupPlacement initialGroupPlacement(ServerPlayer player,
                                                  PositionMode positionMode,
-                                                 Vec3d baseAnchor,
+                                                 Vec3 baseAnchor,
                                                  float baseYaw,
                                                  float basePitch) {
-        Vec3d resolvedBaseAnchor = baseAnchor;
+        Vec3 resolvedBaseAnchor = baseAnchor;
         if (positionMode == PositionMode.FIXED && resolvedBaseAnchor == null) {
-            resolvedBaseAnchor = player.getEyePos();
+            resolvedBaseAnchor = player.getEyePosition();
         }
         return new GroupPlacement(resolvedBaseAnchor, baseYaw, basePitch);
     }
@@ -659,7 +659,7 @@ final class WindowLifecycleCoordinator {
 
     private void clearHover(Collection<WindowInstance> windows) {
         for (WindowInstance instance : windows) {
-            ServerWorld world = world(instance.worldKey());
+            ServerLevel world = world(instance.worldKey());
             if (world == null) {
                 continue;
             }
@@ -674,18 +674,18 @@ final class WindowLifecycleCoordinator {
         }
     }
 
-    private ServerPlayerEntity player(UUID owner) {
+    private ServerPlayer player(UUID owner) {
         if (this.server == null) {
             return null;
         }
-        return this.server.getPlayerManager().getPlayer(owner);
+        return this.server.getPlayerList().getPlayer(owner);
     }
 
-    private ServerWorld world(net.minecraft.registry.RegistryKey<net.minecraft.world.World> worldKey) {
+    private ServerLevel world(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> worldKey) {
         if (this.server == null) {
             return null;
         }
-        return this.server.getWorld(worldKey);
+        return this.server.getLevel(worldKey);
     }
 
     private void recordCreate(DebugLevel level, PositionMode positionMode, CreateWindowResult result) {
@@ -731,6 +731,6 @@ final class WindowLifecycleCoordinator {
     private record SpawnedWindow(WindowInstance instance, CreateWindowResult result) {
     }
 
-    private record GroupPlacement(Vec3d baseAnchor, float baseYaw, float basePitch) {
+    private record GroupPlacement(Vec3 baseAnchor, float baseYaw, float basePitch) {
     }
 }

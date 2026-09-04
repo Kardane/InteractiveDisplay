@@ -1,22 +1,22 @@
 package com.interactivedisplay.core.positioning;
 
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 public final class CoordinateTransformer {
     private static final Vector3f WORLD_UP = new Vector3f(0.0f, 1.0f, 0.0f);
 
-    public Vec3d toWorld(Vec3d anchor, Vector3f local, PositionMode positionMode, float yaw, float pitch) {
+    public Vec3 toWorld(Vec3 anchor, Vector3f local, PositionMode positionMode, float yaw, float pitch) {
         WindowBasis basis = basis(positionMode, yaw, pitch);
         return anchor
-                .add(basis.right().multiply(local.x))
-                .add(basis.up().multiply(local.y))
-                .add(basis.normal().multiply(local.z));
+                .add(basis.right().scale(local.x))
+                .add(basis.up().scale(local.y))
+                .add(basis.normal().scale(local.z));
     }
 
-    public Vec3d toFixedAnchorFromPlayerEye(Vec3d eyePos, Vec3d lookDirection, WindowOffset offset) {
+    public Vec3 toFixedAnchorFromPlayerEye(Vec3 eyePos, Vec3 lookDirection, WindowOffset offset) {
         Vector3f look = normalize(lookDirection);
         Vector3f right = right(look);
         Vector3f up = up(look, right);
@@ -24,20 +24,20 @@ public final class CoordinateTransformer {
         anchor.add(look.mul(offset.forward(), new Vector3f()));
         anchor.add(right.mul(offset.horizontal(), new Vector3f()));
         anchor.add(up.mul(offset.vertical(), new Vector3f()));
-        return new Vec3d(anchor.x, anchor.y, anchor.z);
+        return new Vec3(anchor.x, anchor.y, anchor.z);
     }
 
-    public Vec3d toPlayerFixedAnchor(Vec3d eyePos, WindowOffset offset) {
+    public Vec3 toPlayerFixedAnchor(Vec3 eyePos, WindowOffset offset) {
         return toPlayerFixedAnchor(eyePos, offset, 0.0f, 0.0f);
     }
 
-    public Vec3d toPlayerFixedAnchor(Vec3d eyePos, WindowOffset offset, float yaw, float pitch) {
-        Vec3d orbitOffset = orbitOffset(offset, yaw, pitch);
+    public Vec3 toPlayerFixedAnchor(Vec3 eyePos, WindowOffset offset, float yaw, float pitch) {
+        Vec3 orbitOffset = orbitOffset(offset, yaw, pitch);
         return eyePos.add(orbitOffset);
     }
 
-    public Vec3d orbitOffset(WindowOffset offset, float yaw, float pitch) {
-        Vec3d orbitDirection = Vec3d.fromPolar(pitch, yaw);
+    public Vec3 orbitOffset(WindowOffset offset, float yaw, float pitch) {
+        Vec3 orbitDirection = Vec3.directionFromRotation(pitch, yaw);
         Vector3f look = normalize(orbitDirection);
         Vector3f right = right(look);
         Vector3f up = up(look, right);
@@ -45,62 +45,62 @@ public final class CoordinateTransformer {
         delta.add(look.mul(offset.forward(), new Vector3f()));
         delta.add(right.mul(offset.horizontal(), new Vector3f()));
         delta.add(up.mul(offset.vertical(), new Vector3f()));
-        return new Vec3d(delta.x, delta.y, delta.z);
+        return new Vec3(delta.x, delta.y, delta.z);
     }
 
-    public ViewRotation facingRotation(Vec3d anchor, Vec3d targetEyePos) {
-        Vec3d direction = anchor.subtract(targetEyePos);
+    public ViewRotation facingRotation(Vec3 anchor, Vec3 targetEyePos) {
+        Vec3 direction = anchor.subtract(targetEyePos);
         double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
         if (horizontal < 1.0E-6D && Math.abs(direction.y) < 1.0E-6D) {
             return new ViewRotation(0.0f, 0.0f);
         }
-        float yaw = MathHelper.wrapDegrees((float) Math.toDegrees(Math.atan2(-direction.x, direction.z)));
-        float pitch = (float) MathHelper.clamp(-Math.toDegrees(Math.atan2(direction.y, horizontal)), -90.0D, 90.0D);
+        float yaw = Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-direction.x, direction.z)));
+        float pitch = (float) Mth.clamp(-Math.toDegrees(Math.atan2(direction.y, horizontal)), -90.0D, 90.0D);
         return new ViewRotation(yaw, pitch);
     }
 
-    public ViewRotation facingYawOnly(Vec3d anchor, Vec3d targetEyePos) {
-        Vec3d direction = anchor.subtract(targetEyePos);
+    public ViewRotation facingYawOnly(Vec3 anchor, Vec3 targetEyePos) {
+        Vec3 direction = anchor.subtract(targetEyePos);
         double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
         if (horizontal < 1.0E-6D) {
             return new ViewRotation(0.0f, 0.0f);
         }
-        float yaw = MathHelper.wrapDegrees((float) Math.toDegrees(Math.atan2(-direction.x, direction.z)));
+        float yaw = Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-direction.x, direction.z)));
         return new ViewRotation(yaw, 0.0f);
     }
 
-    public Vec3d toPlayerViewAnchor(Vec3d eyePos, Vec3d lookDirection, WindowOffset offset) {
+    public Vec3 toPlayerViewAnchor(Vec3 eyePos, Vec3 lookDirection, WindowOffset offset) {
         return toFixedAnchorFromPlayerEye(eyePos, lookDirection, offset);
     }
 
-    public Quaternionf toViewRotation(Vec3d lookDirection) {
+    public Quaternionf toViewRotation(Vec3 lookDirection) {
         Vector3f look = normalize(lookDirection).negate();
         return new Quaternionf().lookAlong(look, WORLD_UP);
     }
 
-    public double raycastQuadDistance(Vec3d start,
-                                      Vec3d direction,
-                                      Vec3d center,
-                                      Vec3d right,
-                                      Vec3d up,
-                                      Vec3d normal,
+    public double raycastQuadDistance(Vec3 start,
+                                      Vec3 direction,
+                                      Vec3 center,
+                                      Vec3 right,
+                                      Vec3 up,
+                                      Vec3 normal,
                                       float halfWidth,
                                       float halfHeight,
                                       double maxDistance) {
-        double denominator = direction.dotProduct(normal);
+        double denominator = direction.dot(normal);
         if (Math.abs(denominator) < 1.0E-6D) {
             return -1.0D;
         }
 
-        double distance = center.subtract(start).dotProduct(normal) / denominator;
+        double distance = center.subtract(start).dot(normal) / denominator;
         if (distance < 0.0D || distance > maxDistance) {
             return -1.0D;
         }
 
-        Vec3d hit = start.add(direction.multiply(distance));
-        Vec3d offset = hit.subtract(center);
-        double projectedRight = offset.dotProduct(right);
-        double projectedUp = offset.dotProduct(up);
+        Vec3 hit = start.add(direction.scale(distance));
+        Vec3 offset = hit.subtract(center);
+        double projectedRight = offset.dot(right);
+        double projectedUp = offset.dot(up);
         if (Math.abs(projectedRight) > halfWidth || Math.abs(projectedUp) > halfHeight) {
             return -1.0D;
         }
@@ -108,19 +108,19 @@ public final class CoordinateTransformer {
     }
 
     public WindowBasis basis(PositionMode positionMode, float yaw, float pitch) {
-        Vec3d lookDirection = Vec3d.fromPolar(pitch, yaw);
+        Vec3 lookDirection = Vec3.directionFromRotation(pitch, yaw);
         Vector3f look = normalize(lookDirection);
         Vector3f right = right(look);
         Vector3f up = up(look, right);
         Vector3f normal = look.negate(new Vector3f());
         return new WindowBasis(
-                new Vec3d(right.x, right.y, right.z),
-                new Vec3d(up.x, up.y, up.z),
-                new Vec3d(normal.x, normal.y, normal.z)
+                new Vec3(right.x, right.y, right.z),
+                new Vec3(up.x, up.y, up.z),
+                new Vec3(normal.x, normal.y, normal.z)
         );
     }
 
-    private static Vector3f normalize(Vec3d vector) {
+    private static Vector3f normalize(Vec3 vector) {
         return new Vector3f((float) vector.x, (float) vector.y, (float) vector.z).normalize();
     }
 
@@ -136,7 +136,7 @@ public final class CoordinateTransformer {
         return right.cross(look, new Vector3f()).normalize();
     }
 
-    public record WindowBasis(Vec3d right, Vec3d up, Vec3d normal) {
+    public record WindowBasis(Vec3 right, Vec3 up, Vec3 normal) {
     }
 
     public record ViewRotation(float yaw, float pitch) {

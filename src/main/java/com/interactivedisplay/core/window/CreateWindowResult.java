@@ -2,7 +2,7 @@ package com.interactivedisplay.core.window;
 
 import com.interactivedisplay.debug.DebugReason;
 import java.util.UUID;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 
 public record CreateWindowResult(
         boolean success,
@@ -11,7 +11,7 @@ public record CreateWindowResult(
         String playerName,
         String windowId,
         String componentId,
-        Vec3d anchor,
+        Vec3 anchor,
         int layoutComponentCount,
         int spawnedEntityCount,
         String message
@@ -19,7 +19,7 @@ public record CreateWindowResult(
     public static CreateWindowResult success(UUID playerUuid,
                                              String playerName,
                                              String windowId,
-                                             Vec3d anchor,
+                                             Vec3 anchor,
                                              int layoutComponentCount,
                                              int spawnedEntityCount,
                                              String message) {
@@ -42,7 +42,7 @@ public record CreateWindowResult(
                                              String playerName,
                                              String windowId,
                                              String componentId,
-                                             Vec3d anchor,
+                                             Vec3 anchor,
                                              int layoutComponentCount,
                                              int spawnedEntityCount,
                                              String message) {

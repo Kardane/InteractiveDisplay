@@ -1,6 +1,7 @@
 package com.interactivedisplay.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.interactivedisplay.core.component.ComponentAction;
@@ -16,11 +17,12 @@ import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowActionExecutor;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.core.window.WindowNavigationContext;
+import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import java.util.UUID;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -55,6 +57,42 @@ class UiHitClickHandlerTest {
     }
 
     @Test
+    void openWindowActionShouldDispatchTarget() {
+        TrackingExecutor executor = new TrackingExecutor();
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20))
+                .handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.openWindow("settings"), "open"));
+
+        assertEquals(true, result.consumed());
+        assertEquals(1, executor.openCalls);
+        assertEquals("settings", executor.lastWindowId);
+    }
+
+    @Test
+    void modeSwitchActionsShouldDispatchTheirRequestedModes() {
+        TrackingExecutor executor = new TrackingExecutor();
+        ClickHandler handler = new ClickHandler(executor, new DebugRecorder(20));
+
+        assertEquals(true, handler.handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.switchModeFixed(), "fixed")).consumed());
+        assertEquals(PositionMode.FIXED, executor.lastPositionMode);
+        assertEquals(true, handler.handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.switchModePlayerFixed(), "player_fixed")).consumed());
+        assertEquals(PositionMode.PLAYER_FIXED, executor.lastPositionMode);
+        assertEquals(2, executor.switchModeCalls);
+    }
+
+    @Test
+    void closeWindowFailureShouldPassUnderlyingReason() {
+        UUID owner = UUID.randomUUID();
+        TrackingExecutor executor = new TrackingExecutor();
+        executor.closeResult = RemoveWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, "main", "닫기 실패");
+
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(owner, "Steve", closeHit());
+
+        assertFalse(result.consumed());
+        assertEquals(DebugReason.ACTION_EXECUTION_FAILED, result.reasonCode());
+        assertEquals(1, executor.closeCalls);
+    }
+
+    @Test
     void runCommandShouldDispatch() {
         TrackingExecutor executor = new TrackingExecutor();
         ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand("say hi", 3), "run"));
@@ -62,7 +100,18 @@ class UiHitClickHandlerTest {
         assertEquals(true, result.consumed());
         assertEquals(1, executor.commandCalls);
         assertEquals(3, executor.lastPermissionLevel);
-        assertEquals(new Vec3d(0.0, 0.0, 0.0), executor.lastHit.hitPosition());
+        assertEquals(new Vec3(0.0, 0.0, 0.0), executor.lastHit.hitPosition());
+    }
+
+    @Test
+    void runCommandWithoutCommandShouldNotDispatch() {
+        TrackingExecutor executor = new TrackingExecutor();
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20))
+                .handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand(null, 2), "run_invalid"));
+
+        assertFalse(result.consumed());
+        assertEquals(DebugReason.ACTION_TARGET_NOT_FOUND, result.reasonCode());
+        assertEquals(0, executor.commandCalls);
     }
 
     @Test
@@ -73,6 +122,17 @@ class UiHitClickHandlerTest {
 
         assertEquals(false, result.consumed());
         assertEquals(DebugReason.ACTION_EXECUTION_FAILED, result.reasonCode());
+    }
+
+    @Test
+    void callbackWithoutIdShouldNotDispatch() {
+        TrackingExecutor executor = new TrackingExecutor();
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20))
+                .handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.callback(null), "callback_invalid"));
+
+        assertFalse(result.consumed());
+        assertEquals(DebugReason.ACTION_TARGET_NOT_FOUND, result.reasonCode());
+        assertEquals(0, executor.callbackCalls);
     }
 
     @Test
@@ -103,17 +163,20 @@ class UiHitClickHandlerTest {
                 com.interactivedisplay.core.component.ClickType.RIGHT,
                 action
         );
-        WindowComponentRuntime runtime = new WindowComponentRuntime(World.OVERWORLD, "sig", button, new Vector3f(), UUID.randomUUID(), null);
-        return new UiHitResult("main", new WindowNavigationContext("main", null, com.interactivedisplay.core.positioning.PositionMode.FIXED, Vec3d.ZERO, 0.0f, 0.0f), componentId, runtime, action, Vec3d.ZERO, 1.0D);
+        WindowComponentRuntime runtime = new WindowComponentRuntime(Level.OVERWORLD, "sig", button, new Vector3f(), UUID.randomUUID(), null);
+        return new UiHitResult("main", new WindowNavigationContext("main", null, com.interactivedisplay.core.positioning.PositionMode.FIXED, Vec3.ZERO, 0.0f, 0.0f), componentId, runtime, action, Vec3.ZERO, 1.0D);
     }
 
     private static final class TrackingExecutor implements WindowActionExecutor {
         int closeCalls;
         int openCalls;
+        int switchModeCalls;
         int commandCalls;
         int callbackCalls;
         int placementCalls;
         Integer lastPermissionLevel;
+        String lastWindowId;
+        PositionMode lastPositionMode;
         UiHitResult lastHit;
         RemoveWindowResult closeResult = RemoveWindowResult.success(UUID.randomUUID(), "main", 1, "닫기");
         CreateWindowResult openResult = CreateWindowResult.success(UUID.randomUUID(), "Steve", "settings", null, 0, 0, "열기");
@@ -130,12 +193,14 @@ class UiHitClickHandlerTest {
         @Override
         public CreateWindowResult openWindow(UUID owner, WindowNavigationContext context, String windowId) {
             this.openCalls++;
+            this.lastWindowId = windowId;
             return this.openResult;
         }
 
         @Override
-        public CreateWindowResult switchMode(UUID owner, WindowNavigationContext context, com.interactivedisplay.core.positioning.PositionMode positionMode) {
-            this.openCalls++;
+        public CreateWindowResult switchMode(UUID owner, WindowNavigationContext context, PositionMode positionMode) {
+            this.switchModeCalls++;
+            this.lastPositionMode = positionMode;
             return this.openResult;
         }
 

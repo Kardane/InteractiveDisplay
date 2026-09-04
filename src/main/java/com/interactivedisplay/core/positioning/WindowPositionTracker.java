@@ -1,9 +1,9 @@
 package com.interactivedisplay.core.positioning;
 
 import com.interactivedisplay.core.window.WindowInstance;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 
 public final class WindowPositionTracker {
     private static final long UPDATE_INTERVAL_TICKS = 2L;
@@ -29,35 +29,35 @@ public final class WindowPositionTracker {
         this.transformer = transformer;
     }
 
-    public WindowTransformState resolve(ServerPlayerEntity player,
+    public WindowTransformState resolve(ServerPlayer player,
                                         PositionMode positionMode,
                                         WindowOffset offset,
-                                        Vec3d fixedAnchor,
+                                        Vec3 fixedAnchor,
                                         float fixedYaw,
                                         float fixedPitch) {
-        return resolve(positionMode, offset, player.getEyePos(), player.getRotationVec(1.0f), player.getYaw(), player.getPitch(), fixedAnchor, fixedYaw, fixedPitch);
+        return resolve(positionMode, offset, player.getEyePosition(), player.getViewVector(1.0f), player.getYRot(), player.getXRot(), fixedAnchor, fixedYaw, fixedPitch);
     }
 
     WindowTransformState resolve(PositionMode positionMode,
                                  WindowOffset offset,
-                                 Vec3d eyePos,
-                                 Vec3d look,
+                                 Vec3 eyePos,
+                                 Vec3 look,
                                  float playerYaw,
                                  float playerPitch,
-                                 Vec3d fixedAnchor,
+                                 Vec3 fixedAnchor,
                                  float fixedYaw,
                                  float fixedPitch) {
         float resolvedYaw = switch (positionMode) {
             case FIXED, PLAYER_FIXED -> fixedYaw;
-            case PLAYER_VIEW -> MathHelper.wrapDegrees(playerYaw + fixedYaw);
+            case PLAYER_VIEW -> Mth.wrapDegrees(playerYaw + fixedYaw);
         };
         float resolvedPitch = switch (positionMode) {
             case FIXED -> 0.0f;
             case PLAYER_FIXED -> fixedPitch;
-            case PLAYER_VIEW -> MathHelper.clamp(playerPitch + fixedPitch, -90.0f, 90.0f);
+            case PLAYER_VIEW -> Mth.clamp(playerPitch + fixedPitch, -90.0f, 90.0f);
         };
-        Vec3d resolvedLook = positionMode == PositionMode.PLAYER_VIEW ? Vec3d.fromPolar(resolvedPitch, resolvedYaw) : look;
-        Vec3d anchor = switch (positionMode) {
+        Vec3 resolvedLook = positionMode == PositionMode.PLAYER_VIEW ? Vec3.directionFromRotation(resolvedPitch, resolvedYaw) : look;
+        Vec3 anchor = switch (positionMode) {
             case FIXED -> fixedAnchor != null
                     ? fixedAnchor
                     : this.transformer.toFixedAnchorFromPlayerEye(eyePos, resolvedLook, offset);
@@ -100,7 +100,7 @@ public final class WindowPositionTracker {
         if (instance.positionMode() == PositionMode.FIXED) {
             return false;
         }
-        if (instance.currentAnchor().squaredDistanceTo(nextState.anchor()) > APPLY_POSITION_EPSILON_SQUARED) {
+        if (instance.currentAnchor().distanceToSqr(nextState.anchor()) > APPLY_POSITION_EPSILON_SQUARED) {
             return true;
         }
         if (instance.positionMode() == PositionMode.PLAYER_FIXED) {
@@ -112,16 +112,16 @@ public final class WindowPositionTracker {
     }
 
     private WindowTransformState applyPlayerFixedDeadzone(WindowInstance instance, WindowTransformState rawState) {
-        Vec3d targetAnchor = rawState.anchor();
-        if (instance.targetAnchor().squaredDistanceTo(rawState.anchor()) < PLAYER_FIXED_POSITION_DEADZONE_SQUARED) {
+        Vec3 targetAnchor = rawState.anchor();
+        if (instance.targetAnchor().distanceToSqr(rawState.anchor()) < PLAYER_FIXED_POSITION_DEADZONE_SQUARED) {
             targetAnchor = instance.targetAnchor();
         }
         return new WindowTransformState(targetAnchor, rawState.yaw(), rawState.pitch(), rawState.focusPoint());
     }
 
     private WindowTransformState applyPlayerViewDeadzone(WindowInstance instance, WindowTransformState rawState) {
-        Vec3d targetAnchor = rawState.anchor();
-        if (instance.targetAnchor().squaredDistanceTo(rawState.anchor()) < PLAYER_VIEW_POSITION_DEADZONE_SQUARED) {
+        Vec3 targetAnchor = rawState.anchor();
+        if (instance.targetAnchor().distanceToSqr(rawState.anchor()) < PLAYER_VIEW_POSITION_DEADZONE_SQUARED) {
             targetAnchor = instance.targetAnchor();
         }
         float targetYaw = Math.abs(angleDelta(instance.targetYaw(), rawState.yaw())) < PLAYER_VIEW_YAW_DEADZONE
@@ -133,8 +133,8 @@ public final class WindowPositionTracker {
         return new WindowTransformState(targetAnchor, targetYaw, targetPitch, rawState.focusPoint());
     }
 
-    private static Vec3d smoothPosition(Vec3d current, Vec3d target, float alpha, double snapDistance) {
-        if (current.squaredDistanceTo(target) <= snapDistance * snapDistance) {
+    private static Vec3 smoothPosition(Vec3 current, Vec3 target, float alpha, double snapDistance) {
+        if (current.distanceToSqr(target) <= snapDistance * snapDistance) {
             return target;
         }
         return current.lerp(target, alpha);
@@ -143,9 +143,9 @@ public final class WindowPositionTracker {
     private static float smoothAngle(float current, float target, float alpha, float snapThreshold) {
         float delta = angleDelta(current, target);
         if (Math.abs(delta) <= snapThreshold) {
-            return MathHelper.wrapDegrees(target);
+            return Mth.wrapDegrees(target);
         }
-        return MathHelper.wrapDegrees(current + (delta * alpha));
+        return Mth.wrapDegrees(current + (delta * alpha));
     }
 
     private static float smoothLinear(float current, float target, float alpha, float snapThreshold) {
@@ -157,11 +157,11 @@ public final class WindowPositionTracker {
     }
 
     private static float angleDelta(float current, float target) {
-        return MathHelper.wrapDegrees(target - current);
+        return Mth.wrapDegrees(target - current);
     }
 
-    public record WindowTransformState(Vec3d anchor, float yaw, float pitch, Vec3d focusPoint) {
-        public WindowTransformState(Vec3d anchor, float yaw, float pitch) {
+    public record WindowTransformState(Vec3 anchor, float yaw, float pitch, Vec3 focusPoint) {
+        public WindowTransformState(Vec3 anchor, float yaw, float pitch) {
             this(anchor, yaw, pitch, null);
         }
     }

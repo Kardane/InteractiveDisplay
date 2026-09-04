@@ -10,10 +10,10 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.util.function.Predicate;
-import net.minecraft.command.EntitySelector;
-import net.minecraft.command.argument.AngleArgumentType;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.commands.arguments.AngleArgument;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.selector.EntitySelector;
+import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayCommandTree {
     private InteractiveDisplayCommandTree() {
@@ -55,7 +55,7 @@ public final class InteractiveDisplayCommandTree {
                         .requires(canCreate)
                         .then(RequiredArgumentBuilder.<S, String>argument("windowId", StringArgumentType.word())
                                 .suggests(windowSuggestions)
-                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.players())
                                         .then(createLiteral(handlers, PositionMode.FIXED, "fixed"))
                                         .then(createLiteral(handlers, PositionMode.PLAYER_FIXED, "player_fixed"))
                                         .then(createLiteral(handlers, PositionMode.PLAYER_VIEW, "player_view")))))
@@ -63,7 +63,7 @@ public final class InteractiveDisplayCommandTree {
                         .requires(canRemove)
                         .then(RequiredArgumentBuilder.<S, String>argument("windowId", StringArgumentType.word())
                                 .suggests(windowSuggestions)
-                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.players())
                                         .executes(context -> handlers.remove(context, argWindowId(context))))))
                 .then(LiteralArgumentBuilder.<S>literal("reload")
                         .requires(canReload)
@@ -79,14 +79,14 @@ public final class InteractiveDisplayCommandTree {
                         .then(LiteralArgumentBuilder.<S>literal("create")
                                 .then(RequiredArgumentBuilder.<S, String>argument("groupId", StringArgumentType.word())
                                         .suggests(groupSuggestions)
-                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
+                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.players())
                                                 .then(createLiteral(handlers, PositionMode.FIXED, "fixed", true))
                                                 .then(createLiteral(handlers, PositionMode.PLAYER_FIXED, "player_fixed", true))
                                                 .then(createLiteral(handlers, PositionMode.PLAYER_VIEW, "player_view", true)))))
                         .then(LiteralArgumentBuilder.<S>literal("remove")
                                 .then(RequiredArgumentBuilder.<S, String>argument("groupId", StringArgumentType.word())
                                         .suggests(groupSuggestions)
-                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.players())
+                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.players())
                                                 .executes(context -> handlers.groupRemove(context, argGroupId(context))))))
                         .then(LiteralArgumentBuilder.<S>literal("list")
                                 .executes(handlers::groupList)))
@@ -96,15 +96,15 @@ public final class InteractiveDisplayCommandTree {
                                 .executes(handlers::debugStatus))
                         .then(LiteralArgumentBuilder.<S>literal("recent")
                                 .executes(handlers::debugRecent)
-                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.player())
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.player())
                                         .executes(handlers::debugRecent)))
                         .then(LiteralArgumentBuilder.<S>literal("window")
                                 .then(RequiredArgumentBuilder.<S, String>argument("windowId", StringArgumentType.word())
                                         .suggests(windowSuggestions)
-                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.player())
+                                        .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.player())
                                                 .executes(context -> handlers.debugWindow(context, argWindowId(context))))))
                         .then(LiteralArgumentBuilder.<S>literal("bindings")
-                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgumentType.player())
+                                .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.player())
                                         .executes(handlers::debugBindings))));
     }
 
@@ -125,8 +125,8 @@ public final class InteractiveDisplayCommandTree {
                                             ? handlers.groupCreate(context, argGroupId(context), mode, argPosition(context), null)
                                             : handlers.create(context, argWindowId(context), mode, argPosition(context), null)))));
         } else if (mode == PositionMode.PLAYER_FIXED || mode == PositionMode.PLAYER_VIEW) {
-            RequiredArgumentBuilder<S, AngleArgumentType.Angle> yawArgument = InteractiveDisplayCommandTree.<S>angleArgument("yaw");
-            RequiredArgumentBuilder<S, AngleArgumentType.Angle> pitchArgument = InteractiveDisplayCommandTree.<S>angleArgument("pitch")
+            RequiredArgumentBuilder<S, AngleArgument.SingleAngle> yawArgument = InteractiveDisplayCommandTree.<S>angleArgument("yaw");
+            RequiredArgumentBuilder<S, AngleArgument.SingleAngle> pitchArgument = InteractiveDisplayCommandTree.<S>angleArgument("pitch")
                     .executes(context -> group
                             ? handlers.groupCreate(context, argGroupId(context), mode, null, argRotation(context))
                             : handlers.create(context, argWindowId(context), mode, null, argRotation(context)));
@@ -136,8 +136,8 @@ public final class InteractiveDisplayCommandTree {
         return node;
     }
 
-    private static <S> RequiredArgumentBuilder<S, AngleArgumentType.Angle> angleArgument(String name) {
-        return RequiredArgumentBuilder.<S, AngleArgumentType.Angle>argument(name, AngleArgumentType.angle());
+    private static <S> RequiredArgumentBuilder<S, AngleArgument.SingleAngle> angleArgument(String name) {
+        return RequiredArgumentBuilder.<S, AngleArgument.SingleAngle>argument(name, AngleArgument.angle());
     }
 
     private static <S> String argWindowId(CommandContext<S> context) {
@@ -148,8 +148,8 @@ public final class InteractiveDisplayCommandTree {
         return StringArgumentType.getString(context, "groupId");
     }
 
-    private static <S> Vec3d argPosition(CommandContext<S> context) {
-        return new Vec3d(
+    private static <S> Vec3 argPosition(CommandContext<S> context) {
+        return new Vec3(
                 DoubleArgumentType.getDouble(context, "x"),
                 DoubleArgumentType.getDouble(context, "y"),
                 DoubleArgumentType.getDouble(context, "z")
@@ -158,13 +158,13 @@ public final class InteractiveDisplayCommandTree {
 
     private static <S> Rotation argRotation(CommandContext<S> context) {
         return new Rotation(
-                AngleInput.fromParsed(context.getArgument("yaw", AngleArgumentType.Angle.class)),
-                AngleInput.fromParsed(context.getArgument("pitch", AngleArgumentType.Angle.class))
+                AngleInput.fromParsed(context.getArgument("yaw", AngleArgument.SingleAngle.class)),
+                AngleInput.fromParsed(context.getArgument("pitch", AngleArgument.SingleAngle.class))
         );
     }
 
     public interface Handlers<S> {
-        int create(CommandContext<S> context, String windowId, PositionMode positionMode, Vec3d position, Rotation rotation) throws CommandSyntaxException;
+        int create(CommandContext<S> context, String windowId, PositionMode positionMode, Vec3 position, Rotation rotation) throws CommandSyntaxException;
 
         int remove(CommandContext<S> context, String windowId) throws CommandSyntaxException;
 
@@ -172,7 +172,7 @@ public final class InteractiveDisplayCommandTree {
 
         int list(CommandContext<S> context) throws CommandSyntaxException;
 
-        int groupCreate(CommandContext<S> context, String groupId, PositionMode positionMode, Vec3d position, Rotation rotation) throws CommandSyntaxException;
+        int groupCreate(CommandContext<S> context, String groupId, PositionMode positionMode, Vec3 position, Rotation rotation) throws CommandSyntaxException;
 
         int groupRemove(CommandContext<S> context, String groupId) throws CommandSyntaxException;
 

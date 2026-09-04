@@ -2,12 +2,12 @@ package com.interactivedisplay.core.window;
 
 import com.interactivedisplay.core.positioning.PositionMode;
 import java.util.UUID;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 
 public final class WindowGroupInstance {
     private final UUID owner;
     private final String groupId;
-    private final Vec3d baseAnchor;
+    private final Vec3 baseAnchor;
     private final float baseYaw;
     private final float basePitch;
     private PositionMode currentMode;
@@ -16,7 +16,7 @@ public final class WindowGroupInstance {
 
     public WindowGroupInstance(UUID owner,
                                String groupId,
-                               Vec3d baseAnchor,
+                               Vec3 baseAnchor,
                                float baseYaw,
                                float basePitch,
                                PositionMode currentMode,
@@ -40,7 +40,7 @@ public final class WindowGroupInstance {
         return this.groupId;
     }
 
-    public Vec3d baseAnchor() {
+    public Vec3 baseAnchor() {
         return this.baseAnchor;
     }
 

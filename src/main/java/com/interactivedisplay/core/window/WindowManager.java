@@ -19,9 +19,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public final class WindowManager implements WindowActionExecutor {
     private final MinecraftServer server;
@@ -114,23 +113,23 @@ public final class WindowManager implements WindowActionExecutor {
         return result;
     }
 
-    public CreateWindowResult createWindow(ServerPlayerEntity player, String windowId, PositionMode positionMode, Vec3d overrideAnchor) {
+    public CreateWindowResult createWindow(ServerPlayer player, String windowId, PositionMode positionMode, Vec3 overrideAnchor) {
         return this.lifecycleCoordinator.createWindow(player, windowId, positionMode, overrideAnchor);
     }
 
-    public CreateWindowResult createWindow(ServerPlayerEntity player,
+    public CreateWindowResult createWindow(ServerPlayer player,
                                            String windowId,
                                            PositionMode positionMode,
-                                           Vec3d overrideAnchor,
+                                           Vec3 overrideAnchor,
                                            float fixedYaw,
                                            float fixedPitch) {
         return this.lifecycleCoordinator.createWindow(player, windowId, positionMode, overrideAnchor, fixedYaw, fixedPitch);
     }
 
-    public CreateWindowResult createGroup(ServerPlayerEntity player,
+    public CreateWindowResult createGroup(ServerPlayer player,
                                           String groupId,
                                           PositionMode positionMode,
-                                          Vec3d baseAnchor,
+                                          Vec3 baseAnchor,
                                           float baseYaw,
                                           float basePitch) {
         return this.lifecycleCoordinator.createGroup(player, groupId, positionMode, baseAnchor, baseYaw, basePitch);
@@ -145,11 +144,11 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public void tick() {
-        long currentTick = this.server.getTicks();
+        long currentTick = this.server.getTickCount();
         this.lifecycleCoordinator.expirePooledEntities(currentTick);
 
         for (UUID owner : this.stateStore.owners()) {
-            ServerPlayerEntity player = this.server.getPlayerManager().getPlayer(owner);
+            ServerPlayer player = this.server.getPlayerList().getPlayer(owner);
             if (player == null) {
                 continue;
             }
@@ -160,7 +159,7 @@ public final class WindowManager implements WindowActionExecutor {
                 if (definition == null) {
                     continue;
                 }
-                if (!player.getWorld().getRegistryKey().equals(instance.worldKey())) {
+                if (!player.level().dimension().equals(instance.worldKey())) {
                     if (instance.groupId() != null) {
                         this.lifecycleCoordinator.removeGroupSilently(owner, instance.groupId());
                     } else {
@@ -176,18 +175,18 @@ public final class WindowManager implements WindowActionExecutor {
                 instance.updateTarget(targetState.anchor(), targetState.yaw(), targetState.pitch());
                 if (placementTracking || this.positionTracker.shouldUpdate(instance, currentState, currentTick)) {
                     if (placementTracking || instance.positionMode() != PositionMode.FIXED || !instance.currentAnchor().equals(currentState.anchor())) {
-                        this.lifecycleCoordinator.moveWindow(instance, currentState, player.getWorld());
+                        this.lifecycleCoordinator.moveWindow(instance, currentState, player.level());
                     }
                     instance.updateTransform(currentState.anchor(), currentState.yaw(), currentState.pitch(), currentTick);
                 }
-                this.lifecycleCoordinator.syncCanvases(instance, player.getWorld().getPlayers());
+                this.lifecycleCoordinator.syncCanvases(instance, player.level().players());
             }
 
             this.lifecycleCoordinator.updateHover(player, windows, this.uiHitResolver.findUiHit(player));
         }
     }
 
-    public void handlePlayerJoin(ServerPlayerEntity player) {
+    public void handlePlayerJoin(ServerPlayer player) {
         this.lifecycleCoordinator.handlePlayerJoin(player);
     }
 
@@ -263,7 +262,7 @@ public final class WindowManager implements WindowActionExecutor {
         return this.schemaLoader.mapCacheEntryCount();
     }
 
-    public UiHitResult findUiHit(ServerPlayerEntity player) {
+    public UiHitResult findUiHit(ServerPlayer player) {
         return this.uiHitResolver.findUiHit(player);
     }
 

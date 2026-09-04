@@ -7,42 +7,42 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 public final class WindowInstance {
     private final UUID owner;
     private final String windowId;
     private final String groupId;
     private final String groupWindowId;
-    private final RegistryKey<World> worldKey;
+    private final ResourceKey<Level> worldKey;
     private final PositionMode positionMode;
-    private final Vec3d fixedAnchor;
+    private final Vec3 fixedAnchor;
     private final float fixedYaw;
     private final float fixedPitch;
     private final UUID rootEntityId;
     private final Map<String, WindowComponentRuntime> components = new LinkedHashMap<>();
-    private Vec3d targetAnchor;
+    private Vec3 targetAnchor;
     private float targetYaw;
     private float targetPitch;
-    private Vec3d currentAnchor;
+    private Vec3 currentAnchor;
     private float currentYaw;
     private float currentPitch;
     private long lastUpdateTick;
 
     public WindowInstance(UUID owner,
                           String windowId,
-                          RegistryKey<World> worldKey,
+                          ResourceKey<Level> worldKey,
                           PositionMode positionMode,
-                          Vec3d fixedAnchor,
+                          Vec3 fixedAnchor,
                           float fixedYaw,
                           float fixedPitch,
                           UUID rootEntityId,
-                          Vec3d targetAnchor,
+                          Vec3 targetAnchor,
                           float targetYaw,
                           float targetPitch,
-                          Vec3d currentAnchor,
+                          Vec3 currentAnchor,
                           float currentYaw,
                           float currentPitch,
                           long lastUpdateTick) {
@@ -53,16 +53,16 @@ public final class WindowInstance {
                           String windowId,
                           String groupId,
                           String groupWindowId,
-                          RegistryKey<World> worldKey,
+                          ResourceKey<Level> worldKey,
                           PositionMode positionMode,
-                          Vec3d fixedAnchor,
+                          Vec3 fixedAnchor,
                           float fixedYaw,
                           float fixedPitch,
                           UUID rootEntityId,
-                          Vec3d targetAnchor,
+                          Vec3 targetAnchor,
                           float targetYaw,
                           float targetPitch,
-                          Vec3d currentAnchor,
+                          Vec3 currentAnchor,
                           float currentYaw,
                           float currentPitch,
                           long lastUpdateTick) {
@@ -101,7 +101,7 @@ public final class WindowInstance {
         return this.groupWindowId;
     }
 
-    public RegistryKey<World> worldKey() {
+    public ResourceKey<Level> worldKey() {
         return this.worldKey;
     }
 
@@ -109,7 +109,7 @@ public final class WindowInstance {
         return this.positionMode;
     }
 
-    public Vec3d fixedAnchor() {
+    public Vec3 fixedAnchor() {
         return this.fixedAnchor;
     }
 
@@ -125,11 +125,11 @@ public final class WindowInstance {
         return this.rootEntityId;
     }
 
-    public Vec3d currentAnchor() {
+    public Vec3 currentAnchor() {
         return this.currentAnchor;
     }
 
-    public Vec3d targetAnchor() {
+    public Vec3 targetAnchor() {
         return this.targetAnchor;
     }
 
@@ -149,13 +149,13 @@ public final class WindowInstance {
         return this.currentPitch;
     }
 
-    public void updateTarget(Vec3d targetAnchor, float targetYaw, float targetPitch) {
+    public void updateTarget(Vec3 targetAnchor, float targetYaw, float targetPitch) {
         this.targetAnchor = targetAnchor;
         this.targetYaw = targetYaw;
         this.targetPitch = targetPitch;
     }
 
-    public void updateTransform(Vec3d currentAnchor, float currentYaw, float currentPitch, long tick) {
+    public void updateTransform(Vec3 currentAnchor, float currentYaw, float currentPitch, long tick) {
         this.currentAnchor = currentAnchor;
         this.currentYaw = currentYaw;
         this.currentPitch = currentPitch;

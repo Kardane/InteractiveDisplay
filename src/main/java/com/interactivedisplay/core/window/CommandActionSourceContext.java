@@ -1,19 +1,19 @@
 package com.interactivedisplay.core.window;
 
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 record CommandActionSourceContext(
-        RegistryKey<World> worldKey,
-        Vec3d position,
+        ResourceKey<Level> worldKey,
+        Vec3 position,
         float yaw,
         float pitch,
         Integer permissionLevel,
         String normalizedCommand
 ) {
-    static CommandActionSourceContext of(RegistryKey<World> worldKey,
-                                         Vec3d position,
+    static CommandActionSourceContext of(ResourceKey<Level> worldKey,
+                                         Vec3 position,
                                          float yaw,
                                          float pitch,
                                          Integer permissionLevel,

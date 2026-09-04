@@ -31,31 +31,31 @@ import java.util.Locale;
 import java.util.StringJoiner;
 import java.util.UUID;
 import javax.imageio.ImageIO;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.decoration.DisplayEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtHelper;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.StringNbtReader;
-import net.minecraft.registry.Registries;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.storage.NbtReadView;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextCodecs;
-import net.minecraft.text.TextColor;
-import net.minecraft.util.ErrorReporter;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.phys.Vec3;
 
 public final class DisplayEntityFactory {
     private static final int INTERPOLATION_DURATION = 3;
@@ -63,41 +63,41 @@ public final class DisplayEntityFactory {
     private static final float MIN_Z_SCALE = 0.001f;
 
     private final DebugRecorder debugRecorder;
-    private final BiFunction<ServerPlayerEntity, Text, Text> placeholderResolver;
+    private final BiFunction<ServerPlayer, Component, Component> placeholderResolver;
 
     public DisplayEntityFactory(DebugRecorder debugRecorder) {
         this(debugRecorder, DisplayEntityFactory::applyPlaceholders);
     }
 
-    DisplayEntityFactory(DebugRecorder debugRecorder, BiFunction<ServerPlayerEntity, Text, Text> placeholderResolver) {
+    DisplayEntityFactory(DebugRecorder debugRecorder, BiFunction<ServerPlayer, Component, Component> placeholderResolver) {
         this.debugRecorder = debugRecorder;
         this.placeholderResolver = placeholderResolver;
     }
 
     public WindowComponentRuntime spawnRuntime(MinecraftServer server,
-                                               ServerWorld world,
+                                               ServerLevel world,
                                                UUID owner,
                                                String signature,
                                                ComponentDefinition component,
-                                               Vec3d position,
+                                               Vec3 position,
                                                PositionMode positionMode,
                                                float yaw,
                                                float pitch,
-                                               Collection<ServerPlayerEntity> canvasViewers) {
+                                               Collection<ServerPlayer> canvasViewers) {
         try {
             if (component instanceof TextComponentDefinition text) {
                 UUID displayId = spawnText(server, world, owner, text, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, null);
+                return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
             }
 
             if (component instanceof PanelComponentDefinition panel) {
                 UUID displayId = spawnPanel(server, world, panel, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, null);
+                return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
             }
 
             if (component instanceof ButtonComponentDefinition button) {
                 UUID displayId = spawnButton(server, world, owner, button, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, null);
+                return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
             }
 
             if (component instanceof ImageComponentDefinition image) {
@@ -111,14 +111,14 @@ public final class DisplayEntityFactory {
     }
 
     public void reconfigureRuntime(MinecraftServer server,
-                                   ServerWorld world,
+                                   ServerLevel world,
                                    UUID owner,
                                    WindowComponentRuntime runtime,
-                                   Vec3d position,
+                                   Vec3 position,
                                    PositionMode positionMode,
                                    float yaw,
                                    float pitch,
-                                   Collection<ServerPlayerEntity> canvasViewers) {
+                                   Collection<ServerPlayer> canvasViewers) {
         moveRuntime(world, runtime, position, positionMode, yaw, pitch);
         runtime.setHovered(false);
         applyRuntimeTransform(server, world, owner, runtime, positionMode);
@@ -131,25 +131,25 @@ public final class DisplayEntityFactory {
     }
 
     public UUID spawnRoot(MinecraftServer server,
-                          ServerWorld world,
-                          Vec3d anchor,
+                          ServerLevel world,
+                          Vec3 anchor,
                           PositionMode positionMode,
                           float yaw,
                           float pitch) {
-        DisplayEntity.TextDisplayEntity entity = new DisplayEntity.TextDisplayEntity(EntityType.TEXT_DISPLAY, world);
+        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
         entity.setInvisible(false);
         entity.setNoGravity(true);
-        entity.setPosition(anchor);
-        entity.setYaw(displayYaw(positionMode, yaw));
-        entity.setPitch(displayPitch(positionMode, pitch));
-        world.spawnEntity(entity);
-        applyTextData(server, world, entity.getUuid(), Text.empty(), 1, 0, false, 0.0f, "fixed", 0.1f, "center", new org.joml.Vector3f());
-        return entity.getUuid();
+        entity.setPos(anchor);
+        entity.setYRot(displayYaw(positionMode, yaw));
+        entity.setXRot(displayPitch(positionMode, pitch));
+        world.addFreshEntity(entity);
+        applyTextData(server, world, entity.getUUID(), Component.empty(), 1, 0, false, 0.0f, "fixed", 0.1f, "center", new org.joml.Vector3f());
+        return entity.getUUID();
     }
 
-    public void moveRoot(ServerWorld world,
+    public void moveRoot(ServerLevel world,
                          UUID rootEntityId,
-                         Vec3d anchor,
+                         Vec3 anchor,
                          PositionMode positionMode,
                          float yaw,
                          float pitch) {
@@ -157,33 +157,33 @@ public final class DisplayEntityFactory {
         if (root == null) {
             return;
         }
-        root.setPosition(anchor);
-        root.setYaw(displayYaw(positionMode, yaw));
-        root.setPitch(displayPitch(positionMode, pitch));
+        root.setPos(anchor);
+        root.setYRot(displayYaw(positionMode, yaw));
+        root.setXRot(displayPitch(positionMode, pitch));
     }
 
     public void destroyRoot(MinecraftServer server,
-                            net.minecraft.registry.RegistryKey<net.minecraft.world.World> worldKey,
+                            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> worldKey,
                             UUID rootEntityId) {
         if (rootEntityId == null) {
             return;
         }
-        ServerWorld world = server.getWorld(worldKey);
+        ServerLevel world = server.getLevel(worldKey);
         if (world == null) {
             return;
         }
         Entity root = world.getEntity(rootEntityId);
         if (root != null) {
-            root.removeAllPassengers();
+            root.ejectPassengers();
             root.discard();
         }
     }
 
     public void attachRuntime(MinecraftServer server,
-                              ServerWorld world,
+                              ServerLevel world,
                               WindowComponentRuntime runtime,
                               UUID rootEntityId,
-                              Vec3d anchor,
+                              Vec3 anchor,
                               PositionMode positionMode,
                               float yaw,
                               float pitch) {
@@ -198,16 +198,16 @@ public final class DisplayEntityFactory {
             }
             entity.stopRiding();
             entity.setInvisible(false);
-            entity.setPosition(anchor);
-            entity.setYaw(displayYaw(positionMode, yaw));
-            entity.setPitch(displayPitch(positionMode, pitch));
+            entity.setPos(anchor);
+            entity.setYRot(displayYaw(positionMode, yaw));
+            entity.setXRot(displayPitch(positionMode, pitch));
             entity.startRiding(root, true);
         }
         applyRuntimeTransform(server, world, null, runtime, positionMode);
     }
 
     public void updateRuntimeOrientation(MinecraftServer server,
-                                         ServerWorld world,
+                                         ServerLevel world,
                                          WindowComponentRuntime runtime,
                                          PositionMode positionMode,
                                          float yaw,
@@ -217,15 +217,15 @@ public final class DisplayEntityFactory {
             if (entity == null) {
                 continue;
             }
-            entity.setYaw(displayYaw(positionMode, yaw));
-            entity.setPitch(displayPitch(positionMode, pitch));
+            entity.setYRot(displayYaw(positionMode, yaw));
+            entity.setXRot(displayPitch(positionMode, pitch));
         }
         applyRuntimeTransform(server, world, null, runtime, positionMode);
     }
 
-    public void moveRuntime(ServerWorld world,
+    public void moveRuntime(ServerLevel world,
                             WindowComponentRuntime runtime,
-                            Vec3d position,
+                            Vec3 position,
                             PositionMode positionMode,
                             float yaw,
                             float pitch) {
@@ -236,27 +236,27 @@ public final class DisplayEntityFactory {
             }
             entity.stopRiding();
             entity.setInvisible(false);
-            entity.setPosition(position);
-            entity.setYaw(displayYaw(positionMode, yaw));
-            entity.setPitch(displayPitch(positionMode, pitch));
+            entity.setPos(position);
+            entity.setYRot(displayYaw(positionMode, yaw));
+            entity.setXRot(displayPitch(positionMode, pitch));
         }
     }
 
-    public void deactivateRuntime(MinecraftServer server, ServerWorld world, WindowComponentRuntime runtime) {
-        Vec3d hidden = storagePosition(world);
+    public void deactivateRuntime(MinecraftServer server, ServerLevel world, WindowComponentRuntime runtime) {
+        Vec3 hidden = storagePosition(world);
         for (UUID entityId : runtime.entityIds()) {
             Entity entity = world.getEntity(entityId);
             if (entity != null) {
                 entity.stopRiding();
                 entity.setInvisible(true);
-                entity.setPosition(hidden);
+                entity.setPos(hidden);
             }
         }
         runtime.setHovered(false);
     }
 
     public void destroyRuntime(MinecraftServer server, WindowComponentRuntime runtime) {
-        ServerWorld world = server.getWorld(runtime.worldKey());
+        ServerLevel world = server.getLevel(runtime.worldKey());
         if (world != null) {
             for (UUID entityId : runtime.entityIds()) {
                 Entity entity = world.getEntity(entityId);
@@ -271,7 +271,7 @@ public final class DisplayEntityFactory {
     }
 
     public void setButtonHover(MinecraftServer server,
-                               ServerWorld world,
+                               ServerLevel world,
                                UUID owner,
                                WindowComponentRuntime runtime,
                                ButtonComponentDefinition button,
@@ -285,8 +285,8 @@ public final class DisplayEntityFactory {
         runtime.setHovered(hovered);
     }
 
-    public void syncMapCanvas(PlayerCanvas canvas, Collection<ServerPlayerEntity> viewers) {
-        for (ServerPlayerEntity viewer : viewers) {
+    public void syncMapCanvas(PlayerCanvas canvas, Collection<ServerPlayer> viewers) {
+        for (ServerPlayer viewer : viewers) {
             canvas.addPlayer(viewer);
         }
         if (canvas.isDirty()) {
@@ -295,23 +295,23 @@ public final class DisplayEntityFactory {
     }
 
     private UUID spawnText(MinecraftServer server,
-                           ServerWorld world,
+                           ServerLevel world,
                            UUID owner,
                            TextComponentDefinition component,
-                           Vec3d position,
+                           Vec3 position,
                            PositionMode positionMode,
                            float yaw,
                            float pitch) {
-        DisplayEntity.TextDisplayEntity entity = new DisplayEntity.TextDisplayEntity(EntityType.TEXT_DISPLAY, world);
+        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
         entity.setInvisible(false);
-        entity.setPosition(position);
-        entity.setYaw(displayYaw(positionMode, yaw));
-        entity.setPitch(displayPitch(positionMode, pitch));
-        world.spawnEntity(entity);
+        entity.setPos(position);
+        entity.setYRot(displayYaw(positionMode, yaw));
+        entity.setXRot(displayPitch(positionMode, pitch));
+        world.addFreshEntity(entity);
         applyTextData(
                 server,
                 world,
-                entity.getUuid(),
+                entity.getUUID(),
                 renderTextContent(component.content(), component.color(), ownerPlayer(server, owner)),
                 component.lineWidth(),
                 parseArgb(component.background()),
@@ -322,27 +322,27 @@ public final class DisplayEntityFactory {
                 component.alignment(),
                 new org.joml.Vector3f()
         );
-        return entity.getUuid();
+        return entity.getUUID();
     }
 
     private UUID spawnPanel(MinecraftServer server,
-                            ServerWorld world,
+                            ServerLevel world,
                             PanelComponentDefinition component,
-                            Vec3d position,
+                            Vec3 position,
                             PositionMode positionMode,
                             float yaw,
                             float pitch) {
-        DisplayEntity.TextDisplayEntity entity = new DisplayEntity.TextDisplayEntity(EntityType.TEXT_DISPLAY, world);
+        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
         entity.setInvisible(false);
-        entity.setPosition(position);
-        entity.setYaw(displayYaw(positionMode, yaw));
-        entity.setPitch(displayPitch(positionMode, pitch));
-        world.spawnEntity(entity);
+        entity.setPos(position);
+        entity.setYRot(displayYaw(positionMode, yaw));
+        entity.setXRot(displayPitch(positionMode, pitch));
+        world.addFreshEntity(entity);
         PanelRenderSpec spec = buildPanelRenderSpec(component);
         applyTextData(
                 server,
                 world,
-                entity.getUuid(),
+                entity.getUUID(),
                 spec.text(),
                 spec.lineWidth(),
                 parseArgb(component.backgroundColor()),
@@ -353,27 +353,27 @@ public final class DisplayEntityFactory {
                 "center",
                 new org.joml.Vector3f()
         );
-        return entity.getUuid();
+        return entity.getUUID();
     }
 
     private UUID spawnButton(MinecraftServer server,
-                             ServerWorld world,
+                             ServerLevel world,
                              UUID owner,
                              ButtonComponentDefinition component,
-                             Vec3d position,
+                             Vec3 position,
                              PositionMode positionMode,
                              float yaw,
                              float pitch) {
-        DisplayEntity.TextDisplayEntity entity = new DisplayEntity.TextDisplayEntity(EntityType.TEXT_DISPLAY, world);
+        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
         entity.setInvisible(false);
-        entity.setPosition(position);
-        entity.setYaw(displayYaw(positionMode, yaw));
-        entity.setPitch(displayPitch(positionMode, pitch));
-        world.spawnEntity(entity);
+        entity.setPos(position);
+        entity.setYRot(displayYaw(positionMode, yaw));
+        entity.setXRot(displayPitch(positionMode, pitch));
+        world.addFreshEntity(entity);
         applyTextData(
                 server,
                 world,
-                entity.getUuid(),
+                entity.getUUID(),
                 renderButtonLabel(component.label(), ownerPlayer(server, owner)),
                 buttonLineWidth(component),
                 parseArgb(component.backgroundColor()),
@@ -384,25 +384,25 @@ public final class DisplayEntityFactory {
                 "center",
                 new org.joml.Vector3f()
         );
-        return entity.getUuid();
+        return entity.getUUID();
     }
 
     private WindowComponentRuntime spawnImageRuntime(MinecraftServer server,
-                                                     ServerWorld world,
+                                                     ServerLevel world,
                                                      String signature,
                                                      ImageComponentDefinition component,
-                                                     Vec3d position,
+                                                     Vec3 position,
                                                      PositionMode positionMode,
                                                      float yaw,
                                                      float pitch,
-                                                     Collection<ServerPlayerEntity> canvasViewers) throws IOException {
+                                                     Collection<ServerPlayer> canvasViewers) throws IOException {
         if (component.imageType() == ImageType.ITEM) {
             UUID displayId = spawnItemDisplay(server, world, buildItemStack(component.value()), component.scale(), position, positionMode, yaw, pitch);
-            return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, null);
+            return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
         }
         if (component.imageType() == ImageType.BLOCK) {
             UUID displayId = spawnBlockDisplay(server, world, buildBlockState(component.value()), component.scale(), position, positionMode, yaw, pitch);
-            return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, null);
+            return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
         }
 
         PlayerCanvas canvas = DrawableCanvas.create();
@@ -410,52 +410,52 @@ public final class DisplayEntityFactory {
         CanvasUtils.draw(canvas, 0, 0, 128, 128, CanvasImage.from(image));
         syncMapCanvas(canvas, canvasViewers);
         UUID displayId = spawnItemDisplay(server, world, canvas.asStack(), component.scale(), position, positionMode, yaw, pitch);
-        return new WindowComponentRuntime(world.getRegistryKey(), signature, component, new org.joml.Vector3f(), displayId, canvas);
+        return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, canvas);
     }
 
     private UUID spawnItemDisplay(MinecraftServer server,
-                                  ServerWorld world,
+                                  ServerLevel world,
                                   ItemStack stack,
                                   float scale,
-                                  Vec3d position,
+                                  Vec3 position,
                                   PositionMode positionMode,
                                   float yaw,
                                   float pitch) {
-        DisplayEntity.ItemDisplayEntity entity = new DisplayEntity.ItemDisplayEntity(EntityType.ITEM_DISPLAY, world);
+        Display.ItemDisplay entity = new Display.ItemDisplay(EntityType.ITEM_DISPLAY, world);
         entity.setInvisible(false);
-        entity.setPosition(position);
-        entity.setYaw(displayYaw(positionMode, yaw));
-        entity.setPitch(displayPitch(positionMode, pitch));
-        world.spawnEntity(entity);
-        entity.getStackReference(0).set(stack);
-        applyDisplayData(server, world, entity.getUuid(), billboard(positionMode), scale, new org.joml.Vector3f());
-        return entity.getUuid();
+        entity.setPos(position);
+        entity.setYRot(displayYaw(positionMode, yaw));
+        entity.setXRot(displayPitch(positionMode, pitch));
+        world.addFreshEntity(entity);
+        applyDisplayData(server, world, entity.getUUID(), billboard(positionMode), scale, new org.joml.Vector3f());
+        entity.getSlot(0).set(stack);
+        return entity.getUUID();
     }
 
     private UUID spawnBlockDisplay(MinecraftServer server,
-                                   ServerWorld world,
+                                   ServerLevel world,
                                    BlockState state,
                                    float scale,
-                                   Vec3d position,
+                                   Vec3 position,
                                    PositionMode positionMode,
                                    float yaw,
                                    float pitch) {
-        DisplayEntity.BlockDisplayEntity entity = new DisplayEntity.BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        Display.BlockDisplay entity = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, world);
         entity.setInvisible(false);
-        entity.setPosition(position);
-        entity.setYaw(displayYaw(positionMode, yaw));
-        entity.setPitch(displayPitch(positionMode, pitch));
-        world.spawnEntity(entity);
-        NbtCompound data = new NbtCompound();
-        data.put("block_state", NbtHelper.fromBlockState(state));
+        entity.setPos(position);
+        entity.setYRot(displayYaw(positionMode, yaw));
+        entity.setXRot(displayPitch(positionMode, pitch));
+        world.addFreshEntity(entity);
+        CompoundTag data = new CompoundTag();
+        data.put("block_state", NbtUtils.writeBlockState(state));
         applyEntityData(server, entity, merge(data, buildDisplayData(billboard(positionMode), scale, new org.joml.Vector3f())));
-        return entity.getUuid();
+        return entity.getUUID();
     }
 
     private void applyTextData(MinecraftServer server,
-                               ServerWorld world,
+                               ServerLevel world,
                                UUID entityId,
-                               Text text,
+                               Component text,
                                int lineWidth,
                                int background,
                                boolean shadow,
@@ -468,9 +468,9 @@ public final class DisplayEntityFactory {
     }
 
     private void applyTextData(MinecraftServer server,
-                               ServerWorld world,
+                               ServerLevel world,
                                UUID entityId,
-                               Text text,
+                               Component text,
                                int lineWidth,
                                int background,
                                boolean shadow,
@@ -480,11 +480,11 @@ public final class DisplayEntityFactory {
                                String alignment,
                                org.joml.Vector3f translation) {
         Entity entity = world.getEntity(entityId);
-        if (!(entity instanceof DisplayEntity.TextDisplayEntity textDisplayEntity)) {
+        if (!(entity instanceof Display.TextDisplay textDisplayEntity)) {
             return;
         }
-        NbtCompound data = buildDisplayData(billboard, scale, translation);
-        data.put("text", TextCodecs.CODEC.encodeStart(NbtOps.INSTANCE, text).result().orElseThrow());
+        CompoundTag data = buildDisplayData(billboard, scale, translation);
+        data.put("text", ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, text).result().orElseThrow());
         data.putInt("line_width", lineWidth);
         data.putInt("background", background);
         data.putBoolean("shadow", shadow);
@@ -494,7 +494,7 @@ public final class DisplayEntityFactory {
     }
 
     private void applyDisplayData(MinecraftServer server,
-                                  ServerWorld world,
+                                  ServerLevel world,
                                   UUID entityId,
                                   String billboard,
                                   float scale,
@@ -506,17 +506,17 @@ public final class DisplayEntityFactory {
         applyEntityData(server, entity, buildDisplayData(billboard, scale, translation));
     }
 
-    static NbtCompound buildDisplayData(String billboard, float scale) {
+    static CompoundTag buildDisplayData(String billboard, float scale) {
         return buildDisplayData(billboard, uniformScale(scale), new org.joml.Vector3f());
     }
 
-    static NbtCompound buildDisplayData(String billboard, float scale, org.joml.Vector3f translation) {
+    static CompoundTag buildDisplayData(String billboard, float scale, org.joml.Vector3f translation) {
         return buildDisplayData(billboard, uniformScale(scale), translation);
     }
 
-    static NbtCompound buildDisplayData(String billboard, org.joml.Vector3f scale, org.joml.Vector3f translation) {
+    static CompoundTag buildDisplayData(String billboard, org.joml.Vector3f scale, org.joml.Vector3f translation) {
         try {
-            return StringNbtReader.readCompound(buildDisplayDataSnbt(billboard, scale, translation));
+            return TagParser.parseCompoundFully(buildDisplayDataSnbt(billboard, scale, translation));
         } catch (CommandSyntaxException exception) {
             throw new IllegalStateException("display transformation 생성 실패", exception);
         }
@@ -545,30 +545,30 @@ public final class DisplayEntityFactory {
         );
     }
 
-    private static NbtCompound merge(NbtCompound primary, NbtCompound secondary) {
-        NbtCompound merged = secondary.copy();
-        for (String key : primary.getKeys()) {
+    private static CompoundTag merge(CompoundTag primary, CompoundTag secondary) {
+        CompoundTag merged = secondary.copy();
+        for (String key : primary.keySet()) {
             merged.put(key, primary.get(key).copy());
         }
         return merged;
     }
 
-    private void applyEntityData(MinecraftServer server, Entity entity, NbtCompound data) {
-        Vec3d position = entity.getPos();
-        float yaw = entity.getYaw();
-        float pitch = entity.getPitch();
-        entity.readData(NbtReadView.create(ErrorReporter.EMPTY, server.getRegistryManager(), data));
-        entity.setPosition(position);
-        entity.setYaw(yaw);
-        entity.setPitch(pitch);
+    private void applyEntityData(MinecraftServer server, Entity entity, CompoundTag data) {
+        Vec3 position = entity.position();
+        float yaw = entity.getYRot();
+        float pitch = entity.getXRot();
+        entity.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), data));
+        entity.setPos(position);
+        entity.setYRot(yaw);
+        entity.setXRot(pitch);
     }
 
     private ItemStack buildItemStack(String value) {
-        Identifier identifier = Identifier.tryParse(value);
+        ResourceLocation identifier = ResourceLocation.tryParse(value);
         if (identifier == null) {
             throw new IllegalArgumentException("잘못된 item id: " + value);
         }
-        Item item = Registries.ITEM.get(identifier);
+        Item item = BuiltInRegistries.ITEM.getValue(identifier);
         if (item == Items.AIR) {
             throw new IllegalArgumentException("item id를 찾을 수 없음: " + value);
         }
@@ -576,68 +576,68 @@ public final class DisplayEntityFactory {
     }
 
     private BlockState buildBlockState(String value) {
-        Identifier identifier = Identifier.tryParse(value);
+        ResourceLocation identifier = ResourceLocation.tryParse(value);
         if (identifier == null) {
             throw new IllegalArgumentException("잘못된 block id: " + value);
         }
-        Block block = Registries.BLOCK.get(identifier);
-        if (block.getDefaultState().isAir()) {
+        Block block = BuiltInRegistries.BLOCK.getValue(identifier);
+        if (block.defaultBlockState().isAir()) {
             throw new IllegalArgumentException("block id를 찾을 수 없음: " + value);
         }
-        return block.getDefaultState();
+        return block.defaultBlockState();
     }
 
-    Text renderTextContent(String content, String color, ServerPlayerEntity owner) {
+    Component renderTextContent(String content, String color, ServerPlayer owner) {
         return resolvePlaceholders(buildBaseText(content, color), owner);
     }
 
-    Text renderButtonLabel(String label, ServerPlayerEntity owner) {
-        return resolvePlaceholders(Text.literal(label), owner);
+    Component renderButtonLabel(String label, ServerPlayer owner) {
+        return resolvePlaceholders(Component.literal(label), owner);
     }
 
-    private MutableText buildBaseText(String content, String color) {
-        Text parsed;
+    private MutableComponent buildBaseText(String content, String color) {
+        Component parsed;
         if ((content.startsWith("{") || content.startsWith("["))) {
-            parsed = TextCodecs.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(content)).result().orElse(Text.literal(content));
+            parsed = ComponentSerialization.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(content)).result().orElse(Component.literal(content));
         } else {
-            parsed = Text.literal(content);
+            parsed = Component.literal(content);
         }
-        MutableText mutable = parsed.copy();
+        MutableComponent mutable = parsed.copy();
         TextColor textColor = parseTextColor(color);
         if (textColor != null) {
-            mutable.styled(style -> style.withColor(textColor));
+            mutable.withStyle(style -> style.withColor(textColor));
         }
         return mutable;
     }
 
-    private Text resolvePlaceholders(Text text, ServerPlayerEntity owner) {
+    private Component resolvePlaceholders(Component text, ServerPlayer owner) {
         return this.placeholderResolver.apply(owner, text);
     }
 
-    private static Text applyPlaceholders(ServerPlayerEntity player, Text text) {
+    private static Component applyPlaceholders(ServerPlayer player, Component text) {
         if (player == null) {
             return text;
         }
         return Placeholders.parseText(text, PlaceholderContext.of(player));
     }
 
-    private static ServerPlayerEntity ownerPlayer(MinecraftServer server, UUID owner) {
+    private static ServerPlayer ownerPlayer(MinecraftServer server, UUID owner) {
         if (server == null || owner == null) {
             return null;
         }
-        return server.getPlayerManager().getPlayer(owner);
+        return server.getPlayerList().getPlayer(owner);
     }
 
     private static TextColor parseTextColor(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
-        var parsed = TextColor.parse(value);
+        var parsed = TextColor.parseColor(value);
         if (parsed.result().isPresent()) {
             return parsed.result().get();
         }
-        Formatting formatting = Formatting.byName(value.toLowerCase(Locale.ROOT));
-        return formatting != null ? TextColor.fromFormatting(formatting) : null;
+        ChatFormatting formatting = ChatFormatting.getByName(value.toLowerCase(Locale.ROOT));
+        return formatting != null ? TextColor.fromLegacyFormat(formatting) : null;
     }
 
     private static int parseArgb(String value) {
@@ -653,8 +653,8 @@ public final class DisplayEntityFactory {
 
     private EntitySpawnException spawnFailure(UUID owner,
                                               String componentId,
-                                              ServerWorld world,
-                                              Vec3d position,
+                                              ServerLevel world,
+                                              Vec3 position,
                                               Exception exception) {
         this.debugRecorder.record(
                 DebugEventType.ENTITY_SPAWN,
@@ -665,13 +665,13 @@ public final class DisplayEntityFactory {
                 componentId,
                 null,
                 DebugReason.ENTITY_SPAWN_FAILED,
-                "엔티티 생성 실패 world=" + world.getRegistryKey().getValue() + " position=" + position,
+                "엔티티 생성 실패 world=" + world.dimension().location() + " position=" + position,
                 exception
         );
         InteractiveDisplay.LOGGER.error(
                 "[{}] entity spawn failed world={} componentId={} position={} reasonCode={}",
                 InteractiveDisplay.MOD_ID,
-                world.getRegistryKey().getValue(),
+                world.dimension().location(),
                 componentId,
                 position,
                 DebugReason.ENTITY_SPAWN_FAILED,
@@ -680,8 +680,8 @@ public final class DisplayEntityFactory {
         return new EntitySpawnException("엔티티 생성 실패 componentId=" + componentId + " position=" + position, exception);
     }
 
-    private static Vec3d storagePosition(ServerWorld world) {
-        return new Vec3d(0.0, world.getBottomY() - 128.0, 0.0);
+    private static Vec3 storagePosition(ServerLevel world) {
+        return new Vec3(0.0, world.getMinY() - 128.0, 0.0);
     }
 
     private static String billboard(PositionMode positionMode) {
@@ -712,7 +712,7 @@ public final class DisplayEntityFactory {
     }
 
     private void applyRuntimeTransform(MinecraftServer server,
-                                       ServerWorld world,
+                                       ServerLevel world,
                                        UUID owner,
                                        WindowComponentRuntime runtime,
                                        PositionMode positionMode) {
@@ -806,13 +806,13 @@ public final class DisplayEntityFactory {
         }
 
         return new PanelRenderSpec(
-                Text.literal(joiner.toString()),
+                Component.literal(joiner.toString()),
                 Math.max(1, columnCount * 6),
                 fontSize,
                 0.0f
         );
     }
 
-    record PanelRenderSpec(Text text, int lineWidth, float fontSize, float textOpacity) {
+    record PanelRenderSpec(Component text, int lineWidth, float fontSize, float textOpacity) {
     }
 }

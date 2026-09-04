@@ -3,7 +3,7 @@ package com.interactivedisplay.core.interaction;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 public final class CallbackRegistry {
     private final Map<String, InteractiveDisplayCallback> callbacks = new ConcurrentHashMap<>();
@@ -18,6 +18,6 @@ public final class CallbackRegistry {
 
     @FunctionalInterface
     public interface InteractiveDisplayCallback {
-        void execute(ServerPlayerEntity player, String windowId, String componentId);
+        void execute(ServerPlayer player, String windowId, String componentId);
     }
 }

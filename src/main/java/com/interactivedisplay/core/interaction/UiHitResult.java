@@ -2,8 +2,8 @@ package com.interactivedisplay.core.interaction;
 
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.window.WindowNavigationContext;
+import net.minecraft.world.phys.Vec3;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
-import net.minecraft.util.math.Vec3d;
 
 public record UiHitResult(
         String windowId,
@@ -11,7 +11,7 @@ public record UiHitResult(
         String componentId,
         WindowComponentRuntime runtime,
         ComponentAction action,
-        Vec3d hitPosition,
+        Vec3 hitPosition,
         double distanceSquared
 ) {
 }

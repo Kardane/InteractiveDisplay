@@ -25,7 +25,7 @@ class InteractiveDisplayCommandTreeTest {
         var fixed = player.getChild("fixed");
 
         assertTrue(player instanceof ArgumentCommandNode<?, ?>);
-        assertEquals("EntityArgumentType", ((ArgumentCommandNode<?, ?>) player).getType().getClass().getSimpleName());
+        assertEquals("EntityArgument", ((ArgumentCommandNode<?, ?>) player).getType().getClass().getSimpleName());
         assertNotNull(fixed.getChild("x").getChild("y").getChild("z"));
     }
 
@@ -59,7 +59,7 @@ class InteractiveDisplayCommandTreeTest {
                 .getChild("player_view");
 
         assertNotNull(playerView.getChild("yaw").getChild("pitch"));
-        assertEquals("AngleArgumentType", ((ArgumentCommandNode<?, ?>) playerView.getChild("yaw")).getType().getClass().getSimpleName());
+        assertEquals("AngleArgument", ((ArgumentCommandNode<?, ?>) playerView.getChild("yaw")).getType().getClass().getSimpleName());
     }
 
     @Test
@@ -76,7 +76,7 @@ class InteractiveDisplayCommandTreeTest {
                 .getChild("player_fixed");
 
         assertNotNull(playerFixed.getChild("yaw").getChild("pitch"));
-        assertEquals("AngleArgumentType", ((ArgumentCommandNode<?, ?>) playerFixed.getChild("yaw")).getType().getClass().getSimpleName());
+        assertEquals("AngleArgument", ((ArgumentCommandNode<?, ?>) playerFixed.getChild("yaw")).getType().getClass().getSimpleName());
     }
 
     @Test
@@ -154,7 +154,7 @@ class InteractiveDisplayCommandTreeTest {
         public int create(com.mojang.brigadier.context.CommandContext<TestSource> context,
                           String windowId,
                           PositionMode positionMode,
-                          net.minecraft.util.math.Vec3d position,
+                          net.minecraft.world.phys.Vec3 position,
                           InteractiveDisplayCommandTree.Rotation rotation) {
             this.lastCall = "create:" + windowId + ":" + positionMode;
             return 1;
@@ -206,7 +206,7 @@ class InteractiveDisplayCommandTreeTest {
         public int groupCreate(com.mojang.brigadier.context.CommandContext<TestSource> context,
                                String groupId,
                                PositionMode positionMode,
-                               net.minecraft.util.math.Vec3d position,
+                               net.minecraft.world.phys.Vec3 position,
                                InteractiveDisplayCommandTree.Rotation rotation) {
             this.lastCall = "groupCreate:" + groupId + ":" + positionMode;
             return 1;

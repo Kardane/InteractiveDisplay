@@ -75,7 +75,27 @@ class SchemaLoaderDebugTest {
         SchemaLoader.LoadResult result = loader.loadAll();
 
         assertTrue(result.hasErrors());
+        assertTrue(result.brokenWindowIds().contains("bad"));
         assertEquals(DebugReason.SCHEMA_VALIDATION_FAILED, recorder.latestFailure(null, null).orElseThrow().reasonCode());
+    }
+
+    @Test
+    void invalidGroupShouldBeTrackedAsBroken(@TempDir Path tempDir) throws Exception {
+        DebugRecorder recorder = new DebugRecorder(10);
+        Path groups = tempDir.resolve("interactivedisplay").resolve("groups");
+        Files.createDirectories(groups);
+        Files.writeString(groups.resolve("broken.json"), """
+                {
+                  "id": "broken_group",
+                  "defaultMode": "fixed",
+                  "windows": []
+                }
+                """, StandardCharsets.UTF_8);
+
+        SchemaLoader.LoadResult result = new SchemaLoader(tempDir, new SchemaValidator(), recorder).loadAll();
+
+        assertTrue(result.hasErrors());
+        assertTrue(result.brokenGroupIds().contains("broken_group"));
     }
 
     @Test

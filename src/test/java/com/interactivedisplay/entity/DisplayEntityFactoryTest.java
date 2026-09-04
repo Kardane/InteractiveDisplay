@@ -9,7 +9,7 @@ import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.debug.DebugRecorder;
 import java.util.List;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -52,11 +52,11 @@ class DisplayEntityFactoryTest {
     void textAndButtonRenderingShouldUsePlaceholderResolver() {
         DisplayEntityFactory factory = new DisplayEntityFactory(
                 new DebugRecorder(10),
-                (player, text) -> Text.literal("resolved:" + text.getString())
+                (player, text) -> Component.literal("resolved:" + text.getString())
         );
 
-        Text content = factory.renderTextContent("안녕 {player:name}", "#FFFFFF", null);
-        Text label = factory.renderButtonLabel("열기 {player:name}", null);
+        Component content = factory.renderTextContent("안녕 {player:name}", "#FFFFFF", null);
+        Component label = factory.renderButtonLabel("열기 {player:name}", null);
 
         assertEquals("resolved:안녕 {player:name}", content.getString());
         assertEquals("resolved:열기 {player:name}", label.getString());

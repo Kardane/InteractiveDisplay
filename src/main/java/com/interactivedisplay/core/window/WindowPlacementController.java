@@ -6,8 +6,8 @@ import com.interactivedisplay.core.positioning.WindowPositionTracker;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 
 final class WindowPlacementController {
     private final CoordinateTransformer transformer;
@@ -44,20 +44,20 @@ final class WindowPlacementController {
 
     WindowPositionTracker.WindowTransformState previewStandalone(WindowInstance instance,
                                                                 WindowDefinition definition,
-                                                                Vec3d eyePos,
+                                                                Vec3 eyePos,
                                                                 float playerYaw,
                                                                 float playerPitch) {
         return switch (instance.positionMode()) {
             case FIXED -> new WindowPositionTracker.WindowTransformState(
                     this.transformer.toPlayerFixedAnchor(eyePos, definition.offset(), playerYaw, playerPitch),
-                    MathHelper.wrapDegrees(playerYaw),
+                    Mth.wrapDegrees(playerYaw),
                     0.0f,
                     eyePos
             );
             case PLAYER_FIXED -> new WindowPositionTracker.WindowTransformState(
                     this.transformer.toPlayerFixedAnchor(eyePos, definition.offset(), playerYaw, playerPitch),
-                    MathHelper.wrapDegrees(playerYaw),
-                    MathHelper.clamp(playerPitch, -90.0f, 90.0f),
+                    Mth.wrapDegrees(playerYaw),
+                    Mth.clamp(playerPitch, -90.0f, 90.0f),
                     eyePos
             );
             case PLAYER_VIEW -> new WindowPositionTracker.WindowTransformState(instance.currentAnchor(), instance.currentYaw(), instance.currentPitch(), eyePos);
@@ -67,7 +67,7 @@ final class WindowPlacementController {
     WindowPositionTracker.WindowTransformState previewGroup(WindowGroupInstance groupInstance,
                                                             WindowGroupDefinition groupDefinition,
                                                             WindowDefinition definition,
-                                                            Vec3d eyePos,
+                                                            Vec3 eyePos,
                                                             float playerYaw,
                                                             float playerPitch) {
         WindowGroupEntry entry = groupDefinition.entry(groupInstance.currentWindowId());
@@ -75,8 +75,8 @@ final class WindowPlacementController {
             return new WindowPositionTracker.WindowTransformState(groupInstance.currentWindow().currentAnchor(), groupInstance.currentWindow().currentYaw(), groupInstance.currentWindow().currentPitch(), eyePos);
         }
         var effectiveOffset = definition.offset().plus(entry.offset());
-        float resolvedYaw = MathHelper.wrapDegrees(playerYaw);
-        float resolvedPitch = MathHelper.clamp(playerPitch, -90.0f, 90.0f);
+        float resolvedYaw = Mth.wrapDegrees(playerYaw);
+        float resolvedPitch = Mth.clamp(playerPitch, -90.0f, 90.0f);
         return new WindowPositionTracker.WindowTransformState(
                 this.transformer.toPlayerFixedAnchor(eyePos, effectiveOffset, resolvedYaw, resolvedPitch),
                 resolvedYaw,
@@ -87,7 +87,7 @@ final class WindowPlacementController {
 
     StandaloneCommit commitStandalone(WindowInstance instance,
                                       WindowDefinition definition,
-                                      Vec3d eyePos,
+                                      Vec3 eyePos,
                                       float playerYaw,
                                       float playerPitch) {
         WindowPositionTracker.WindowTransformState preview = previewStandalone(instance, definition, eyePos, playerYaw, playerPitch);
@@ -101,7 +101,7 @@ final class WindowPlacementController {
     GroupCommit commitGroup(WindowGroupInstance groupInstance,
                             WindowGroupDefinition groupDefinition,
                             WindowDefinition definition,
-                            Vec3d eyePos,
+                            Vec3 eyePos,
                             float playerYaw,
                             float playerPitch) {
         WindowGroupEntry entry = groupDefinition.entry(groupInstance.currentWindowId());
@@ -109,15 +109,15 @@ final class WindowPlacementController {
             return new GroupCommit(groupInstance.baseAnchor(), groupInstance.baseYaw(), groupInstance.basePitch());
         }
         WindowPositionTracker.WindowTransformState preview = previewGroup(groupInstance, groupDefinition, definition, eyePos, playerYaw, playerPitch);
-        float baseYaw = MathHelper.wrapDegrees(preview.yaw() - entry.orbit().yaw());
-        float basePitch = MathHelper.clamp(preview.pitch() - entry.orbit().pitch(), -90.0f, 90.0f);
+        float baseYaw = Mth.wrapDegrees(preview.yaw() - entry.orbit().yaw());
+        float basePitch = Mth.clamp(preview.pitch() - entry.orbit().pitch(), -90.0f, 90.0f);
         return new GroupCommit(groupInstance.baseAnchor(), baseYaw, basePitch);
     }
 
-    record StandaloneCommit(Vec3d fixedAnchor, float fixedYaw, float fixedPitch) {
+    record StandaloneCommit(Vec3 fixedAnchor, float fixedYaw, float fixedPitch) {
     }
 
-    record GroupCommit(Vec3d baseAnchor, float baseYaw, float basePitch) {
+    record GroupCommit(Vec3 baseAnchor, float baseYaw, float basePitch) {
     }
 
     private record PlacementSession(String windowId, String groupId) {

@@ -4,10 +4,10 @@ import com.interactivedisplay.core.interaction.UiHitResult;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import java.util.List;
 import java.util.UUID;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 final class UiHitResolver {
     private final WindowStateStore stateStore;
@@ -18,22 +18,22 @@ final class UiHitResolver {
         this.transformer = transformer;
     }
 
-    UiHitResult findUiHit(ServerPlayerEntity player) {
+    UiHitResult findUiHit(ServerPlayer player) {
         return findUiHit(
-                player.getUuid(),
-                player.getWorld().getRegistryKey(),
-                player.getEyePos(),
-                player.getRotationVec(1.0f).normalize()
+                player.getUUID(),
+                player.level().dimension(),
+                player.getEyePosition(),
+                player.getViewVector(1.0f).normalize()
         );
     }
 
-    UiHitResult findUiHit(UUID owner, RegistryKey<World> worldKey, Vec3d start, Vec3d direction) {
+    UiHitResult findUiHit(UUID owner, ResourceKey<Level> worldKey, Vec3 start, Vec3 direction) {
         List<WindowContext> windows = this.stateStore.ownerWindowContexts(owner);
         if (windows.isEmpty()) {
             return null;
         }
 
-        Vec3d normalizedDirection = direction.normalize();
+        Vec3 normalizedDirection = direction.normalize();
         UiHitResult best = null;
         double closest = Double.MAX_VALUE;
         for (WindowContext windowContext : windows) {
@@ -46,7 +46,7 @@ final class UiHitResolver {
                 if (!runtime.interactive()) {
                     continue;
                 }
-                Vec3d center = this.transformer.toWorld(instance.currentAnchor(), runtime.localPosition(), instance.positionMode(), instance.currentYaw(), instance.currentPitch());
+                Vec3 center = this.transformer.toWorld(instance.currentAnchor(), runtime.localPosition(), instance.positionMode(), instance.currentYaw(), instance.currentPitch());
                 double distance = this.transformer.raycastQuadDistance(
                         start,
                         normalizedDirection,
@@ -70,7 +70,7 @@ final class UiHitResolver {
                             runtime.definition().id(),
                             runtime,
                             runtime.action(),
-                            start.add(normalizedDirection.multiply(distance)),
+                            start.add(normalizedDirection.scale(distance)),
                             squared
                     );
                 }

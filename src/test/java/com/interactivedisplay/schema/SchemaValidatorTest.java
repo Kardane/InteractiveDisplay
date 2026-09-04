@@ -163,4 +163,34 @@ class SchemaValidatorTest {
 
         assertTrue(errors.isEmpty());
     }
+
+    @Test
+    void duplicateComponentIdsShouldBeRejected() {
+        JsonObject root = JsonParser.parseString("""
+                {
+                  "id": "menu",
+                  "size": {"width": 3.0, "height": 2.0},
+                  "components": [
+                    {
+                      "id": "shared",
+                      "type": "text",
+                      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                      "content": "title"
+                    },
+                    {
+                      "id": "shared",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": -0.4, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.3},
+                      "label": "button",
+                      "action": {"type": "close_window"}
+                    }
+                  ]
+                }
+                """).getAsJsonObject();
+
+        List<String> errors = validator.validate(root, "menu.json");
+
+        assertTrue(errors.stream().anyMatch(message -> message.contains("duplicate component id shared")));
+    }
 }

@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.interactivedisplay.core.positioning.PositionMode;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -34,7 +35,7 @@ public final class SchemaValidator {
 
         JsonArray components = getArray(root, "components");
         if (components != null) {
-            validateComponents(components, sourceName + ".components", errors);
+            validateComponents(components, sourceName + ".components", errors, new HashSet<>());
         }
 
         return errors;
@@ -57,7 +58,10 @@ public final class SchemaValidator {
         return errors;
     }
 
-    private void validateComponents(JsonArray components, String sourceName, List<String> errors) {
+    private void validateComponents(JsonArray components,
+                                    String sourceName,
+                                    List<String> errors,
+                                    Set<String> componentIds) {
         for (int i = 0; i < components.size(); i++) {
             JsonElement element = components.get(i);
             if (!element.isJsonObject()) {
@@ -67,7 +71,10 @@ public final class SchemaValidator {
 
             JsonObject component = element.getAsJsonObject();
             String componentName = sourceName + "[" + i + "]";
-            requireString(component, "id", componentName, errors);
+            String id = requireString(component, "id", componentName, errors);
+            if (id != null && !componentIds.add(id)) {
+                errors.add(componentName + ": duplicate component id " + id);
+            }
             String type = requireString(component, "type", componentName, errors);
             if (type != null && !COMPONENT_TYPES.contains(type)) {
                 errors.add(componentName + ": unsupported type " + type);
@@ -117,7 +124,7 @@ public final class SchemaValidator {
                 requireLayout(component, componentName, errors);
                 JsonArray children = getArray(component, "children");
                 if (children != null) {
-                    validateComponents(children, componentName + ".children", errors);
+                    validateComponents(children, componentName + ".children", errors, componentIds);
                 }
             }
         }

@@ -14,8 +14,8 @@ import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.positioning.PositionMode;
 import java.util.List;
 import java.util.UUID;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -25,10 +25,10 @@ class WindowStateStoreTest {
         UUID owner = UUID.randomUUID();
         WindowStateStore store = new WindowStateStore();
 
-        WindowInstance standalone = window(owner, "main_menu", null, null, new Vec3d(0.0, 0.0, 2.0));
+        WindowInstance standalone = window(owner, "main_menu", null, null, new Vec3(0.0, 0.0, 2.0));
         standalone.addRuntime(buttonRuntime("close", new Vector3f(0.0f, 0.0f, 0.0f)));
 
-        WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", new Vec3d(0.0, 0.0, 3.0));
+        WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", new Vec3(0.0, 0.0, 3.0));
         groupWindow.addRuntime(buttonRuntime("apply", new Vector3f(0.0f, 0.0f, 0.0f)));
         groupWindow.addRuntime(textRuntime("body", new Vector3f(0.0f, 0.5f, 0.0f)));
 
@@ -36,7 +36,7 @@ class WindowStateStoreTest {
         store.putActiveGroup(owner, "menu_group", new WindowGroupInstance(
                 owner,
                 "menu_group",
-                new Vec3d(1.0, 2.0, 3.0),
+                new Vec3(1.0, 2.0, 3.0),
                 45.0f,
                 10.0f,
                 PositionMode.PLAYER_FIXED,
@@ -63,16 +63,16 @@ class WindowStateStoreTest {
         UUID owner = UUID.randomUUID();
         WindowStateStore store = new WindowStateStore();
 
-        WindowInstance standalone = window(owner, "main_menu", null, null, new Vec3d(0.0, 0.0, 2.0));
+        WindowInstance standalone = window(owner, "main_menu", null, null, new Vec3(0.0, 0.0, 2.0));
         standalone.addRuntime(buttonRuntime("close", new Vector3f(0.0f, 0.0f, 0.0f)));
-        WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", new Vec3d(0.0, 0.0, 3.0));
+        WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", new Vec3(0.0, 0.0, 3.0));
         groupWindow.addRuntime(buttonRuntime("apply", new Vector3f(0.0f, 0.0f, 0.0f)));
 
         store.putActiveWindow(owner, standalone.windowId(), standalone);
         store.putActiveGroup(owner, "menu_group", new WindowGroupInstance(
                 owner,
                 "menu_group",
-                Vec3d.ZERO,
+                Vec3.ZERO,
                 0.0f,
                 0.0f,
                 PositionMode.FIXED,
@@ -95,13 +95,13 @@ class WindowStateStoreTest {
                                          String windowId,
                                          String groupId,
                                          String groupWindowId,
-                                         Vec3d anchor) {
+                                         Vec3 anchor) {
         return new WindowInstance(
                 owner,
                 windowId,
                 groupId,
                 groupWindowId,
-                World.OVERWORLD,
+                Level.OVERWORLD,
                 PositionMode.FIXED,
                 anchor,
                 0.0f,
@@ -119,7 +119,7 @@ class WindowStateStoreTest {
 
     private static WindowComponentRuntime buttonRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
-                World.OVERWORLD,
+                Level.OVERWORLD,
                 "button:" + componentId,
                 new ButtonComponentDefinition(
                         componentId,
@@ -143,7 +143,7 @@ class WindowStateStoreTest {
 
     private static WindowComponentRuntime textRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
-                World.OVERWORLD,
+                Level.OVERWORLD,
                 "text:" + componentId,
                 new TextComponentDefinition(
                         componentId,
