@@ -9,7 +9,6 @@ import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
-import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -33,11 +32,8 @@ class WindowComponentRuntimeTest {
     }
 
     @Test
-    void virtualDisplayRuntimeShouldExposePacketEntityCount() {
-        WindowComponentRuntime runtime = runtime("닫기", 1.0f, 0.35f);
-
-        assertEquals(1, runtime.entityCount());
-        assertTrue(runtime.displayElement() instanceof TextDisplayElement);
+    void runtimeWithoutMaterializedDisplayShouldReportZeroPacketEntities() {
+        assertEquals(0, runtime("닫기", 1.0f, 0.35f).entityCount());
     }
 
     private static WindowComponentRuntime runtime(String label, float width, float height) {
@@ -55,6 +51,6 @@ class WindowComponentRuntimeTest {
                 ClickType.RIGHT,
                 ComponentAction.closeWindow()
         );
-        return new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), new TextDisplayElement(), null);
+        return new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), null, null);
     }
 }
