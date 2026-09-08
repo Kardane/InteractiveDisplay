@@ -11,34 +11,18 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 class WindowPositionTrackerTest {
-    private final WindowPositionTracker tracker = new WindowPositionTracker(new com.interactivedisplay.core.positioning.CoordinateTransformer());
+    private final WindowPositionTracker tracker = new WindowPositionTracker(new CoordinateTransformer());
 
     @Test
     void playerFixedDeadzoneShouldKeepAnchorAndRecalculateFacing() {
         WindowInstance instance = new WindowInstance(
-                UUID.randomUUID(),
-                "main_menu",
-                Level.OVERWORLD,
-                PositionMode.PLAYER_FIXED,
-                null,
-                90.0f,
-                0.0f,
-                UUID.randomUUID(),
-                new Vec3(-2.0, 64.0, 0.0),
-                90.0f,
-                0.0f,
-                new Vec3(-2.0, 64.0, 0.0),
-                90.0f,
-                0.0f,
-                0L
+                UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_FIXED,
+                null, 90.0f, 0.0f, null,
+                new Vec3(-2.0, 64.0, 0.0), 90.0f, 0.0f,
+                new Vec3(-2.0, 64.0, 0.0), 90.0f, 0.0f, 0L
         );
-
         WindowPositionTracker.WindowTransformState raw = new WindowPositionTracker.WindowTransformState(
-                new Vec3(-1.99, 64.0, 0.0),
-                90.0f,
-                12.0f,
-                new Vec3(0.0, 64.0, 0.0)
-        );
+                new Vec3(-1.99, 64.0, 0.0), 90.0f, 12.0f, new Vec3(0.0, 64.0, 0.0));
 
         WindowPositionTracker.WindowTransformState target = tracker.applyDeadzone(instance, raw);
 
@@ -50,24 +34,14 @@ class WindowPositionTrackerTest {
     @Test
     void playerFixedSmoothingShouldOnlyInterpolateAnchor() {
         WindowInstance instance = new WindowInstance(
-                UUID.randomUUID(),
-                "main_menu",
-                Level.OVERWORLD,
-                PositionMode.PLAYER_FIXED,
-                null,
-                0.0f,
-                0.0f,
-                UUID.randomUUID(),
-                new Vec3(1.0, 0.0, 0.0),
-                45.0f,
-                10.0f,
-                Vec3.ZERO,
-                0.0f,
-                0.0f,
-                0L
+                UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_FIXED,
+                null, 0.0f, 0.0f, null,
+                new Vec3(1.0, 0.0, 0.0), 45.0f, 10.0f,
+                Vec3.ZERO, 0.0f, 0.0f, 0L
         );
 
-        WindowPositionTracker.WindowTransformState smoothed = tracker.smooth(instance, new WindowPositionTracker.WindowTransformState(new Vec3(1.0, 0.0, 0.0), 45.0f, 10.0f));
+        WindowPositionTracker.WindowTransformState smoothed = tracker.smooth(instance,
+                new WindowPositionTracker.WindowTransformState(new Vec3(1.0, 0.0, 0.0), 45.0f, 10.0f));
 
         assertEquals(0.45, smoothed.anchor().x, 0.0001);
         assertEquals(45.0f, smoothed.yaw(), 0.0001f);
@@ -77,24 +51,14 @@ class WindowPositionTrackerTest {
     @Test
     void playerViewDeadzoneShouldKeepTargetRotationUntilThreshold() {
         WindowInstance instance = new WindowInstance(
-                UUID.randomUUID(),
-                "main_menu",
-                Level.OVERWORLD,
-                PositionMode.PLAYER_VIEW,
-                null,
-                0.0f,
-                0.0f,
-                UUID.randomUUID(),
-                new Vec3(1.0, 64.0, 2.0),
-                20.0f,
-                5.0f,
-                new Vec3(1.0, 64.0, 2.0),
-                20.0f,
-                5.0f,
-                0L
+                UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_VIEW,
+                null, 0.0f, 0.0f, null,
+                new Vec3(1.0, 64.0, 2.0), 20.0f, 5.0f,
+                new Vec3(1.0, 64.0, 2.0), 20.0f, 5.0f, 0L
         );
 
-        WindowPositionTracker.WindowTransformState target = tracker.applyDeadzone(instance, new WindowPositionTracker.WindowTransformState(new Vec3(1.01, 64.0, 2.0), 20.9f, 5.5f));
+        WindowPositionTracker.WindowTransformState target = tracker.applyDeadzone(instance,
+                new WindowPositionTracker.WindowTransformState(new Vec3(1.01, 64.0, 2.0), 20.9f, 5.5f));
 
         assertEquals(1.0, target.anchor().x, 0.0001);
         assertEquals(20.0f, target.yaw(), 0.0001f);
@@ -104,24 +68,14 @@ class WindowPositionTrackerTest {
     @Test
     void playerViewSmoothingShouldInterpolatePositionAndRotationSeparately() {
         WindowInstance instance = new WindowInstance(
-                UUID.randomUUID(),
-                "main_menu",
-                Level.OVERWORLD,
-                PositionMode.PLAYER_VIEW,
-                null,
-                0.0f,
-                0.0f,
-                UUID.randomUUID(),
-                new Vec3(1.0, 0.5, -0.5),
-                90.0f,
-                30.0f,
-                Vec3.ZERO,
-                0.0f,
-                0.0f,
-                0L
+                UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_VIEW,
+                null, 0.0f, 0.0f, null,
+                new Vec3(1.0, 0.5, -0.5), 90.0f, 30.0f,
+                Vec3.ZERO, 0.0f, 0.0f, 0L
         );
 
-        WindowPositionTracker.WindowTransformState smoothed = tracker.smooth(instance, new WindowPositionTracker.WindowTransformState(new Vec3(1.0, 0.5, -0.5), 90.0f, 30.0f));
+        WindowPositionTracker.WindowTransformState smoothed = tracker.smooth(instance,
+                new WindowPositionTracker.WindowTransformState(new Vec3(1.0, 0.5, -0.5), 90.0f, 30.0f));
 
         assertEquals(0.35, smoothed.anchor().x, 0.0001);
         assertEquals(0.175, smoothed.anchor().y, 0.0001);
@@ -133,24 +87,14 @@ class WindowPositionTrackerTest {
     @Test
     void playerViewShouldSkipRotationUpdateBelowThreshold() {
         WindowInstance instance = new WindowInstance(
-                UUID.randomUUID(),
-                "main_menu",
-                Level.OVERWORLD,
-                PositionMode.PLAYER_VIEW,
-                null,
-                0.0f,
-                0.0f,
-                UUID.randomUUID(),
-                Vec3.ZERO,
-                0.0f,
-                0.0f,
-                Vec3.ZERO,
-                0.0f,
-                0.0f,
-                0L
+                UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_VIEW,
+                null, 0.0f, 0.0f, null,
+                Vec3.ZERO, 0.0f, 0.0f,
+                Vec3.ZERO, 0.0f, 0.0f, 0L
         );
 
-        boolean shouldUpdate = tracker.shouldUpdate(instance, new WindowPositionTracker.WindowTransformState(Vec3.ZERO, 0.2f, 0.1f), 2L);
+        boolean shouldUpdate = tracker.shouldUpdate(instance,
+                new WindowPositionTracker.WindowTransformState(Vec3.ZERO, 0.2f, 0.1f), 2L);
 
         assertFalse(shouldUpdate);
     }
@@ -162,11 +106,7 @@ class WindowPositionTrackerTest {
                 new WindowOffset(2.0f, 0.0f, 0.0f),
                 new Vec3(0.0, 64.0, 0.0),
                 new Vec3(0.0, 0.0, 1.0),
-                0.0f,
-                0.0f,
-                null,
-                35.0f,
-                -20.0f
+                0.0f, 0.0f, null, 35.0f, -20.0f
         );
 
         assertEquals(35.0f, state.yaw(), 0.0001f);
@@ -180,11 +120,7 @@ class WindowPositionTrackerTest {
                 new WindowOffset(2.0f, 0.0f, 0.0f),
                 new Vec3(0.0, 64.0, 0.0),
                 Vec3.directionFromRotation(-15.0f, 20.0f),
-                20.0f,
-                -15.0f,
-                null,
-                30.0f,
-                10.0f
+                20.0f, -15.0f, null, 30.0f, 10.0f
         );
 
         Vec3 expectedAnchor = new CoordinateTransformer().toPlayerFixedAnchor(
@@ -204,27 +140,13 @@ class WindowPositionTrackerTest {
     @Test
     void fixedModeShouldNotMoveOrRequestUpdates() {
         WindowInstance instance = new WindowInstance(
-                UUID.randomUUID(),
-                "main_menu",
-                Level.OVERWORLD,
-                PositionMode.FIXED,
-                new Vec3(10.0, 64.0, 10.0),
-                45.0f,
-                0.0f,
-                UUID.randomUUID(),
-                new Vec3(10.0, 64.0, 10.0),
-                45.0f,
-                0.0f,
-                new Vec3(10.0, 64.0, 10.0),
-                45.0f,
-                0.0f,
-                0L
+                UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.FIXED,
+                new Vec3(10.0, 64.0, 10.0), 45.0f, 0.0f, null,
+                new Vec3(10.0, 64.0, 10.0), 45.0f, 0.0f,
+                new Vec3(10.0, 64.0, 10.0), 45.0f, 0.0f, 0L
         );
         WindowPositionTracker.WindowTransformState next = new WindowPositionTracker.WindowTransformState(
-                new Vec3(99.0, 99.0, 99.0),
-                120.0f,
-                30.0f
-        );
+                new Vec3(99.0, 99.0, 99.0), 120.0f, 30.0f);
 
         assertEquals(next, tracker.applyDeadzone(instance, next));
         assertEquals(next, tracker.smooth(instance, next));
@@ -234,27 +156,13 @@ class WindowPositionTrackerTest {
     @Test
     void movingModeShouldWaitForTheTwoTickUpdateInterval() {
         WindowInstance instance = new WindowInstance(
-                UUID.randomUUID(),
-                "main_menu",
-                Level.OVERWORLD,
-                PositionMode.PLAYER_FIXED,
-                null,
-                0.0f,
-                0.0f,
-                UUID.randomUUID(),
-                Vec3.ZERO,
-                0.0f,
-                0.0f,
-                Vec3.ZERO,
-                0.0f,
-                0.0f,
-                10L
+                UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_FIXED,
+                null, 0.0f, 0.0f, null,
+                Vec3.ZERO, 0.0f, 0.0f,
+                Vec3.ZERO, 0.0f, 0.0f, 10L
         );
         WindowPositionTracker.WindowTransformState next = new WindowPositionTracker.WindowTransformState(
-                new Vec3(1.0, 0.0, 0.0),
-                0.0f,
-                0.0f
-        );
+                new Vec3(1.0, 0.0, 0.0), 0.0f, 0.0f);
 
         assertFalse(tracker.shouldUpdate(instance, next, 11L));
         assertTrue(tracker.shouldUpdate(instance, next, 12L));
