@@ -12,6 +12,7 @@ import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.positioning.PositionMode;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.world.level.Level;
@@ -106,7 +107,7 @@ class WindowStateStoreTest {
                 anchor,
                 0.0f,
                 0.0f,
-                UUID.randomUUID(),
+                null,
                 anchor,
                 0.0f,
                 0.0f,
@@ -120,7 +121,6 @@ class WindowStateStoreTest {
     private static WindowComponentRuntime buttonRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
                 Level.OVERWORLD,
-                "button:" + componentId,
                 new ButtonComponentDefinition(
                         componentId,
                         new ComponentPosition(0.0f, 0.0f, 0.0f),
@@ -136,7 +136,7 @@ class WindowStateStoreTest {
                         ComponentAction.closeWindow()
                 ),
                 localPosition,
-                UUID.randomUUID(),
+                new TextDisplayElement(),
                 null
         );
     }
@@ -144,7 +144,6 @@ class WindowStateStoreTest {
     private static WindowComponentRuntime textRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
                 Level.OVERWORLD,
-                "text:" + componentId,
                 new TextComponentDefinition(
                         componentId,
                         new ComponentPosition(0.0f, 0.0f, 0.0f),
@@ -160,7 +159,7 @@ class WindowStateStoreTest {
                         "#00000000"
                 ),
                 localPosition,
-                UUID.randomUUID(),
+                new TextDisplayElement(),
                 null
         );
     }
