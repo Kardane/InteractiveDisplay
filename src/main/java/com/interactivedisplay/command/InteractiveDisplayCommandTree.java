@@ -75,8 +75,8 @@ public final class InteractiveDisplayCommandTree {
                         .requires(canList)
                         .executes(handlers::list))
                 .then(LiteralArgumentBuilder.<S>literal("group")
-                        .requires(canCreate)
                         .then(LiteralArgumentBuilder.<S>literal("create")
+                                .requires(canCreate)
                                 .then(RequiredArgumentBuilder.<S, String>argument("groupId", StringArgumentType.word())
                                         .suggests(groupSuggestions)
                                         .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.players())
@@ -84,11 +84,13 @@ public final class InteractiveDisplayCommandTree {
                                                 .then(createLiteral(handlers, PositionMode.PLAYER_FIXED, "player_fixed", true))
                                                 .then(createLiteral(handlers, PositionMode.PLAYER_VIEW, "player_view", true)))))
                         .then(LiteralArgumentBuilder.<S>literal("remove")
+                                .requires(canRemove)
                                 .then(RequiredArgumentBuilder.<S, String>argument("groupId", StringArgumentType.word())
                                         .suggests(groupSuggestions)
                                         .then(RequiredArgumentBuilder.<S, EntitySelector>argument("player", EntityArgument.players())
                                                 .executes(context -> handlers.groupRemove(context, argGroupId(context))))))
                         .then(LiteralArgumentBuilder.<S>literal("list")
+                                .requires(canList)
                                 .executes(handlers::groupList)))
                 .then(LiteralArgumentBuilder.<S>literal("debug")
                         .requires(canDebug)
@@ -165,25 +167,15 @@ public final class InteractiveDisplayCommandTree {
 
     public interface Handlers<S> {
         int create(CommandContext<S> context, String windowId, PositionMode positionMode, Vec3 position, Rotation rotation) throws CommandSyntaxException;
-
         int remove(CommandContext<S> context, String windowId) throws CommandSyntaxException;
-
         int reload(CommandContext<S> context, String windowId) throws CommandSyntaxException;
-
         int list(CommandContext<S> context) throws CommandSyntaxException;
-
         int groupCreate(CommandContext<S> context, String groupId, PositionMode positionMode, Vec3 position, Rotation rotation) throws CommandSyntaxException;
-
         int groupRemove(CommandContext<S> context, String groupId) throws CommandSyntaxException;
-
         int groupList(CommandContext<S> context) throws CommandSyntaxException;
-
         int debugStatus(CommandContext<S> context) throws CommandSyntaxException;
-
         int debugRecent(CommandContext<S> context) throws CommandSyntaxException;
-
         int debugWindow(CommandContext<S> context, String windowId) throws CommandSyntaxException;
-
         int debugBindings(CommandContext<S> context) throws CommandSyntaxException;
     }
 
@@ -200,20 +192,9 @@ public final class InteractiveDisplayCommandTree {
             this(AngleInput.absolute(yaw), AngleInput.absolute(pitch));
         }
 
-        public AngleInput yawInput() {
-            return this.yawInput;
-        }
-
-        public AngleInput pitchInput() {
-            return this.pitchInput;
-        }
-
-        public float yaw() {
-            return this.yawInput.value();
-        }
-
-        public float pitch() {
-            return this.pitchInput.value();
-        }
+        public AngleInput yawInput() { return this.yawInput; }
+        public AngleInput pitchInput() { return this.pitchInput; }
+        public float yaw() { return this.yawInput.value(); }
+        public float pitch() { return this.pitchInput.value(); }
     }
 }
