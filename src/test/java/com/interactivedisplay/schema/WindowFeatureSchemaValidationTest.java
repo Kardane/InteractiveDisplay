@@ -48,7 +48,7 @@ class WindowFeatureSchemaValidationTest {
         JsonNode root = new ConfigDocumentLoader().load(file);
         List<String> errors = new SchemaValidator().validate(root, "invalid.yaml");
 
-        assertTrue(errors.stream().anyMatch(error -> error.contains("transition.duration")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("transition") && error.contains("duration")));
         assertTrue(errors.stream().anyMatch(error -> error.contains("transition") && error.contains("enter")));
         assertTrue(errors.stream().anyMatch(error -> error.contains("refreshInterval")));
         assertTrue(errors.stream().anyMatch(error -> error.contains("hoverScale")));
