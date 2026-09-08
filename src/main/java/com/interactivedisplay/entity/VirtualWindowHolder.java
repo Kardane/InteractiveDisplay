@@ -15,6 +15,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -116,6 +117,7 @@ public final class VirtualWindowHolder {
         }
         this.holder.startWatching(player);
         this.watching = true;
+        refreshOwnerPassengerRelation();
     }
 
     public void stopWatching(ServerPlayer player) {
@@ -124,6 +126,7 @@ public final class VirtualWindowHolder {
         }
         this.holder.stopWatching(player);
         this.watching = false;
+        refreshOwnerPassengerRelation();
     }
 
     public void setAnchor(Vec3 anchor) {
@@ -231,6 +234,16 @@ public final class VirtualWindowHolder {
         this.pendingDestroy = false;
         this.destroyed = true;
         this.baseTransforms.clear();
+        refreshOwnerPassengerRelation();
+    }
+
+    private void refreshOwnerPassengerRelation() {
+        if (!this.playerAttached || this.owner == null || this.owner.connection == null) {
+            return;
+        }
+        // Do not aggregate virtual IDs here. Polymer augments this vanilla packet at write time using the
+        // ElementHolder watcher sets, which preserves real passengers and every other watched virtual window.
+        this.owner.connection.send(new ClientboundSetPassengersPacket(this.owner));
     }
 
     private static void applyTransition(DisplayElement display,
