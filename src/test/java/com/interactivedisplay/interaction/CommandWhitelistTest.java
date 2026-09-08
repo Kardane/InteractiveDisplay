@@ -75,6 +75,22 @@ class CommandWhitelistTest {
     }
 
     @Test
+    void rootPrefixShouldNotMatchLongerCommandName(@TempDir Path tempDir) throws Exception {
+        Path config = tempDir.resolve("interactivedisplay");
+        Files.createDirectories(config);
+        Files.writeString(config.resolve("command_whitelist.yaml"),
+                "allowedPrefixes:\n  - \"say\"\n",
+                StandardCharsets.UTF_8);
+
+        CommandWhitelist whitelist = new CommandWhitelist(tempDir);
+        whitelist.reload();
+
+        assertTrue(whitelist.isAllowed("say"));
+        assertTrue(whitelist.isAllowed("say hello"));
+        assertFalse(whitelist.isAllowed("saywhatever hello"));
+    }
+
+    @Test
     void emptyWhitelistShouldDenyEveryCommand(@TempDir Path tempDir) throws Exception {
         Path config = tempDir.resolve("interactivedisplay");
         Files.createDirectories(config);

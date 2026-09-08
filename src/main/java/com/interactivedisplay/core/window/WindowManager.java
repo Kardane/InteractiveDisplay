@@ -13,8 +13,10 @@ import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
+import com.interactivedisplay.item.InteractiveDisplayItems;
 import com.interactivedisplay.schema.SchemaLoader;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -182,7 +184,10 @@ public final class WindowManager implements WindowActionExecutor {
                 this.lifecycleCoordinator.syncCanvases(instance, player.level().players());
             }
 
-            this.lifecycleCoordinator.updateHover(player, windows, this.uiHitResolver.findUiHit(player));
+            UiHitResult hovered = InteractiveDisplayItems.isPointer(player.getMainHandItem())
+                    ? this.uiHitResolver.findUiHit(player)
+                    : null;
+            this.lifecycleCoordinator.updateHover(player, windows, hovered);
         }
     }
 
@@ -316,16 +321,20 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     private void rebuildActiveGroups(Set<String> groupIds, Set<String> changedWindowIds) {
+        Set<ActiveGroupRef> affected = new HashSet<>();
         for (String groupId : groupIds) {
             for (UUID owner : this.stateStore.ownersForActiveGroup(groupId)) {
-                CreateWindowResult rebuild = this.lifecycleCoordinator.rebuildGroup(owner, groupId);
-                if (!rebuild.success()) {
-                    InteractiveDisplay.LOGGER.warn("[{}] group rebuild failed owner={} groupId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, owner, groupId, rebuild.reasonCode(), rebuild.message());
-                }
+                affected.add(new ActiveGroupRef(owner, groupId));
             }
         }
         for (String changedWindowId : changedWindowIds) {
-            rebuildActiveGroupsContainingWindow(changedWindowId);
+            affected.addAll(this.stateStore.activeGroupsContainingWindow(changedWindowId));
+        }
+        for (ActiveGroupRef ref : affected) {
+            CreateWindowResult rebuild = this.lifecycleCoordinator.rebuildGroup(ref.owner(), ref.groupId());
+            if (!rebuild.success()) {
+                InteractiveDisplay.LOGGER.warn("[{}] group rebuild failed owner={} groupId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, ref.owner(), ref.groupId(), rebuild.reasonCode(), rebuild.message());
+            }
         }
     }
 

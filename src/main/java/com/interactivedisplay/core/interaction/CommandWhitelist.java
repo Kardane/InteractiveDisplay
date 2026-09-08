@@ -50,8 +50,17 @@ public final class CommandWhitelist {
 
     public boolean isAllowed(String command) {
         String normalized = normalize(command);
+        if (normalized.isEmpty()) {
+            return false;
+        }
         for (String prefix : this.allowedPrefixes) {
-            if (normalized.startsWith(prefix)) {
+            if (prefix == null || prefix.isEmpty() || !normalized.startsWith(prefix)) {
+                continue;
+            }
+            if (Character.isWhitespace(prefix.charAt(prefix.length() - 1))) {
+                return true;
+            }
+            if (normalized.length() == prefix.length() || Character.isWhitespace(normalized.charAt(prefix.length()))) {
                 return true;
             }
         }

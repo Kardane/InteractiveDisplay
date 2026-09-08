@@ -1,6 +1,7 @@
 package com.interactivedisplay.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -90,6 +91,29 @@ class InteractiveDisplayCommandTreeTest {
         assertNotNull(group.getChild("remove"));
         assertNotNull(group.getChild("list"));
         assertNotNull(group.getChild("create").getChild("groupId").getChild("player").getChild("player_fixed").getChild("yaw").getChild("pitch"));
+    }
+
+    @Test
+    void groupSubcommandsShouldUseIndependentPermissions() {
+        TestHandlers handlers = new TestHandlers();
+        CommandDispatcher<TestSource> dispatcher = new CommandDispatcher<>();
+        register(
+                dispatcher,
+                handlers,
+                source -> source.permissions.contains("create"),
+                source -> source.permissions.contains("remove"),
+                source -> source.permissions.contains("reload"),
+                source -> source.permissions.contains("list"),
+                source -> source.permissions.contains("debug")
+        );
+
+        var group = dispatcher.getRoot().getChild("interactivedisplay").getChild("group");
+        TestSource removeOnly = new TestSource(Set.of("remove"));
+
+        assertTrue(group.canUse(removeOnly));
+        assertFalse(group.getChild("create").canUse(removeOnly));
+        assertTrue(group.getChild("remove").canUse(removeOnly));
+        assertFalse(group.getChild("list").canUse(removeOnly));
     }
 
     @Test
