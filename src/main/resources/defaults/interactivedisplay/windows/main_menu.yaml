@@ -6,6 +6,10 @@ offset:
   forward: 2.0
   horizontal: 0.0
   vertical: 0.5
+transition:
+  duration: 5
+  enter: scale
+  exit: scale
 components:
   - id: background
     type: panel
@@ -40,6 +44,7 @@ components:
     height: 0.45
     content: "샘플 창 내용"
     fontSize: 0.5
+    refreshInterval: 20
     alignment: center
     color: "#E8E8E8"
     background: "#00000000"
@@ -54,6 +59,8 @@ components:
       height: 0.35
     label: "☒"
     fontSize: 1.0
+    clickType: both
+    hoverScale: 1.08
     backgroundColor: "#CC992222"
     hoverColor: "#EECC4444"
     clickSound: "minecraft:ui.button.click"
