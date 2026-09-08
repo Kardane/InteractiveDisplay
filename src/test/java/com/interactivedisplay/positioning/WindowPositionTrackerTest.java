@@ -14,7 +14,7 @@ class WindowPositionTrackerTest {
     private final WindowPositionTracker tracker = new WindowPositionTracker(new CoordinateTransformer());
 
     @Test
-    void playerFixedDeadzoneShouldKeepAnchorAndRecalculateFacing() {
+    void playerFixedShouldKeepExactTranslation() {
         WindowInstance instance = new WindowInstance(
                 UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_FIXED,
                 null, 90.0f, 0.0f, null,
@@ -26,13 +26,13 @@ class WindowPositionTrackerTest {
 
         WindowPositionTracker.WindowTransformState target = tracker.applyDeadzone(instance, raw);
 
-        assertEquals(-2.0, target.anchor().x, 0.0001);
+        assertEquals(-1.99, target.anchor().x, 0.0001);
         assertEquals(90.0f, target.yaw(), 0.0001f);
         assertEquals(12.0f, target.pitch(), 0.0001f);
     }
 
     @Test
-    void playerFixedSmoothingShouldOnlyInterpolateAnchor() {
+    void playerFixedShouldNotServerSideSmoothPassengerTranslation() {
         WindowInstance instance = new WindowInstance(
                 UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_FIXED,
                 null, 0.0f, 0.0f, null,
@@ -43,13 +43,13 @@ class WindowPositionTrackerTest {
         WindowPositionTracker.WindowTransformState smoothed = tracker.smooth(instance,
                 new WindowPositionTracker.WindowTransformState(new Vec3(1.0, 0.0, 0.0), 45.0f, 10.0f));
 
-        assertEquals(0.45, smoothed.anchor().x, 0.0001);
+        assertEquals(1.0, smoothed.anchor().x, 0.0001);
         assertEquals(45.0f, smoothed.yaw(), 0.0001f);
         assertEquals(10.0f, smoothed.pitch(), 0.0001f);
     }
 
     @Test
-    void playerViewDeadzoneShouldKeepTargetRotationUntilThreshold() {
+    void playerViewShouldKeepExactResolvedTransform() {
         WindowInstance instance = new WindowInstance(
                 UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_VIEW,
                 null, 0.0f, 0.0f, null,
@@ -60,13 +60,13 @@ class WindowPositionTrackerTest {
         WindowPositionTracker.WindowTransformState target = tracker.applyDeadzone(instance,
                 new WindowPositionTracker.WindowTransformState(new Vec3(1.01, 64.0, 2.0), 20.9f, 5.5f));
 
-        assertEquals(1.0, target.anchor().x, 0.0001);
-        assertEquals(20.0f, target.yaw(), 0.0001f);
-        assertEquals(5.0f, target.pitch(), 0.0001f);
+        assertEquals(1.01, target.anchor().x, 0.0001);
+        assertEquals(20.9f, target.yaw(), 0.0001f);
+        assertEquals(5.5f, target.pitch(), 0.0001f);
     }
 
     @Test
-    void playerViewSmoothingShouldInterpolatePositionAndRotationSeparately() {
+    void playerViewShouldUseClientDisplayInterpolationInsteadOfServerSmoothing() {
         WindowInstance instance = new WindowInstance(
                 UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_VIEW,
                 null, 0.0f, 0.0f, null,
@@ -77,11 +77,11 @@ class WindowPositionTrackerTest {
         WindowPositionTracker.WindowTransformState smoothed = tracker.smooth(instance,
                 new WindowPositionTracker.WindowTransformState(new Vec3(1.0, 0.5, -0.5), 90.0f, 30.0f));
 
-        assertEquals(0.35, smoothed.anchor().x, 0.0001);
-        assertEquals(0.175, smoothed.anchor().y, 0.0001);
-        assertEquals(-0.175, smoothed.anchor().z, 0.0001);
-        assertEquals(27.0f, smoothed.yaw(), 0.0001f);
-        assertEquals(9.0f, smoothed.pitch(), 0.0001f);
+        assertEquals(1.0, smoothed.anchor().x, 0.0001);
+        assertEquals(0.5, smoothed.anchor().y, 0.0001);
+        assertEquals(-0.5, smoothed.anchor().z, 0.0001);
+        assertEquals(90.0f, smoothed.yaw(), 0.0001f);
+        assertEquals(30.0f, smoothed.pitch(), 0.0001f);
     }
 
     @Test
