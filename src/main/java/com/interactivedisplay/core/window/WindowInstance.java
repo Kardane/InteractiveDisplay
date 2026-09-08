@@ -1,6 +1,7 @@
 package com.interactivedisplay.core.window;
 
 import com.interactivedisplay.core.positioning.PositionMode;
+import com.interactivedisplay.entity.VirtualWindowHolder;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -21,7 +22,7 @@ public final class WindowInstance {
     private final Vec3 fixedAnchor;
     private final float fixedYaw;
     private final float fixedPitch;
-    private final UUID rootEntityId;
+    private final VirtualWindowHolder virtualHolder;
     private final Map<String, WindowComponentRuntime> components = new LinkedHashMap<>();
     private Vec3 targetAnchor;
     private float targetYaw;
@@ -38,7 +39,7 @@ public final class WindowInstance {
                           Vec3 fixedAnchor,
                           float fixedYaw,
                           float fixedPitch,
-                          UUID rootEntityId,
+                          VirtualWindowHolder virtualHolder,
                           Vec3 targetAnchor,
                           float targetYaw,
                           float targetPitch,
@@ -46,7 +47,7 @@ public final class WindowInstance {
                           float currentYaw,
                           float currentPitch,
                           long lastUpdateTick) {
-        this(owner, windowId, null, null, worldKey, positionMode, fixedAnchor, fixedYaw, fixedPitch, rootEntityId, targetAnchor, targetYaw, targetPitch, currentAnchor, currentYaw, currentPitch, lastUpdateTick);
+        this(owner, windowId, null, null, worldKey, positionMode, fixedAnchor, fixedYaw, fixedPitch, virtualHolder, targetAnchor, targetYaw, targetPitch, currentAnchor, currentYaw, currentPitch, lastUpdateTick);
     }
 
     public WindowInstance(UUID owner,
@@ -58,7 +59,7 @@ public final class WindowInstance {
                           Vec3 fixedAnchor,
                           float fixedYaw,
                           float fixedPitch,
-                          UUID rootEntityId,
+                          VirtualWindowHolder virtualHolder,
                           Vec3 targetAnchor,
                           float targetYaw,
                           float targetPitch,
@@ -75,7 +76,7 @@ public final class WindowInstance {
         this.fixedAnchor = fixedAnchor;
         this.fixedYaw = fixedYaw;
         this.fixedPitch = fixedPitch;
-        this.rootEntityId = rootEntityId;
+        this.virtualHolder = virtualHolder;
         this.targetAnchor = targetAnchor;
         this.targetYaw = targetYaw;
         this.targetPitch = targetPitch;
@@ -121,8 +122,8 @@ public final class WindowInstance {
         return this.fixedPitch;
     }
 
-    public UUID rootEntityId() {
-        return this.rootEntityId;
+    public VirtualWindowHolder virtualHolder() {
+        return this.virtualHolder;
     }
 
     public Vec3 currentAnchor() {
@@ -178,15 +179,23 @@ public final class WindowInstance {
         return this.components.get(componentId);
     }
 
-    public Set<UUID> entityIds() {
-        Set<UUID> ids = new LinkedHashSet<>();
-        if (this.rootEntityId != null) {
-            ids.add(this.rootEntityId);
-        }
+    public Set<Integer> entityIds() {
+        Set<Integer> ids = new LinkedHashSet<>();
         for (WindowComponentRuntime runtime : this.components.values()) {
-            ids.addAll(runtime.entityIds());
+            if (runtime.displayElement() != null) {
+                for (int entityId : runtime.displayElement().getEntityIds()) {
+                    ids.add(entityId);
+                }
+            }
         }
         return ids;
+    }
+
+    public int entityCount() {
+        if (this.virtualHolder != null) {
+            return this.virtualHolder.entityCount();
+        }
+        return entityIds().size();
     }
 
     public int bindingCount() {

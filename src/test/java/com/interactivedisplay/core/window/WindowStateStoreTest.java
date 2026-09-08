@@ -24,61 +24,35 @@ class WindowStateStoreTest {
     void mixedStandaloneAndGroupWindowsShouldKeepCountsAndLookups() {
         UUID owner = UUID.randomUUID();
         WindowStateStore store = new WindowStateStore();
-
         WindowInstance standalone = window(owner, "main_menu", null, null, new Vec3(0.0, 0.0, 2.0));
-        standalone.addRuntime(buttonRuntime("close", new Vector3f(0.0f, 0.0f, 0.0f)));
-
+        standalone.addRuntime(buttonRuntime("close", new Vector3f()));
         WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", new Vec3(0.0, 0.0, 3.0));
-        groupWindow.addRuntime(buttonRuntime("apply", new Vector3f(0.0f, 0.0f, 0.0f)));
+        groupWindow.addRuntime(buttonRuntime("apply", new Vector3f()));
         groupWindow.addRuntime(textRuntime("body", new Vector3f(0.0f, 0.5f, 0.0f)));
-
         store.putActiveWindow(owner, standalone.windowId(), standalone);
-        store.putActiveGroup(owner, "menu_group", new WindowGroupInstance(
-                owner,
-                "menu_group",
-                new Vec3(1.0, 2.0, 3.0),
-                45.0f,
-                10.0f,
-                PositionMode.PLAYER_FIXED,
-                groupWindow.windowId(),
-                groupWindow
-        ));
+        store.putActiveGroup(owner, "menu_group", new WindowGroupInstance(owner, "menu_group", new Vec3(1.0, 2.0, 3.0), 45.0f, 10.0f, PositionMode.PLAYER_FIXED, groupWindow.windowId(), groupWindow));
 
         assertEquals(2, store.activeWindowCount());
         assertEquals(2, store.activeBindingCount());
         assertSame(standalone, store.findActiveWindow(owner, "main_menu"));
         assertSame(groupWindow, store.findActiveGroup(owner, "menu_group").currentWindow());
         assertSame(groupWindow, store.findWindow(owner, "settings"));
-
         List<WindowManager.BindingSnapshot> bindings = store.bindingSnapshots(owner);
         assertEquals(2, bindings.size());
-        assertTrue(bindings.stream().anyMatch(binding ->
-                binding.windowId().equals("main_menu") && binding.componentId().equals("close")));
-        assertTrue(bindings.stream().anyMatch(binding ->
-                binding.windowId().equals("settings") && binding.componentId().equals("apply")));
+        assertTrue(bindings.stream().anyMatch(binding -> binding.windowId().equals("main_menu") && binding.componentId().equals("close")));
+        assertTrue(bindings.stream().anyMatch(binding -> binding.windowId().equals("settings") && binding.componentId().equals("apply")));
     }
 
     @Test
     void removingOwnerStateShouldClearLookupsAndBindings() {
         UUID owner = UUID.randomUUID();
         WindowStateStore store = new WindowStateStore();
-
         WindowInstance standalone = window(owner, "main_menu", null, null, new Vec3(0.0, 0.0, 2.0));
-        standalone.addRuntime(buttonRuntime("close", new Vector3f(0.0f, 0.0f, 0.0f)));
+        standalone.addRuntime(buttonRuntime("close", new Vector3f()));
         WindowInstance groupWindow = window(owner, "settings", "menu_group", "settings", new Vec3(0.0, 0.0, 3.0));
-        groupWindow.addRuntime(buttonRuntime("apply", new Vector3f(0.0f, 0.0f, 0.0f)));
-
+        groupWindow.addRuntime(buttonRuntime("apply", new Vector3f()));
         store.putActiveWindow(owner, standalone.windowId(), standalone);
-        store.putActiveGroup(owner, "menu_group", new WindowGroupInstance(
-                owner,
-                "menu_group",
-                Vec3.ZERO,
-                0.0f,
-                0.0f,
-                PositionMode.FIXED,
-                groupWindow.windowId(),
-                groupWindow
-        ));
+        store.putActiveGroup(owner, "menu_group", new WindowGroupInstance(owner, "menu_group", Vec3.ZERO, 0.0f, 0.0f, PositionMode.FIXED, groupWindow.windowId(), groupWindow));
 
         store.removeActiveWindow(owner, "main_menu");
         store.removeActiveGroup(owner, "menu_group");
@@ -91,77 +65,15 @@ class WindowStateStoreTest {
         assertNull(store.findWindow(owner, "settings"));
     }
 
-    private static WindowInstance window(UUID owner,
-                                         String windowId,
-                                         String groupId,
-                                         String groupWindowId,
-                                         Vec3 anchor) {
-        return new WindowInstance(
-                owner,
-                windowId,
-                groupId,
-                groupWindowId,
-                Level.OVERWORLD,
-                PositionMode.FIXED,
-                anchor,
-                0.0f,
-                0.0f,
-                UUID.randomUUID(),
-                anchor,
-                0.0f,
-                0.0f,
-                anchor,
-                0.0f,
-                0.0f,
-                0L
-        );
+    private static WindowInstance window(UUID owner, String windowId, String groupId, String groupWindowId, Vec3 anchor) {
+        return new WindowInstance(owner, windowId, groupId, groupWindowId, Level.OVERWORLD, PositionMode.FIXED, anchor, 0.0f, 0.0f, null, anchor, 0.0f, 0.0f, anchor, 0.0f, 0.0f, 0L);
     }
 
     private static WindowComponentRuntime buttonRuntime(String componentId, Vector3f localPosition) {
-        return new WindowComponentRuntime(
-                Level.OVERWORLD,
-                "button:" + componentId,
-                new ButtonComponentDefinition(
-                        componentId,
-                        new ComponentPosition(0.0f, 0.0f, 0.0f),
-                        new ComponentSize(1.0f, 0.4f),
-                        true,
-                        1.0f,
-                        "버튼",
-                        1.0f,
-                        "#AA2222",
-                        "#FFFFFF",
-                        null,
-                        ClickType.RIGHT,
-                        ComponentAction.closeWindow()
-                ),
-                localPosition,
-                UUID.randomUUID(),
-                null
-        );
+        return new WindowComponentRuntime(Level.OVERWORLD, new ButtonComponentDefinition(componentId, new ComponentPosition(0.0f, 0.0f, 0.0f), new ComponentSize(1.0f, 0.4f), true, 1.0f, "버튼", 1.0f, "#AA2222", "#FFFFFF", null, ClickType.RIGHT, ComponentAction.closeWindow()), localPosition, null, null);
     }
 
     private static WindowComponentRuntime textRuntime(String componentId, Vector3f localPosition) {
-        return new WindowComponentRuntime(
-                Level.OVERWORLD,
-                "text:" + componentId,
-                new TextComponentDefinition(
-                        componentId,
-                        new ComponentPosition(0.0f, 0.0f, 0.0f),
-                        new ComponentSize(1.0f, 0.2f),
-                        true,
-                        1.0f,
-                        "본문",
-                        1.0f,
-                        "#FFFFFF",
-                        "left",
-                        100,
-                        true,
-                        "#00000000"
-                ),
-                localPosition,
-                UUID.randomUUID(),
-                null
-        );
+        return new WindowComponentRuntime(Level.OVERWORLD, new TextComponentDefinition(componentId, new ComponentPosition(0.0f, 0.0f, 0.0f), new ComponentSize(1.0f, 0.2f), true, 1.0f, "본문", 1.0f, "#FFFFFF", "left", 100, true, "#00000000"), localPosition, null, null);
     }
 }

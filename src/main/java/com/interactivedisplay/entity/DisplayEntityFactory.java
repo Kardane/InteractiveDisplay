@@ -14,9 +14,6 @@ import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
-import com.interactivedisplay.mixin.BlockDisplayInvoker;
-import com.interactivedisplay.mixin.DisplayInvoker;
-import com.interactivedisplay.mixin.TextDisplayInvoker;
 import com.mojang.math.Transformation;
 import com.mojang.serialization.JsonOps;
 import eu.pb4.mapcanvas.api.core.CanvasImage;
@@ -25,10 +22,12 @@ import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
 import eu.pb4.placeholders.api.PlaceholderContext;
 import eu.pb4.placeholders.api.Placeholders;
+import eu.pb4.polymer.virtualentity.api.elements.BlockDisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
 import java.util.Locale;
 import java.util.StringJoiner;
 import java.util.UUID;
@@ -45,8 +44,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -74,219 +71,117 @@ public final class DisplayEntityFactory {
         this.placeholderResolver = placeholderResolver;
     }
 
+    public VirtualWindowHolder createHolder(ServerLevel world, Vec3 anchor) {
+        return new VirtualWindowHolder(world, anchor);
+    }
+
     public WindowComponentRuntime spawnRuntime(MinecraftServer server,
                                                ServerLevel world,
                                                UUID owner,
-                                               String signature,
                                                ComponentDefinition component,
                                                Vec3 position,
                                                PositionMode positionMode,
                                                float yaw,
                                                float pitch,
-                                               Collection<ServerPlayer> canvasViewers) {
+                                               ServerPlayer canvasViewer,
+                                               VirtualWindowHolder holder) {
         try {
+            DisplayElement element;
+            PlayerCanvas canvas = null;
+
             if (component instanceof TextComponentDefinition text) {
-                UUID displayId = spawnText(server, world, owner, text, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
+                TextDisplayElement textElement = new TextDisplayElement();
+                applyTextData(
+                        textElement,
+                        renderTextContent(text.content(), text.color(), ownerPlayer(server, owner)),
+                        text.lineWidth(),
+                        parseArgb(text.background()),
+                        text.shadow(),
+                        text.opacity(),
+                        billboard(positionMode),
+                        text.fontSize(),
+                        text.alignment(),
+                        new Vector3f()
+                );
+                element = textElement;
+            } else if (component instanceof PanelComponentDefinition panel) {
+                TextDisplayElement textElement = new TextDisplayElement();
+                PanelRenderSpec spec = buildPanelRenderSpec(panel);
+                applyTextData(
+                        textElement,
+                        spec.text(),
+                        spec.lineWidth(),
+                        parseArgb(panel.backgroundColor()),
+                        false,
+                        spec.textOpacity(),
+                        billboard(positionMode),
+                        spec.fontSize(),
+                        "center",
+                        new Vector3f()
+                );
+                element = textElement;
+            } else if (component instanceof ButtonComponentDefinition button) {
+                TextDisplayElement textElement = new TextDisplayElement();
+                applyTextData(
+                        textElement,
+                        renderButtonLabel(button.label(), ownerPlayer(server, owner)),
+                        buttonLineWidth(button),
+                        parseArgb(button.backgroundColor()),
+                        true,
+                        button.opacity(),
+                        billboard(positionMode),
+                        button.fontSize(),
+                        "center",
+                        new Vector3f()
+                );
+                element = textElement;
+            } else if (component instanceof ImageComponentDefinition image) {
+                ImageRuntime imageRuntime = createImageElement(image, canvasViewer);
+                element = imageRuntime.element();
+                canvas = imageRuntime.canvas();
+                applyDisplayData(element, billboard(positionMode), image.scale(), new Vector3f());
+            } else {
+                throw new IllegalArgumentException("지원하지 않는 component type: " + component.type());
             }
 
-            if (component instanceof PanelComponentDefinition panel) {
-                UUID displayId = spawnPanel(world, panel, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
-            }
-
-            if (component instanceof ButtonComponentDefinition button) {
-                UUID displayId = spawnButton(server, world, owner, button, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
-            }
-
-            if (component instanceof ImageComponentDefinition image) {
-                return spawnImageRuntime(world, signature, image, position, positionMode, yaw, pitch, canvasViewers);
-            }
-
-            throw new IllegalArgumentException("지원하지 않는 component type: " + component.type());
+            positionElement(element, holder.anchor(), position, positionMode, yaw, pitch);
+            holder.addElement(element);
+            return new WindowComponentRuntime(world.dimension(), component, new Vector3f(), element, canvas);
         } catch (Exception exception) {
             throw spawnFailure(owner, component.id(), world, position, exception);
         }
     }
 
-    public void reconfigureRuntime(MinecraftServer server,
-                                   ServerLevel world,
-                                   UUID owner,
-                                   WindowComponentRuntime runtime,
-                                   Vec3 position,
-                                   PositionMode positionMode,
-                                   float yaw,
-                                   float pitch,
-                                   Collection<ServerPlayer> canvasViewers) {
-        moveRuntime(world, runtime, position, positionMode, yaw, pitch);
-        runtime.setHovered(false);
-        applyRuntimeTransform(server, world, owner, runtime, positionMode);
-        if (runtime.definition() instanceof ButtonComponentDefinition button) {
-            setButtonHover(server, world, owner, runtime, button, false, positionMode);
-        }
-        if (runtime.mapCanvas() != null) {
-            syncMapCanvas(runtime.mapCanvas(), canvasViewers);
-        }
-    }
-
-    public UUID spawnRoot(MinecraftServer server,
-                          ServerLevel world,
-                          Vec3 anchor,
-                          PositionMode positionMode,
-                          float yaw,
-                          float pitch) {
-        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
-        entity.setInvisible(false);
-        entity.setNoGravity(true);
-        entity.setPos(anchor);
-        entity.setYRot(displayYaw(positionMode, yaw));
-        entity.setXRot(displayPitch(positionMode, pitch));
-        world.addFreshEntity(entity);
-        applyTextData(entity, Component.empty(), 1, 0, false, 0.0f, Display.BillboardConstraints.FIXED, 0.1f, "center", new Vector3f());
-        return entity.getUUID();
-    }
-
-    public void moveRoot(ServerLevel world,
-                         UUID rootEntityId,
-                         Vec3 anchor,
-                         PositionMode positionMode,
-                         float yaw,
-                         float pitch) {
-        Entity root = world.getEntity(rootEntityId);
-        if (root == null) {
-            return;
-        }
-        root.setPos(anchor);
-        root.setYRot(displayYaw(positionMode, yaw));
-        root.setXRot(displayPitch(positionMode, pitch));
-    }
-
-    public void destroyRoot(MinecraftServer server,
-                            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> worldKey,
-                            UUID rootEntityId) {
-        if (rootEntityId == null) {
-            return;
-        }
-        ServerLevel world = server.getLevel(worldKey);
-        if (world == null) {
-            return;
-        }
-        Entity root = world.getEntity(rootEntityId);
-        if (root != null) {
-            root.ejectPassengers();
-            root.discard();
-        }
-    }
-
-    public void attachRuntime(MinecraftServer server,
-                              ServerLevel world,
-                              WindowComponentRuntime runtime,
-                              UUID rootEntityId,
-                              Vec3 anchor,
-                              PositionMode positionMode,
-                              float yaw,
-                              float pitch) {
-        Entity root = world.getEntity(rootEntityId);
-        if (root == null) {
-            return;
-        }
-        for (UUID entityId : runtime.entityIds()) {
-            Entity entity = world.getEntity(entityId);
-            if (entity == null) {
-                continue;
-            }
-            entity.stopRiding();
-            entity.setInvisible(false);
-            entity.setPos(anchor);
-            entity.setYRot(displayYaw(positionMode, yaw));
-            entity.setXRot(displayPitch(positionMode, pitch));
-            entity.startRiding(root, true);
-        }
-        applyRuntimeTransform(server, world, null, runtime, positionMode);
-    }
-
-    public void updateRuntimeOrientation(MinecraftServer server,
-                                         ServerLevel world,
-                                         WindowComponentRuntime runtime,
-                                         PositionMode positionMode,
-                                         float yaw,
-                                         float pitch) {
-        for (UUID entityId : runtime.entityIds()) {
-            Entity entity = world.getEntity(entityId);
-            if (entity == null) {
-                continue;
-            }
-            entity.setYRot(displayYaw(positionMode, yaw));
-            entity.setXRot(displayPitch(positionMode, pitch));
-        }
-        applyRuntimeTransform(server, world, null, runtime, positionMode);
-    }
-
-    public void moveRuntime(ServerLevel world,
-                            WindowComponentRuntime runtime,
+    public void moveRuntime(WindowComponentRuntime runtime,
+                            VirtualWindowHolder holder,
                             Vec3 position,
                             PositionMode positionMode,
                             float yaw,
                             float pitch) {
-        for (UUID entityId : runtime.entityIds()) {
-            Entity entity = world.getEntity(entityId);
-            if (entity == null) {
-                continue;
-            }
-            entity.stopRiding();
-            entity.setInvisible(false);
-            entity.setPos(position);
-            entity.setYRot(displayYaw(positionMode, yaw));
-            entity.setXRot(displayPitch(positionMode, pitch));
+        DisplayElement element = runtime.displayElement();
+        if (element == null) {
+            return;
         }
+        positionElement(element, holder.anchor(), position, positionMode, yaw, pitch);
     }
 
-    public void deactivateRuntime(MinecraftServer server, ServerLevel world, WindowComponentRuntime runtime) {
-        Vec3 hidden = storagePosition(world);
-        for (UUID entityId : runtime.entityIds()) {
-            Entity entity = world.getEntity(entityId);
-            if (entity != null) {
-                entity.stopRiding();
-                entity.setInvisible(true);
-                entity.setPos(hidden);
-            }
-        }
-        runtime.setHovered(false);
-    }
-
-    public void destroyRuntime(MinecraftServer server, WindowComponentRuntime runtime) {
-        ServerLevel world = server.getLevel(runtime.worldKey());
-        if (world != null) {
-            for (UUID entityId : runtime.entityIds()) {
-                Entity entity = world.getEntity(entityId);
-                if (entity != null) {
-                    entity.discard();
-                }
-            }
-        }
+    public void destroyRuntime(WindowComponentRuntime runtime) {
         if (runtime.mapCanvas() != null) {
             runtime.mapCanvas().destroy();
         }
     }
 
     public void setButtonHover(MinecraftServer server,
-                               ServerLevel world,
                                UUID owner,
                                WindowComponentRuntime runtime,
                                ButtonComponentDefinition button,
-                               boolean hovered,
-                               PositionMode positionMode) {
-        if (runtime.displayEntityId() == null) {
-            return;
-        }
-        Entity entity = world.getEntity(runtime.displayEntityId());
-        if (!(entity instanceof Display.TextDisplay textDisplay)) {
+                               boolean hovered) {
+        if (!(runtime.displayElement() instanceof TextDisplayElement textElement)) {
             return;
         }
         int background = hovered ? parseArgb(button.hoverColor()) : parseArgb(button.backgroundColor());
         applyTextStyle(
-                textDisplay,
+                textElement,
                 renderButtonLabel(button.label(), ownerPlayer(server, owner)),
                 buttonLineWidth(button),
                 background,
@@ -297,163 +192,48 @@ public final class DisplayEntityFactory {
         runtime.setHovered(hovered);
     }
 
-    public void syncMapCanvas(PlayerCanvas canvas, Collection<ServerPlayer> viewers) {
-        for (ServerPlayer viewer : viewers) {
-            canvas.addPlayer(viewer);
+    public void syncMapCanvas(PlayerCanvas canvas, ServerPlayer viewer) {
+        if (canvas == null || viewer == null) {
+            return;
         }
+        canvas.addPlayer(viewer);
         if (canvas.isDirty()) {
             canvas.sendUpdates();
         }
     }
 
-    private UUID spawnText(MinecraftServer server,
-                           ServerLevel world,
-                           UUID owner,
-                           TextComponentDefinition component,
-                           Vec3 position,
-                           PositionMode positionMode,
-                           float yaw,
-                           float pitch) {
-        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
-        entity.setInvisible(false);
-        entity.setPos(position);
-        entity.setYRot(displayYaw(positionMode, yaw));
-        entity.setXRot(displayPitch(positionMode, pitch));
-        world.addFreshEntity(entity);
-        applyTextData(
-                entity,
-                renderTextContent(component.content(), component.color(), ownerPlayer(server, owner)),
-                component.lineWidth(),
-                parseArgb(component.background()),
-                component.shadow(),
-                component.opacity(),
-                billboard(positionMode),
-                component.fontSize(),
-                component.alignment(),
-                new Vector3f()
-        );
-        return entity.getUUID();
-    }
-
-    private UUID spawnPanel(ServerLevel world,
-                            PanelComponentDefinition component,
-                            Vec3 position,
-                            PositionMode positionMode,
-                            float yaw,
-                            float pitch) {
-        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
-        entity.setInvisible(false);
-        entity.setPos(position);
-        entity.setYRot(displayYaw(positionMode, yaw));
-        entity.setXRot(displayPitch(positionMode, pitch));
-        world.addFreshEntity(entity);
-        PanelRenderSpec spec = buildPanelRenderSpec(component);
-        applyTextData(
-                entity,
-                spec.text(),
-                spec.lineWidth(),
-                parseArgb(component.backgroundColor()),
-                false,
-                spec.textOpacity(),
-                billboard(positionMode),
-                spec.fontSize(),
-                "center",
-                new Vector3f()
-        );
-        return entity.getUUID();
-    }
-
-    private UUID spawnButton(MinecraftServer server,
-                             ServerLevel world,
-                             UUID owner,
-                             ButtonComponentDefinition component,
-                             Vec3 position,
-                             PositionMode positionMode,
-                             float yaw,
-                             float pitch) {
-        Display.TextDisplay entity = new Display.TextDisplay(EntityType.TEXT_DISPLAY, world);
-        entity.setInvisible(false);
-        entity.setPos(position);
-        entity.setYRot(displayYaw(positionMode, yaw));
-        entity.setXRot(displayPitch(positionMode, pitch));
-        world.addFreshEntity(entity);
-        applyTextData(
-                entity,
-                renderButtonLabel(component.label(), ownerPlayer(server, owner)),
-                buttonLineWidth(component),
-                parseArgb(component.backgroundColor()),
-                true,
-                component.opacity(),
-                billboard(positionMode),
-                component.fontSize(),
-                "center",
-                new Vector3f()
-        );
-        return entity.getUUID();
-    }
-
-    private WindowComponentRuntime spawnImageRuntime(ServerLevel world,
-                                                     String signature,
-                                                     ImageComponentDefinition component,
-                                                     Vec3 position,
-                                                     PositionMode positionMode,
-                                                     float yaw,
-                                                     float pitch,
-                                                     Collection<ServerPlayer> canvasViewers) throws IOException {
+    private ImageRuntime createImageElement(ImageComponentDefinition component, ServerPlayer canvasViewer) throws IOException {
         if (component.imageType() == ImageType.ITEM) {
-            UUID displayId = spawnItemDisplay(world, buildItemStack(component.value()), component.scale(), position, positionMode, yaw, pitch);
-            return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
+            return new ImageRuntime(new ItemDisplayElement(buildItemStack(component.value())), null);
         }
         if (component.imageType() == ImageType.BLOCK) {
-            UUID displayId = spawnBlockDisplay(world, buildBlockState(component.value()), component.scale(), position, positionMode, yaw, pitch);
-            return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
+            return new ImageRuntime(new BlockDisplayElement(buildBlockState(component.value())), null);
         }
 
         PlayerCanvas canvas = DrawableCanvas.create();
         BufferedImage image = ImageIO.read(component.source().resolvedPath().toFile());
+        if (image == null) {
+            canvas.destroy();
+            throw new IOException("MAP 이미지 디코딩 실패: " + component.source().resolvedPath());
+        }
         CanvasUtils.draw(canvas, 0, 0, 128, 128, CanvasImage.from(image));
-        syncMapCanvas(canvas, canvasViewers);
-        UUID displayId = spawnItemDisplay(world, canvas.asStack(), component.scale(), position, positionMode, yaw, pitch);
-        return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, canvas);
+        syncMapCanvas(canvas, canvasViewer);
+        return new ImageRuntime(new ItemDisplayElement(canvas.asStack()), canvas);
     }
 
-    private UUID spawnItemDisplay(ServerLevel world,
-                                  ItemStack stack,
-                                  float scale,
-                                  Vec3 position,
-                                  PositionMode positionMode,
-                                  float yaw,
-                                  float pitch) {
-        Display.ItemDisplay entity = new Display.ItemDisplay(EntityType.ITEM_DISPLAY, world);
-        entity.setInvisible(false);
-        entity.setPos(position);
-        entity.setYRot(displayYaw(positionMode, yaw));
-        entity.setXRot(displayPitch(positionMode, pitch));
-        world.addFreshEntity(entity);
-        applyDisplayData(entity, billboard(positionMode), scale, new Vector3f());
-        entity.getSlot(0).set(stack);
-        return entity.getUUID();
+    private void positionElement(DisplayElement element,
+                                 Vec3 holderAnchor,
+                                 Vec3 worldPosition,
+                                 PositionMode positionMode,
+                                 float yaw,
+                                 float pitch) {
+        element.setOffset(worldPosition.subtract(holderAnchor));
+        element.setYaw(displayYaw(positionMode, yaw));
+        element.setPitch(displayPitch(positionMode, pitch));
+        element.setBillboardMode(billboard(positionMode));
     }
 
-    private UUID spawnBlockDisplay(ServerLevel world,
-                                   BlockState state,
-                                   float scale,
-                                   Vec3 position,
-                                   PositionMode positionMode,
-                                   float yaw,
-                                   float pitch) {
-        Display.BlockDisplay entity = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, world);
-        entity.setInvisible(false);
-        entity.setPos(position);
-        entity.setYRot(displayYaw(positionMode, yaw));
-        entity.setXRot(displayPitch(positionMode, pitch));
-        world.addFreshEntity(entity);
-        ((BlockDisplayInvoker) (Object) entity).interactivedisplay$setBlockState(state);
-        applyDisplayData(entity, billboard(positionMode), scale, new Vector3f());
-        return entity.getUUID();
-    }
-
-    private void applyTextData(Display.TextDisplay entity,
+    private void applyTextData(TextDisplayElement element,
                                Component text,
                                int lineWidth,
                                int background,
@@ -463,42 +243,40 @@ public final class DisplayEntityFactory {
                                float scale,
                                String alignment,
                                Vector3f translation) {
-        applyDisplayData(entity, billboard, scale, translation);
-        applyTextStyle(entity, text, lineWidth, background, shadow, opacity, alignment);
+        applyDisplayData(element, billboard, scale, translation);
+        applyTextStyle(element, text, lineWidth, background, shadow, opacity, alignment);
     }
 
-    private void applyTextStyle(Display.TextDisplay entity,
+    private void applyTextStyle(TextDisplayElement element,
                                 Component text,
                                 int lineWidth,
                                 int background,
                                 boolean shadow,
                                 float opacity,
                                 String alignment) {
-        TextDisplayInvoker invoker = (TextDisplayInvoker) (Object) entity;
-        invoker.interactivedisplay$setText(text);
-        invoker.interactivedisplay$setLineWidth(lineWidth);
-        invoker.interactivedisplay$setBackgroundColor(background);
-        invoker.interactivedisplay$setTextOpacity(toTextOpacity(opacity));
-        invoker.interactivedisplay$setFlags(buildTextFlags(shadow, alignment));
+        element.setText(text);
+        element.setLineWidth(lineWidth);
+        element.setBackground(background);
+        element.setTextOpacity(toTextOpacity(opacity));
+        element.setDisplayFlags(buildTextFlags(shadow, alignment));
     }
 
-    private void applyDisplayData(Display entity,
+    private void applyDisplayData(DisplayElement element,
                                   Display.BillboardConstraints billboard,
                                   float scale,
                                   Vector3f translation) {
-        applyDisplayData(entity, billboard, uniformScale(scale), translation);
+        applyDisplayData(element, billboard, uniformScale(scale), translation);
     }
 
-    private void applyDisplayData(Display entity,
+    private void applyDisplayData(DisplayElement element,
                                   Display.BillboardConstraints billboard,
                                   Vector3f scale,
                                   Vector3f translation) {
-        DisplayInvoker invoker = (DisplayInvoker) (Object) entity;
-        invoker.interactivedisplay$setTransformationInterpolationDuration(INTERPOLATION_DURATION);
-        invoker.interactivedisplay$setTransformationInterpolationDelay(INTERPOLATION_DELAY);
-        invoker.interactivedisplay$setPosRotInterpolationDuration(TELEPORT_DURATION);
-        invoker.interactivedisplay$setBillboardConstraints(billboard);
-        invoker.interactivedisplay$setTransformation(buildTransformation(scale, translation));
+        element.setInterpolationDuration(INTERPOLATION_DURATION);
+        element.setStartInterpolation(INTERPOLATION_DELAY);
+        element.setTeleportDuration(TELEPORT_DURATION);
+        element.setBillboardMode(billboard);
+        element.setTransformation(buildTransformation(scale, translation));
     }
 
     static Transformation buildTransformation(float scale) {
@@ -635,11 +413,11 @@ public final class DisplayEntityFactory {
                 componentId,
                 null,
                 DebugReason.ENTITY_SPAWN_FAILED,
-                "엔티티 생성 실패 world=" + world.dimension().location() + " position=" + position,
+                "가상 엔티티 생성 실패 world=" + world.dimension().location() + " position=" + position,
                 exception
         );
         InteractiveDisplay.LOGGER.error(
-                "[{}] entity spawn failed world={} componentId={} position={} reasonCode={}",
+                "[{}] virtual entity spawn failed world={} componentId={} position={} reasonCode={}",
                 InteractiveDisplay.MOD_ID,
                 world.dimension().location(),
                 componentId,
@@ -647,11 +425,7 @@ public final class DisplayEntityFactory {
                 DebugReason.ENTITY_SPAWN_FAILED,
                 exception
         );
-        return new EntitySpawnException("엔티티 생성 실패 componentId=" + componentId + " position=" + position, exception);
-    }
-
-    private static Vec3 storagePosition(ServerLevel world) {
-        return new Vec3(0.0, world.getMinY() - 128.0, 0.0);
+        return new EntitySpawnException("가상 엔티티 생성 실패 componentId=" + componentId + " position=" + position, exception);
     }
 
     private static Display.BillboardConstraints billboard(PositionMode positionMode) {
@@ -671,78 +445,6 @@ public final class DisplayEntityFactory {
             case FIXED -> 0.0f;
             case PLAYER_FIXED, PLAYER_VIEW -> pitch;
         };
-    }
-
-    private static float componentScale(ComponentDefinition definition) {
-        if (definition instanceof ImageComponentDefinition image) {
-            return image.scale();
-        }
-        if (definition instanceof TextComponentDefinition text) {
-            return text.fontSize();
-        }
-        return 1.0f;
-    }
-
-    private void applyRuntimeTransform(MinecraftServer server,
-                                       ServerLevel world,
-                                       UUID owner,
-                                       WindowComponentRuntime runtime,
-                                       PositionMode positionMode) {
-        if (runtime.displayEntityId() == null) {
-            return;
-        }
-        Entity entity = world.getEntity(runtime.displayEntityId());
-        if (!(entity instanceof Display display)) {
-            return;
-        }
-
-        if (runtime.definition() instanceof TextComponentDefinition text && entity instanceof Display.TextDisplay textDisplay) {
-            applyTextData(
-                    textDisplay,
-                    renderTextContent(text.content(), text.color(), ownerPlayer(server, owner)),
-                    text.lineWidth(),
-                    parseArgb(text.background()),
-                    text.shadow(),
-                    text.opacity(),
-                    billboard(positionMode),
-                    text.fontSize(),
-                    text.alignment(),
-                    new Vector3f()
-            );
-            return;
-        }
-        if (runtime.definition() instanceof PanelComponentDefinition panel && entity instanceof Display.TextDisplay textDisplay) {
-            PanelRenderSpec spec = buildPanelRenderSpec(panel);
-            applyTextData(
-                    textDisplay,
-                    spec.text(),
-                    spec.lineWidth(),
-                    parseArgb(panel.backgroundColor()),
-                    false,
-                    spec.textOpacity(),
-                    billboard(positionMode),
-                    spec.fontSize(),
-                    "center",
-                    new Vector3f()
-            );
-            return;
-        }
-        if (runtime.definition() instanceof ButtonComponentDefinition button && entity instanceof Display.TextDisplay textDisplay) {
-            applyTextData(
-                    textDisplay,
-                    renderButtonLabel(button.label(), ownerPlayer(server, owner)),
-                    buttonLineWidth(button),
-                    parseArgb(runtime.hovered() ? button.hoverColor() : button.backgroundColor()),
-                    true,
-                    button.opacity(),
-                    billboard(positionMode),
-                    button.fontSize(),
-                    "center",
-                    new Vector3f()
-            );
-            return;
-        }
-        applyDisplayData(display, billboard(positionMode), componentScale(runtime.definition()), new Vector3f());
     }
 
     private static Vector3f uniformScale(float scale) {
@@ -785,5 +487,8 @@ public final class DisplayEntityFactory {
     }
 
     record PanelRenderSpec(Component text, int lineWidth, float fontSize, float textOpacity) {
+    }
+
+    private record ImageRuntime(DisplayElement element, PlayerCanvas canvas) {
     }
 }

@@ -4,10 +4,7 @@
   "package": "com.interactivedisplay.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "BlockDisplayInvoker",
-    "DisplayInvoker",
-    "ServerGamePacketListenerImplMixin",
-    "TextDisplayInvoker"
+    "ServerGamePacketListenerImplMixin"
   ],
   "injectors": {
     "defaultRequire": 1

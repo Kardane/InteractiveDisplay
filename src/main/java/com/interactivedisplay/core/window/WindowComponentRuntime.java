@@ -4,9 +4,7 @@ import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
@@ -19,33 +17,26 @@ public final class WindowComponentRuntime {
     private static final float HORIZONTAL_PADDING_FACTOR = 0.5f;
 
     private final ResourceKey<Level> worldKey;
-    private final String signature;
     private ComponentDefinition definition;
     private Vector3f localPosition;
-    private UUID displayEntityId;
+    private final DisplayElement displayElement;
     private PlayerCanvas mapCanvas;
     private boolean hovered;
 
     public WindowComponentRuntime(ResourceKey<Level> worldKey,
-                                  String signature,
                                   ComponentDefinition definition,
                                   Vector3f localPosition,
-                                  UUID displayEntityId,
+                                  DisplayElement displayElement,
                                   PlayerCanvas mapCanvas) {
         this.worldKey = worldKey;
-        this.signature = signature;
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
-        this.displayEntityId = displayEntityId;
+        this.displayElement = displayElement;
         this.mapCanvas = mapCanvas;
     }
 
     public ResourceKey<Level> worldKey() {
         return this.worldKey;
-    }
-
-    public String signature() {
-        return this.signature;
     }
 
     public ComponentDefinition definition() {
@@ -62,8 +53,12 @@ public final class WindowComponentRuntime {
         return new Vector3f(this.localPosition);
     }
 
-    public UUID displayEntityId() {
-        return this.displayEntityId;
+    public DisplayElement displayElement() {
+        return this.displayElement;
+    }
+
+    public int entityCount() {
+        return this.displayElement == null ? 0 : this.displayElement.getEntityIds().size();
     }
 
     public PlayerCanvas mapCanvas() {
@@ -109,14 +104,6 @@ public final class WindowComponentRuntime {
             return button.action();
         }
         return null;
-    }
-
-    public List<UUID> entityIds() {
-        List<UUID> ids = new ArrayList<>();
-        if (this.displayEntityId != null) {
-            ids.add(this.displayEntityId);
-        }
-        return ids;
     }
 
     private static float buttonHitWidth(ButtonComponentDefinition button) {
