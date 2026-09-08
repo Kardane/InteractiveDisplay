@@ -20,8 +20,11 @@ public final class WindowComponentRuntime {
     private ComponentDefinition definition;
     private Vector3f localPosition;
     private final DisplayElement displayElement;
+    private final Vector3f baseScale;
+    private final Vector3f baseTranslation;
     private PlayerCanvas mapCanvas;
     private boolean hovered;
+    private long lastTextRefreshTick = Long.MIN_VALUE;
 
     public WindowComponentRuntime(ResourceKey<Level> worldKey,
                                   ComponentDefinition definition,
@@ -33,6 +36,8 @@ public final class WindowComponentRuntime {
         this.localPosition = new Vector3f(localPosition);
         this.displayElement = displayElement;
         this.mapCanvas = mapCanvas;
+        this.baseScale = displayElement == null ? new Vector3f(1.0f) : new Vector3f(displayElement.getScale());
+        this.baseTranslation = displayElement == null ? new Vector3f() : new Vector3f(displayElement.getTranslation());
     }
 
     public ResourceKey<Level> worldKey() {
@@ -47,6 +52,7 @@ public final class WindowComponentRuntime {
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
         this.hovered = false;
+        this.lastTextRefreshTick = Long.MIN_VALUE;
     }
 
     public Vector3f localPosition() {
@@ -55,6 +61,25 @@ public final class WindowComponentRuntime {
 
     public DisplayElement displayElement() {
         return this.displayElement;
+    }
+
+    public Vector3f baseScale() {
+        return new Vector3f(this.baseScale);
+    }
+
+    public Vector3f baseTranslation() {
+        return new Vector3f(this.baseTranslation);
+    }
+
+    public boolean shouldRefreshText(long tick, int refreshInterval) {
+        if (refreshInterval <= 0) {
+            return false;
+        }
+        if (this.lastTextRefreshTick == Long.MIN_VALUE || tick - this.lastTextRefreshTick >= refreshInterval) {
+            this.lastTextRefreshTick = tick;
+            return true;
+        }
+        return false;
     }
 
     public int entityCount() {
