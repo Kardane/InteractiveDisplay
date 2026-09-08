@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,8 +20,10 @@ class RemoteImageCacheTest {
     @Test
     void remoteImageShouldBeCachedAsPng(@TempDir Path tempDir) throws Exception {
         byte[] png = createPng();
+        AtomicInteger requestCount = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/image.png", exchange -> {
+            requestCount.incrementAndGet();
             exchange.sendResponseHeaders(200, png.length);
             exchange.getResponseBody().write(png);
             exchange.close();
@@ -30,9 +33,12 @@ class RemoteImageCacheTest {
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/image.png";
             RemoteImageCache cache = new RemoteImageCache(tempDir, new DebugRecorder(10));
             Path cached = cache.resolve(url);
+            Path cachedAgain = cache.resolve(url);
 
             assertTrue(Files.exists(cached));
+            assertEquals(cached, cachedAgain);
             assertEquals(1, cache.cacheEntryCount());
+            assertEquals(1, requestCount.get());
         } finally {
             server.stop(0);
         }
