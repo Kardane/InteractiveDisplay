@@ -16,9 +16,9 @@ InteractiveDisplay renders its 3D HUD with Polymer Virtual Entity. It does not a
 - `PLAYER_FIXED`: `EntityAttachment` on the owner, with display elements registered through `addPassengerElement`.
 - `PLAYER_VIEW`: the same player attachment, while look yaw/pitch updates the relative display transformation.
 
-Polymer already injects `ElementHolder#getAttachedPassengerEntityIds()` into outgoing passenger packets on a per-viewer basis. InteractiveDisplay therefore does not maintain a second passenger registry or manually rewrite ride packets.
+Polymer injects `ElementHolder#getAttachedPassengerEntityIds()` into outgoing passenger packets on a per-viewer basis. InteractiveDisplay does not maintain a second passenger registry or construct a parallel virtual-ID list. When the owner's watched-holder set changes, it only sends a normal vanilla passenger refresh packet; Polymer augments that packet for the owner at serialization time while preserving real passengers and other watched virtual windows.
 
-Player-bound modes are rebuilt in the player's new `ServerLevel` when the owner changes dimensions. `FIXED` windows remain world-bound and are removed when their owner leaves that dimension.
+Player-bound modes are rebuilt in the player's new `ServerLevel` when the owner changes dimensions. `FIXED` windows remain world-bound and are removed when their owner leaves that dimension. Old player-bound holders are destroyed immediately during a dimension transfer instead of running an exit transition, so stale virtual passenger IDs cannot leak across worlds.
 
 ## Rendering
 
@@ -33,13 +33,16 @@ Display transformations are also used for:
 - button `hoverScale`
 - window enter/exit transitions (`scale`, `slide_up`, `slide_down`)
 
+For an enter transition, owner watching is deferred until the configured initial transform is applied. The spawn bundle therefore starts from the transition's initial state, then interpolates to the normal transform instead of briefly exposing the final state first.
+
 ## Interaction
 
 Buttons support `clickType: left`, `right`, or `both`.
 
 - right click is intercepted from item/block/entity use packets
 - left click is intercepted from attack/swing/block-destroy-start packets
-- same-tick left-click duplicates are consumed without executing the action twice
+- consumed UI input is de-duplicated per server tick across overlapping packet paths
+- a right-click UI attempt is remembered for the tick so its follow-up client swing is not misclassified as a new left click
 
 The pointer item and server raycast are still required before a UI click is consumed.
 
