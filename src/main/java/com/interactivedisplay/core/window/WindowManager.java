@@ -339,8 +339,10 @@ public final class WindowManager implements WindowActionExecutor {
 
     @Override
     public ActionExecutionResult togglePlacementTracking(UUID owner, WindowNavigationContext context) {
+        WindowInstance current = activeWindowForContext(owner, context, context.windowId());
+        boolean wasTracking = current != null && this.lifecycleCoordinator.isPlacementTracking(owner, current);
         ActionExecutionResult result = this.lifecycleCoordinator.togglePlacementTracking(owner, context);
-        if (result.success()) {
+        if (result.success() && wasTracking) {
             configureWindowEffects(activeWindowForContext(owner, context, context.windowId()));
         }
         return result;
