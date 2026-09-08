@@ -4,22 +4,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
-import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.interaction.ClickHandleResult;
 import com.interactivedisplay.core.interaction.ClickHandler;
 import com.interactivedisplay.core.interaction.UiHitResult;
+import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.ActionExecutionResult;
 import com.interactivedisplay.core.window.CreateWindowResult;
 import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowActionExecutor;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.core.window.WindowNavigationContext;
-import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.util.UUID;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -30,9 +31,7 @@ class UiHitClickHandlerTest {
     @Test
     void nullHitShouldReturnReason() {
         ClickHandler handler = new ClickHandler(new TrackingExecutor(), new DebugRecorder(20));
-
         ClickHandleResult result = handler.handle(UUID.randomUUID(), "Alex", null);
-
         assertEquals(false, result.consumed());
         assertEquals(DebugReason.INTERACTION_NOT_FOUND, result.reasonCode());
     }
@@ -42,7 +41,6 @@ class UiHitClickHandlerTest {
         UUID owner = UUID.randomUUID();
         TrackingExecutor executor = new TrackingExecutor();
         ClickHandler handler = new ClickHandler(executor, new DebugRecorder(20));
-
         ClickHandleResult result = handler.handle(owner, "Steve", closeHit());
         assertEquals(true, result.consumed());
         assertNull(result.reasonCode());
@@ -59,9 +57,7 @@ class UiHitClickHandlerTest {
     @Test
     void openWindowActionShouldDispatchTarget() {
         TrackingExecutor executor = new TrackingExecutor();
-        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20))
-                .handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.openWindow("settings"), "open"));
-
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.openWindow("settings"), "open"));
         assertEquals(true, result.consumed());
         assertEquals(1, executor.openCalls);
         assertEquals("settings", executor.lastWindowId);
@@ -71,7 +67,6 @@ class UiHitClickHandlerTest {
     void modeSwitchActionsShouldDispatchTheirRequestedModes() {
         TrackingExecutor executor = new TrackingExecutor();
         ClickHandler handler = new ClickHandler(executor, new DebugRecorder(20));
-
         assertEquals(true, handler.handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.switchModeFixed(), "fixed")).consumed());
         assertEquals(PositionMode.FIXED, executor.lastPositionMode);
         assertEquals(true, handler.handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.switchModePlayerFixed(), "player_fixed")).consumed());
@@ -84,9 +79,7 @@ class UiHitClickHandlerTest {
         UUID owner = UUID.randomUUID();
         TrackingExecutor executor = new TrackingExecutor();
         executor.closeResult = RemoveWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, "main", "닫기 실패");
-
         ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(owner, "Steve", closeHit());
-
         assertFalse(result.consumed());
         assertEquals(DebugReason.ACTION_EXECUTION_FAILED, result.reasonCode());
         assertEquals(1, executor.closeCalls);
@@ -96,7 +89,6 @@ class UiHitClickHandlerTest {
     void runCommandShouldDispatch() {
         TrackingExecutor executor = new TrackingExecutor();
         ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand("say hi", 3), "run"));
-
         assertEquals(true, result.consumed());
         assertEquals(1, executor.commandCalls);
         assertEquals(3, executor.lastPermissionLevel);
@@ -106,9 +98,7 @@ class UiHitClickHandlerTest {
     @Test
     void runCommandWithoutCommandShouldNotDispatch() {
         TrackingExecutor executor = new TrackingExecutor();
-        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20))
-                .handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand(null, 2), "run_invalid"));
-
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand(null, 2), "run_invalid"));
         assertFalse(result.consumed());
         assertEquals(DebugReason.ACTION_TARGET_NOT_FOUND, result.reasonCode());
         assertEquals(0, executor.commandCalls);
@@ -119,7 +109,6 @@ class UiHitClickHandlerTest {
         TrackingExecutor executor = new TrackingExecutor();
         executor.callbackResult = ActionExecutionResult.failure(DebugReason.ACTION_EXECUTION_FAILED, "등록되지 않은 callback id");
         ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.callback("missing"), "cb"));
-
         assertEquals(false, result.consumed());
         assertEquals(DebugReason.ACTION_EXECUTION_FAILED, result.reasonCode());
     }
@@ -127,9 +116,7 @@ class UiHitClickHandlerTest {
     @Test
     void callbackWithoutIdShouldNotDispatch() {
         TrackingExecutor executor = new TrackingExecutor();
-        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20))
-                .handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.callback(null), "callback_invalid"));
-
+        ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.callback(null), "callback_invalid"));
         assertFalse(result.consumed());
         assertEquals(DebugReason.ACTION_TARGET_NOT_FOUND, result.reasonCode());
         assertEquals(0, executor.callbackCalls);
@@ -139,7 +126,6 @@ class UiHitClickHandlerTest {
     void togglePlacementTrackingShouldDispatch() {
         TrackingExecutor executor = new TrackingExecutor();
         ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.togglePlacementTracking(), "track"));
-
         assertEquals(true, result.consumed());
         assertEquals(1, executor.placementCalls);
     }
@@ -163,8 +149,8 @@ class UiHitClickHandlerTest {
                 com.interactivedisplay.core.component.ClickType.RIGHT,
                 action
         );
-        WindowComponentRuntime runtime = new WindowComponentRuntime(Level.OVERWORLD, "sig", button, new Vector3f(), UUID.randomUUID(), null);
-        return new UiHitResult("main", new WindowNavigationContext("main", null, com.interactivedisplay.core.positioning.PositionMode.FIXED, Vec3.ZERO, 0.0f, 0.0f), componentId, runtime, action, Vec3.ZERO, 1.0D);
+        WindowComponentRuntime runtime = new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), new TextDisplayElement(), null);
+        return new UiHitResult("main", new WindowNavigationContext("main", null, PositionMode.FIXED, Vec3.ZERO, 0.0f, 0.0f), componentId, runtime, action, Vec3.ZERO, 1.0D);
     }
 
     private static final class TrackingExecutor implements WindowActionExecutor {
