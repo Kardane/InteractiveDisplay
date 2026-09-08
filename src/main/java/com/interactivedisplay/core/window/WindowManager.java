@@ -1,6 +1,7 @@
 package com.interactivedisplay.core.window;
 
 import com.interactivedisplay.InteractiveDisplay;
+import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.CommandWhitelist;
 import com.interactivedisplay.core.interaction.UiHitResult;
@@ -13,6 +14,7 @@ import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
+import com.interactivedisplay.entity.VirtualWindowHolder;
 import com.interactivedisplay.item.InteractiveDisplayItems;
 import com.interactivedisplay.schema.SchemaLoader;
 import java.io.IOException;
@@ -28,6 +30,7 @@ public final class WindowManager implements WindowActionExecutor {
     private final MinecraftServer server;
     private final SchemaLoader schemaLoader;
     private final WindowPositionTracker positionTracker;
+    private final DisplayEntityFactory entityFactory;
     private final DebugRecorder debugRecorder;
     private final CommandWhitelist commandWhitelist;
     private final WindowStateStore stateStore;
@@ -46,6 +49,7 @@ public final class WindowManager implements WindowActionExecutor {
         this.server = server;
         this.schemaLoader = schemaLoader;
         this.positionTracker = positionTracker;
+        this.entityFactory = entityFactory;
         this.debugRecorder = debugRecorder;
         this.commandWhitelist = commandWhitelist;
         this.stateStore = new WindowStateStore();
@@ -90,9 +94,15 @@ public final class WindowManager implements WindowActionExecutor {
 
     public ReloadWindowResult reloadOne(String windowId) {
         tryReloadSupport();
-        SchemaLoader.LoadResult loadResult = this.schemaLoader.loadAll();
-        this.stateStore.replaceBrokenWindowIds(loadResult.brokenWindowIds());
-        this.stateStore.replaceBrokenGroupIds(loadResult.brokenGroupIds());
+        SchemaLoader.LoadResult loadResult = this.schemaLoader.loadWindow(windowId);
+        Set<String> brokenWindowIds = new HashSet<>(this.stateStore.brokenWindowIds());
+        if (loadResult.brokenWindowIds().contains(windowId)) {
+            brokenWindowIds.add(windowId);
+        } else {
+            brokenWindowIds.remove(windowId);
+        }
+        this.stateStore.replaceBrokenWindowIds(brokenWindowIds);
+
         WindowDefinition definition = loadResult.definitions().get(windowId);
         if (definition == null) {
             DebugReason reasonCode = loadResult.hasErrors() ? DebugReason.SCHEMA_VALIDATION_FAILED : DebugReason.WINDOW_DEFINITION_NOT_FOUND;
@@ -104,19 +114,17 @@ public final class WindowManager implements WindowActionExecutor {
         this.stateStore.putDefinition(windowId, definition);
         rebuildActiveWindowDefinitions(windowId);
         rebuildActiveGroupsContainingWindow(windowId);
-        if (loadResult.hasErrors()) {
-            ReloadWindowResult result = ReloadWindowResult.failure(DebugReason.SCHEMA_VALIDATION_FAILED, windowId, this.stateStore.loadedWindowCount(), loadResult.errors().size(), loadResult.errors(), "창 리로드 완료 (오류 " + loadResult.errors().size() + "건): " + windowId);
-            recordReload(DebugLevel.WARN, result);
-            return result;
-        }
-
         ReloadWindowResult result = ReloadWindowResult.success(windowId, this.stateStore.loadedWindowCount(), 0, loadResult.errors(), "창 리로드 완료: " + windowId);
         recordReload(DebugLevel.DEBUG, result);
         return result;
     }
 
     public CreateWindowResult createWindow(ServerPlayer player, String windowId, PositionMode positionMode, Vec3 overrideAnchor) {
-        return this.lifecycleCoordinator.createWindow(player, windowId, positionMode, overrideAnchor);
+        CreateWindowResult result = this.lifecycleCoordinator.createWindow(player, windowId, positionMode, overrideAnchor);
+        if (result.success()) {
+            configureWindowEffects(this.stateStore.findActiveWindow(player.getUUID(), windowId));
+        }
+        return result;
     }
 
     public CreateWindowResult createWindow(ServerPlayer player,
@@ -125,7 +133,11 @@ public final class WindowManager implements WindowActionExecutor {
                                            Vec3 overrideAnchor,
                                            float fixedYaw,
                                            float fixedPitch) {
-        return this.lifecycleCoordinator.createWindow(player, windowId, positionMode, overrideAnchor, fixedYaw, fixedPitch);
+        CreateWindowResult result = this.lifecycleCoordinator.createWindow(player, windowId, positionMode, overrideAnchor, fixedYaw, fixedPitch);
+        if (result.success()) {
+            configureWindowEffects(this.stateStore.findActiveWindow(player.getUUID(), windowId));
+        }
+        return result;
     }
 
     public CreateWindowResult createGroup(ServerPlayer player,
@@ -134,15 +146,29 @@ public final class WindowManager implements WindowActionExecutor {
                                           Vec3 baseAnchor,
                                           float baseYaw,
                                           float basePitch) {
-        return this.lifecycleCoordinator.createGroup(player, groupId, positionMode, baseAnchor, baseYaw, basePitch);
+        CreateWindowResult result = this.lifecycleCoordinator.createGroup(player, groupId, positionMode, baseAnchor, baseYaw, basePitch);
+        if (result.success()) {
+            WindowGroupInstance group = this.stateStore.findActiveGroup(player.getUUID(), groupId);
+            configureWindowEffects(group == null ? null : group.currentWindow());
+        }
+        return result;
     }
 
     public CreateWindowResult rebuildWindow(UUID owner, String windowId) {
-        return this.lifecycleCoordinator.rebuildWindow(owner, windowId);
+        CreateWindowResult result = this.lifecycleCoordinator.rebuildWindow(owner, windowId);
+        if (result.success()) {
+            configureWindowEffects(this.stateStore.findActiveWindow(owner, windowId));
+        }
+        return result;
     }
 
     public CreateWindowResult rebuildGroup(UUID owner, String groupId) {
-        return this.lifecycleCoordinator.rebuildGroup(owner, groupId);
+        CreateWindowResult result = this.lifecycleCoordinator.rebuildGroup(owner, groupId);
+        if (result.success()) {
+            WindowGroupInstance group = this.stateStore.findActiveGroup(owner, groupId);
+            configureWindowEffects(group == null ? null : group.currentWindow());
+        }
+        return result;
     }
 
     public void tick() {
@@ -161,11 +187,7 @@ public final class WindowManager implements WindowActionExecutor {
                     continue;
                 }
                 if (!player.level().dimension().equals(instance.worldKey())) {
-                    if (instance.groupId() != null) {
-                        this.lifecycleCoordinator.removeGroupSilently(owner, instance.groupId());
-                    } else {
-                        this.lifecycleCoordinator.removeWindowSilently(owner, instance.windowId());
-                    }
+                    migrateOrRemoveAcrossDimension(player, instance);
                     continue;
                 }
 
@@ -180,6 +202,8 @@ public final class WindowManager implements WindowActionExecutor {
                     }
                     instance.updateTransform(currentState.anchor(), currentState.yaw(), currentState.pitch(), currentTick);
                 }
+
+                refreshDynamicText(instance, currentTick);
             }
 
             UiHitResult hovered = InteractiveDisplayItems.isPointer(player.getMainHandItem())
@@ -188,6 +212,8 @@ public final class WindowManager implements WindowActionExecutor {
             this.lifecycleCoordinator.updateHover(player, windows, hovered);
             this.lifecycleCoordinator.tickVirtualEntities(windows);
         }
+
+        VirtualWindowHolder.tickPendingDestroys(this.server);
     }
 
     public void handlePlayerJoin(ServerPlayer player) {
@@ -204,6 +230,10 @@ public final class WindowManager implements WindowActionExecutor {
 
     public void removeAll(UUID owner) {
         this.lifecycleCoordinator.removeAll(owner);
+    }
+
+    public void shutdown() {
+        VirtualWindowHolder.destroyAllPending(this.server);
     }
 
     public Set<String> loadedWindowIds() {
@@ -281,12 +311,20 @@ public final class WindowManager implements WindowActionExecutor {
 
     @Override
     public CreateWindowResult openWindow(UUID owner, WindowNavigationContext context, String windowId) {
-        return this.lifecycleCoordinator.openWindow(owner, context, windowId);
+        CreateWindowResult result = this.lifecycleCoordinator.openWindow(owner, context, windowId);
+        if (result.success()) {
+            configureWindowEffects(activeWindowForContext(owner, context, windowId));
+        }
+        return result;
     }
 
     @Override
     public CreateWindowResult switchMode(UUID owner, WindowNavigationContext context, PositionMode positionMode) {
-        return this.lifecycleCoordinator.switchMode(owner, context, positionMode);
+        CreateWindowResult result = this.lifecycleCoordinator.switchMode(owner, context, positionMode);
+        if (result.success()) {
+            configureWindowEffects(activeWindowForContext(owner, context, context.windowId()));
+        }
+        return result;
     }
 
     @Override
@@ -304,6 +342,63 @@ public final class WindowManager implements WindowActionExecutor {
         return this.lifecycleCoordinator.togglePlacementTracking(owner, context);
     }
 
+    private void migrateOrRemoveAcrossDimension(ServerPlayer player, WindowInstance instance) {
+        UUID owner = player.getUUID();
+        if (instance.positionMode() == PositionMode.FIXED) {
+            if (instance.groupId() != null) {
+                this.lifecycleCoordinator.removeGroupSilently(owner, instance.groupId());
+            } else {
+                this.lifecycleCoordinator.removeWindowSilently(owner, instance.windowId());
+            }
+            return;
+        }
+
+        CreateWindowResult result = instance.groupId() != null
+                ? rebuildGroup(owner, instance.groupId())
+                : rebuildWindow(owner, instance.windowId());
+        if (!result.success()) {
+            InteractiveDisplay.LOGGER.warn(
+                    "[{}] player-bound window dimension migration failed owner={} windowId={} groupId={} reasonCode={} message={}",
+                    InteractiveDisplay.MOD_ID,
+                    owner,
+                    instance.windowId(),
+                    instance.groupId(),
+                    result.reasonCode(),
+                    result.message()
+            );
+        }
+    }
+
+    private void refreshDynamicText(WindowInstance instance, long tick) {
+        for (WindowComponentRuntime runtime : instance.runtimes()) {
+            if (!(runtime.definition() instanceof TextComponentDefinition text) || !runtime.shouldRefreshText(tick, text.refreshInterval())) {
+                continue;
+            }
+            this.entityFactory.refreshText(this.server, instance.owner(), runtime, text);
+        }
+    }
+
+    private void configureWindowEffects(WindowInstance instance) {
+        if (instance == null) {
+            return;
+        }
+        WindowDefinition definition = this.stateStore.definition(instance.windowId());
+        if (definition == null) {
+            return;
+        }
+        instance.virtualHolder().setTransition(definition.transition());
+        instance.virtualHolder().playEnterTransition();
+    }
+
+    private WindowInstance activeWindowForContext(UUID owner, WindowNavigationContext context, String fallbackWindowId) {
+        if (context.groupId() != null) {
+            WindowGroupInstance group = this.stateStore.findActiveGroup(owner, context.groupId());
+            return group == null ? null : group.currentWindow();
+        }
+        WindowInstance exact = this.stateStore.findActiveWindow(owner, fallbackWindowId);
+        return exact != null ? exact : this.stateStore.findWindow(owner, fallbackWindowId);
+    }
+
     private void rebuildActiveWindows(Set<String> windowIds) {
         for (String windowId : windowIds) {
             rebuildActiveWindowDefinitions(windowId);
@@ -312,7 +407,7 @@ public final class WindowManager implements WindowActionExecutor {
 
     private void rebuildActiveWindowDefinitions(String windowId) {
         for (UUID owner : this.stateStore.ownersForActiveWindow(windowId)) {
-            CreateWindowResult rebuild = this.lifecycleCoordinator.rebuildWindow(owner, windowId);
+            CreateWindowResult rebuild = rebuildWindow(owner, windowId);
             if (!rebuild.success()) {
                 InteractiveDisplay.LOGGER.warn("[{}] rebuild failed owner={} windowId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, owner, windowId, rebuild.reasonCode(), rebuild.message());
             }
@@ -330,7 +425,7 @@ public final class WindowManager implements WindowActionExecutor {
             affected.addAll(this.stateStore.activeGroupsContainingWindow(changedWindowId));
         }
         for (ActiveGroupRef ref : affected) {
-            CreateWindowResult rebuild = this.lifecycleCoordinator.rebuildGroup(ref.owner(), ref.groupId());
+            CreateWindowResult rebuild = rebuildGroup(ref.owner(), ref.groupId());
             if (!rebuild.success()) {
                 InteractiveDisplay.LOGGER.warn("[{}] group rebuild failed owner={} groupId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, ref.owner(), ref.groupId(), rebuild.reasonCode(), rebuild.message());
             }
@@ -339,7 +434,7 @@ public final class WindowManager implements WindowActionExecutor {
 
     private void rebuildActiveGroupsContainingWindow(String windowId) {
         for (ActiveGroupRef ref : this.stateStore.activeGroupsContainingWindow(windowId)) {
-            CreateWindowResult rebuild = this.lifecycleCoordinator.rebuildGroup(ref.owner(), ref.groupId());
+            CreateWindowResult rebuild = rebuildGroup(ref.owner(), ref.groupId());
             if (!rebuild.success()) {
                 InteractiveDisplay.LOGGER.warn("[{}] group rebuild failed owner={} groupId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, ref.owner(), ref.groupId(), rebuild.reasonCode(), rebuild.message());
             }
