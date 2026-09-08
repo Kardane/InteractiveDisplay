@@ -17,7 +17,6 @@ import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
-import com.interactivedisplay.entity.DisplayEntityPool;
 import com.interactivedisplay.entity.EntitySpawnException;
 import com.interactivedisplay.item.InteractiveDisplayItems;
 import java.util.ArrayList;
@@ -45,7 +44,6 @@ final class WindowLifecycleCoordinator {
     private final DebugRecorder debugRecorder;
     private final CommandWhitelist commandWhitelist;
     private final CallbackRegistry callbackRegistry;
-    private final DisplayEntityPool displayEntityPool = new DisplayEntityPool();
     private final WindowPlacementController placementController;
 
     WindowLifecycleCoordinator(MinecraftServer server,
@@ -134,15 +132,34 @@ final class WindowLifecycleCoordinator {
     }
 
     CreateWindowResult rebuildWindow(UUID owner, String windowId) {
-        WindowInstance instance = this.stateStore.findActiveWindow(owner, windowId);
-        if (instance == null) {
+        WindowInstance current = this.stateStore.findActiveWindow(owner, windowId);
+        if (current == null) {
             return CreateWindowResult.failure(DebugReason.NO_ACTIVE_WINDOW, owner, null, windowId, null, null, 0, 0, "재구성 대상 활성 창이 없음");
         }
         ServerPlayer player = player(owner);
         if (player == null) {
-            return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, instance.currentAnchor(), 0, 0, "플레이어를 찾을 수 없음");
+            return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, windowId, null, current.currentAnchor(), 0, 0, "플레이어를 찾을 수 없음");
         }
-        return createWindow(player, windowId, instance.positionMode(), instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
+
+        SpawnedWindow spawned = spawnWindowInstance(
+                player,
+                windowId,
+                current.positionMode(),
+                current.fixedAnchor(),
+                current.fixedYaw(),
+                current.fixedPitch(),
+                null,
+                null,
+                null
+        );
+        if (!spawned.result().success()) {
+            return spawned.result();
+        }
+
+        this.stateStore.putActiveWindow(owner, windowId, spawned.instance());
+        releaseWindowInstance(current, owner);
+        this.placementController.stopIfTracking(owner, windowId, null);
+        return spawned.result();
     }
 
     CreateWindowResult rebuildGroup(UUID owner, String groupId) {
@@ -155,14 +172,6 @@ final class WindowLifecycleCoordinator {
             return CreateWindowResult.failure(DebugReason.ACTION_EXECUTION_FAILED, owner, null, instance.currentWindowId(), null, null, 0, 0, "플레이어를 찾을 수 없음");
         }
         return openGroupWindow(owner, groupId, instance.currentMode(), instance.currentWindowId(), instance.baseAnchor(), instance.baseYaw(), instance.basePitch(), player);
-    }
-
-    void expirePooledEntities(long currentTick) {
-        this.displayEntityPool.expire(currentTick, runtime -> this.entityFactory.destroyRuntime(this.server, runtime));
-    }
-
-    int pooledEntityCount() {
-        return this.displayEntityPool.size();
     }
 
     void handlePlayerJoin(ServerPlayer player) {
@@ -470,14 +479,19 @@ final class WindowLifecycleCoordinator {
                         transformState.yaw(),
                         transformState.pitch()
                 );
-                WindowComponentRuntime runtime = this.displayEntityPool.acquire(player.getUUID(), world.dimension(), signature, tick);
-                if (runtime != null) {
-                    runtime.redefine(component, layoutComponent.localPosition());
-                    this.entityFactory.reconfigureRuntime(this.server, world, player.getUUID(), runtime, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.players());
-                } else {
-                    runtime = this.entityFactory.spawnRuntime(this.server, world, player.getUUID(), signature, component, componentWorldPosition, positionMode, transformState.yaw(), transformState.pitch(), world.players());
-                    runtime.redefine(component, layoutComponent.localPosition());
-                }
+                WindowComponentRuntime runtime = this.entityFactory.spawnRuntime(
+                        this.server,
+                        world,
+                        player.getUUID(),
+                        signature,
+                        component,
+                        componentWorldPosition,
+                        positionMode,
+                        transformState.yaw(),
+                        transformState.pitch(),
+                        world.players()
+                );
+                runtime.redefine(component, layoutComponent.localPosition());
 
                 instance.addRuntime(runtime);
                 activatedRuntimes.add(runtime);
@@ -559,14 +573,8 @@ final class WindowLifecycleCoordinator {
     }
 
     private void releaseWindowInstance(WindowInstance instance, UUID owner) {
-        ServerLevel world = world(instance.worldKey());
-        if (world == null) {
-            return;
-        }
-        long tick = this.server == null ? 0L : this.server.getTickCount();
         for (WindowComponentRuntime runtime : instance.runtimes()) {
-            this.entityFactory.deactivateRuntime(this.server, world, runtime);
-            this.displayEntityPool.release(owner, instance.worldKey(), runtime, tick);
+            this.entityFactory.destroyRuntime(this.server, runtime);
         }
         this.entityFactory.destroyRoot(this.server, instance.worldKey(), instance.rootEntityId());
     }
