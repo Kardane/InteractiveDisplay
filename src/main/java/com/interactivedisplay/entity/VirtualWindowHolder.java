@@ -1,8 +1,10 @@
 package com.interactivedisplay.entity;
 
+import com.interactivedisplay.core.positioning.PositionMode;
 import eu.pb4.polymer.virtualentity.api.ElementHolder;
 import eu.pb4.polymer.virtualentity.api.VirtualEntityUtils;
 import eu.pb4.polymer.virtualentity.api.attachment.EntityAttachment;
+import eu.pb4.polymer.virtualentity.api.attachment.HolderAttachment;
 import eu.pb4.polymer.virtualentity.api.attachment.ManualAttachment;
 import eu.pb4.polymer.virtualentity.api.elements.GenericEntityElement;
 import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
@@ -15,28 +17,40 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 public final class VirtualWindowHolder {
-    private final OwnerOnlyElementHolder holder;
-    private final ServerPlayer owner;
-    private final boolean playerAttached;
+    private final OwnerOnlyElementHolder holder = new OwnerOnlyElementHolder();
+    private final ServerLevel world;
+    private HolderAttachment attachment;
+    private ServerPlayer owner;
+    private boolean playerAttached;
     private Vec3 anchor;
+    private Vec3 ownerPositionAtAnchor;
     private boolean watching;
 
-    public VirtualWindowHolder(ServerLevel world,
-                               Vec3 anchor,
-                               ServerPlayer owner,
-                               boolean playerAttached) {
+    public VirtualWindowHolder(ServerLevel world, Vec3 anchor) {
+        this.world = world;
         this.anchor = anchor;
-        this.owner = owner;
-        this.playerAttached = playerAttached;
-        this.holder = new OwnerOnlyElementHolder(owner == null ? null : owner.getUUID());
+    }
 
-        if (playerAttached) {
+    public void configure(PositionMode positionMode, ServerPlayer owner) {
+        boolean shouldAttachToPlayer = positionMode != PositionMode.FIXED;
+        if (this.attachment != null) {
+            if (this.playerAttached != shouldAttachToPlayer) {
+                throw new IllegalStateException("virtual holder attachment mode cannot change after configuration");
+            }
+            return;
+        }
+
+        this.owner = owner;
+        this.holder.setOwner(owner == null ? null : owner.getUUID());
+        this.playerAttached = shouldAttachToPlayer;
+        if (shouldAttachToPlayer) {
             if (owner == null) {
                 throw new IllegalArgumentException("player-attached virtual window requires an owner");
             }
-            new EntityAttachment(this.holder, owner, false);
+            this.ownerPositionAtAnchor = owner.position();
+            this.attachment = new EntityAttachment(this.holder, owner, false);
         } else {
-            new ManualAttachment(this.holder, world, () -> this.anchor);
+            this.attachment = new ManualAttachment(this.holder, this.world, () -> this.anchor);
         }
     }
 
@@ -74,10 +88,24 @@ public final class VirtualWindowHolder {
 
     public void setAnchor(Vec3 anchor) {
         this.anchor = anchor;
+        if (this.playerAttached && this.owner != null) {
+            this.ownerPositionAtAnchor = this.owner.position();
+        }
     }
 
     public Vec3 anchor() {
         return this.anchor;
+    }
+
+    /**
+     * Returns the server-side world anchor translated by the owner's movement since the last transform update.
+     * This keeps raycasts aligned with client-side passenger movement between server transform ticks.
+     */
+    public Vec3 worldAnchor() {
+        if (!this.playerAttached || this.owner == null || this.ownerPositionAtAnchor == null) {
+            return this.anchor;
+        }
+        return this.anchor.add(this.owner.position().subtract(this.ownerPositionAtAnchor));
     }
 
     /**
@@ -149,9 +177,9 @@ public final class VirtualWindowHolder {
     }
 
     private static final class OwnerOnlyElementHolder extends ElementHolder {
-        private final UUID owner;
+        private UUID owner;
 
-        private OwnerOnlyElementHolder(UUID owner) {
+        private void setOwner(UUID owner) {
             this.owner = owner;
         }
 
