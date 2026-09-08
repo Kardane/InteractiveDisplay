@@ -15,14 +15,6 @@ repositories {
         name = 'Nucleoid'
         url = 'https://maven.nucleoid.xyz'
     }
-    maven {
-        name = 'Polymer'
-        url = 'https://maven.nucleoid.xyz'
-    }
-    maven {
-        name = 'OrionMaven'
-        url = 'https://raw.githubusercontent.com/OrionCraftMC/OrionMaven/main/'
-    }
     mavenCentral()
 }
 
@@ -49,7 +41,6 @@ dependencies {
     modImplementation include("eu.pb4:placeholder-api:2.7.2+1.21.8")
     modImplementation include("me.lucko:fabric-permissions-api:${project.fabric_permissions_api_version}")
 
-    implementation "io.github.orioncraftmc:meditate-layout:1.0.2"
     implementation "org.joml:joml:1.10.8"
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.5"
 
