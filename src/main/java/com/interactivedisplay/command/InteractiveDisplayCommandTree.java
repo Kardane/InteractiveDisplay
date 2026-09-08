@@ -167,15 +167,25 @@ public final class InteractiveDisplayCommandTree {
 
     public interface Handlers<S> {
         int create(CommandContext<S> context, String windowId, PositionMode positionMode, Vec3 position, Rotation rotation) throws CommandSyntaxException;
+
         int remove(CommandContext<S> context, String windowId) throws CommandSyntaxException;
+
         int reload(CommandContext<S> context, String windowId) throws CommandSyntaxException;
+
         int list(CommandContext<S> context) throws CommandSyntaxException;
+
         int groupCreate(CommandContext<S> context, String groupId, PositionMode positionMode, Vec3 position, Rotation rotation) throws CommandSyntaxException;
+
         int groupRemove(CommandContext<S> context, String groupId) throws CommandSyntaxException;
+
         int groupList(CommandContext<S> context) throws CommandSyntaxException;
+
         int debugStatus(CommandContext<S> context) throws CommandSyntaxException;
+
         int debugRecent(CommandContext<S> context) throws CommandSyntaxException;
+
         int debugWindow(CommandContext<S> context, String windowId) throws CommandSyntaxException;
+
         int debugBindings(CommandContext<S> context) throws CommandSyntaxException;
     }
 
@@ -192,9 +202,20 @@ public final class InteractiveDisplayCommandTree {
             this(AngleInput.absolute(yaw), AngleInput.absolute(pitch));
         }
 
-        public AngleInput yawInput() { return this.yawInput; }
-        public AngleInput pitchInput() { return this.pitchInput; }
-        public float yaw() { return this.yawInput.value(); }
-        public float pitch() { return this.pitchInput.value(); }
+        public AngleInput yawInput() {
+            return this.yawInput;
+        }
+
+        public AngleInput pitchInput() {
+            return this.pitchInput;
+        }
+
+        public float yaw() {
+            return this.yawInput.value();
+        }
+
+        public float pitch() {
+            return this.pitchInput.value();
+        }
     }
 }
