@@ -11,6 +11,20 @@ public record WindowDefinition(
         ComponentSize size,
         WindowOffset offset,
         LayoutMode layoutMode,
-        List<ComponentDefinition> components
+        List<ComponentDefinition> components,
+        WindowTransition transition
 ) {
+    public WindowDefinition(
+            String id,
+            ComponentSize size,
+            WindowOffset offset,
+            LayoutMode layoutMode,
+            List<ComponentDefinition> components
+    ) {
+        this(id, size, offset, layoutMode, components, WindowTransition.none());
+    }
+
+    public WindowDefinition {
+        transition = transition == null ? WindowTransition.none() : transition;
+    }
 }
