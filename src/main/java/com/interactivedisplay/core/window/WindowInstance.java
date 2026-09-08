@@ -4,7 +4,9 @@ import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.entity.VirtualWindowHolder;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -177,15 +179,23 @@ public final class WindowInstance {
         return this.components.get(componentId);
     }
 
+    public Set<Integer> entityIds() {
+        Set<Integer> ids = new LinkedHashSet<>();
+        for (WindowComponentRuntime runtime : this.components.values()) {
+            if (runtime.displayElement() != null) {
+                for (int entityId : runtime.displayElement().getEntityIds()) {
+                    ids.add(entityId);
+                }
+            }
+        }
+        return ids;
+    }
+
     public int entityCount() {
         if (this.virtualHolder != null) {
             return this.virtualHolder.entityCount();
         }
-        int count = 0;
-        for (WindowComponentRuntime runtime : this.components.values()) {
-            count += runtime.entityCount();
-        }
-        return count;
+        return entityIds().size();
     }
 
     public int bindingCount() {
