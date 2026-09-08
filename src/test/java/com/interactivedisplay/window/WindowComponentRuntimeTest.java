@@ -1,5 +1,6 @@
 package com.interactivedisplay.window;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
@@ -8,7 +9,7 @@ import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
-import java.util.UUID;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,14 @@ class WindowComponentRuntimeTest {
         assertTrue(longRuntime.hitHalfHeight() > shortRuntime.hitHalfHeight());
     }
 
+    @Test
+    void virtualDisplayRuntimeShouldExposePacketEntityCount() {
+        WindowComponentRuntime runtime = runtime("닫기", 1.0f, 0.35f);
+
+        assertEquals(1, runtime.entityCount());
+        assertTrue(runtime.displayElement() instanceof TextDisplayElement);
+    }
+
     private static WindowComponentRuntime runtime(String label, float width, float height) {
         ButtonComponentDefinition button = new ButtonComponentDefinition(
                 "close",
@@ -46,6 +55,6 @@ class WindowComponentRuntimeTest {
                 ClickType.RIGHT,
                 ComponentAction.closeWindow()
         );
-        return new WindowComponentRuntime(Level.OVERWORLD, "sig", button, new Vector3f(), UUID.randomUUID(), null);
+        return new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), new TextDisplayElement(), null);
     }
 }
