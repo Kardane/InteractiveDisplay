@@ -18,6 +18,7 @@ import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
 import com.interactivedisplay.entity.EntitySpawnException;
+import com.interactivedisplay.entity.VirtualWindowHolder;
 import com.interactivedisplay.item.InteractiveDisplayItems;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -176,7 +177,8 @@ final class WindowLifecycleCoordinator {
 
     void handlePlayerJoin(ServerPlayer player) {
         for (WindowInstance instance : this.stateStore.ownerWindows(player.getUUID())) {
-            syncCanvases(instance, List.of(player));
+            instance.virtualHolder().startWatching(player);
+            syncCanvases(instance, player);
         }
     }
 
@@ -366,7 +368,8 @@ final class WindowLifecycleCoordinator {
     void moveWindow(WindowInstance instance,
                     WindowPositionTracker.WindowTransformState nextState,
                     ServerLevel world) {
-        this.entityFactory.moveRoot(world, instance.rootEntityId(), nextState.anchor(), instance.positionMode(), nextState.yaw(), nextState.pitch());
+        VirtualWindowHolder holder = instance.virtualHolder();
+        holder.setAnchor(nextState.anchor());
         for (WindowComponentRuntime runtime : instance.runtimes()) {
             Vec3 componentWorldPosition = this.transformer.toWorld(
                     nextState.anchor(),
@@ -375,15 +378,21 @@ final class WindowLifecycleCoordinator {
                     nextState.yaw(),
                     nextState.pitch()
             );
-            this.entityFactory.moveRuntime(world, runtime, componentWorldPosition, instance.positionMode(), nextState.yaw(), nextState.pitch());
+            this.entityFactory.moveRuntime(runtime, holder, componentWorldPosition, instance.positionMode(), nextState.yaw(), nextState.pitch());
         }
     }
 
-    void syncCanvases(WindowInstance instance, Collection<ServerPlayer> viewers) {
+    void syncCanvases(WindowInstance instance, ServerPlayer viewer) {
         for (WindowComponentRuntime runtime : instance.runtimes()) {
             if (runtime.mapCanvas() != null) {
-                this.entityFactory.syncMapCanvas(runtime.mapCanvas(), viewers);
+                this.entityFactory.syncMapCanvas(runtime.mapCanvas(), viewer);
             }
+        }
+    }
+
+    void tickVirtualEntities(List<WindowInstance> windows) {
+        for (WindowInstance instance : windows) {
+            instance.virtualHolder().tick();
         }
     }
 
@@ -403,31 +412,27 @@ final class WindowLifecycleCoordinator {
             player.level().sendParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
         }
         for (WindowInstance instance : windows) {
-            ServerLevel world = world(instance.worldKey());
-            if (world == null) {
-                continue;
-            }
             for (WindowComponentRuntime runtime : instance.runtimes()) {
                 if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
                     continue;
                 }
                 boolean shouldHover = runtime == hoveredRuntime && instance.worldKey().equals(player.level().dimension());
                 if (runtime.hovered() != shouldHover) {
-                    this.entityFactory.setButtonHover(this.server, world, player.getUUID(), runtime, button, shouldHover, instance.positionMode());
+                    this.entityFactory.setButtonHover(this.server, player.getUUID(), runtime, button, shouldHover);
                 }
             }
         }
     }
 
     private SpawnedWindow spawnWindowInstance(ServerPlayer player,
-                                              String windowId,
-                                              PositionMode positionMode,
-                                              Vec3 overrideAnchor,
-                                              float fixedYaw,
-                                              float fixedPitch,
-                                              WindowOffset offsetOverride,
-                                              String groupId,
-                                              String groupWindowId) {
+                                               String windowId,
+                                               PositionMode positionMode,
+                                               Vec3 overrideAnchor,
+                                               float fixedYaw,
+                                               float fixedPitch,
+                                               WindowOffset offsetOverride,
+                                               String groupId,
+                                               String groupWindowId) {
         WindowDefinition definition = this.stateStore.definition(windowId);
         String playerName = player.getGameProfile().getName();
         if (definition == null) {
@@ -441,7 +446,7 @@ final class WindowLifecycleCoordinator {
         List<LayoutComponent> layout = this.layoutEngine.calculate(definition);
         ServerLevel world = player.level();
         long tick = this.server == null ? 0L : this.server.getTickCount();
-        UUID rootEntityId = this.entityFactory.spawnRoot(this.server, world, transformState.anchor(), positionMode, transformState.yaw(), transformState.pitch());
+        VirtualWindowHolder holder = this.entityFactory.createHolder(world, transformState.anchor());
         WindowInstance instance = new WindowInstance(
                 player.getUUID(),
                 windowId,
@@ -452,7 +457,7 @@ final class WindowLifecycleCoordinator {
                 positionMode == PositionMode.FIXED ? transformState.anchor() : overrideAnchor,
                 fixedYaw,
                 positionMode == PositionMode.PLAYER_FIXED || positionMode == PositionMode.PLAYER_VIEW ? fixedPitch : 0.0f,
-                rootEntityId,
+                holder,
                 transformState.anchor(),
                 transformState.yaw(),
                 transformState.pitch(),
@@ -462,7 +467,7 @@ final class WindowLifecycleCoordinator {
                 tick
         );
 
-        int spawnedEntityCount = 1;
+        int spawnedEntityCount = 0;
         List<WindowComponentRuntime> activatedRuntimes = new ArrayList<>();
         try {
             for (LayoutComponent layoutComponent : layout) {
@@ -471,7 +476,6 @@ final class WindowLifecycleCoordinator {
                     continue;
                 }
 
-                String signature = buildSignature(component);
                 Vec3 componentWorldPosition = this.transformer.toWorld(
                         transformState.anchor(),
                         layoutComponent.localPosition(),
@@ -483,32 +487,34 @@ final class WindowLifecycleCoordinator {
                         this.server,
                         world,
                         player.getUUID(),
-                        signature,
                         component,
                         componentWorldPosition,
                         positionMode,
                         transformState.yaw(),
                         transformState.pitch(),
-                        world.players()
+                        player,
+                        holder
                 );
                 runtime.redefine(component, layoutComponent.localPosition());
 
                 instance.addRuntime(runtime);
                 activatedRuntimes.add(runtime);
-                spawnedEntityCount += runtime.entityIds().size();
+                spawnedEntityCount += runtime.entityCount();
             }
+            holder.startWatching(player);
+            holder.tick();
             CreateWindowResult result = CreateWindowResult.success(player.getUUID(), playerName, windowId, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 완료");
             recordCreate(DebugLevel.DEBUG, positionMode, result);
             return new SpawnedWindow(instance, result);
         } catch (EntitySpawnException exception) {
             cleanupFailedCreate(activatedRuntimes);
-            this.entityFactory.destroyRoot(this.server, world.dimension(), rootEntityId);
+            holder.destroy();
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUUID(), playerName, windowId, componentIdFrom(exception.getMessage()), transformState.anchor(), layout.size(), spawnedEntityCount, exception.getMessage());
             recordCreate(DebugLevel.WARN, positionMode, result);
             return new SpawnedWindow(null, result);
         } catch (RuntimeException exception) {
             cleanupFailedCreate(activatedRuntimes);
-            this.entityFactory.destroyRoot(this.server, world.dimension(), rootEntityId);
+            holder.destroy();
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.ENTITY_SPAWN_FAILED, player.getUUID(), playerName, windowId, null, transformState.anchor(), layout.size(), spawnedEntityCount, "창 생성 중 예외 발생: " + exception.getMessage());
             this.debugRecorder.record(DebugEventType.WINDOW_CREATE, DebugLevel.ERROR, player.getUUID(), playerName, windowId, null, null, DebugReason.ENTITY_SPAWN_FAILED, result.message(), exception);
             InteractiveDisplay.LOGGER.error("[{}] window create error player={} windowId={} mode={} anchor={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, playerName, windowId, positionMode, transformState.anchor(), result.reasonCode(), result.message(), exception);
@@ -534,10 +540,11 @@ final class WindowLifecycleCoordinator {
             return result;
         }
 
+        int removedEntityCount = instance.entityCount();
         releaseWindowInstance(instance, owner);
         this.placementController.stopIfTracking(owner, windowId, null);
 
-        RemoveWindowResult result = RemoveWindowResult.success(owner, windowId, instance.entityIds().size(), "창 제거 완료");
+        RemoveWindowResult result = RemoveWindowResult.success(owner, windowId, removedEntityCount, "창 제거 완료");
         if (recordDebug) {
             recordRemove(DebugLevel.DEBUG, result);
         }
@@ -562,10 +569,11 @@ final class WindowLifecycleCoordinator {
             return result;
         }
 
+        int removedEntityCount = groupInstance.currentWindow().entityCount();
         releaseWindowInstance(groupInstance.currentWindow(), owner);
         this.placementController.stopIfTracking(owner, groupInstance.currentWindowId(), groupId);
 
-        RemoveWindowResult result = RemoveWindowResult.success(owner, groupId, groupInstance.currentWindow().entityIds().size(), "그룹 제거 완료");
+        RemoveWindowResult result = RemoveWindowResult.success(owner, groupId, removedEntityCount, "그룹 제거 완료");
         if (recordDebug) {
             recordRemove(DebugLevel.DEBUG, result);
         }
@@ -574,9 +582,9 @@ final class WindowLifecycleCoordinator {
 
     private void releaseWindowInstance(WindowInstance instance, UUID owner) {
         for (WindowComponentRuntime runtime : instance.runtimes()) {
-            this.entityFactory.destroyRuntime(this.server, runtime);
+            this.entityFactory.destroyRuntime(runtime);
         }
-        this.entityFactory.destroyRoot(this.server, instance.worldKey(), instance.rootEntityId());
+        instance.virtualHolder().destroy();
     }
 
     private SpawnedWindow spawnGroupWindow(ServerPlayer player,
@@ -661,22 +669,18 @@ final class WindowLifecycleCoordinator {
 
     private void cleanupFailedCreate(List<WindowComponentRuntime> runtimes) {
         for (WindowComponentRuntime runtime : runtimes) {
-            this.entityFactory.destroyRuntime(this.server, runtime);
+            this.entityFactory.destroyRuntime(runtime);
         }
     }
 
     private void clearHover(Collection<WindowInstance> windows) {
         for (WindowInstance instance : windows) {
-            ServerLevel world = world(instance.worldKey());
-            if (world == null) {
-                continue;
-            }
             for (WindowComponentRuntime runtime : instance.runtimes()) {
                 if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
                     continue;
                 }
                 if (runtime.hovered()) {
-                    this.entityFactory.setButtonHover(this.server, world, instance.owner(), runtime, button, false, instance.positionMode());
+                    this.entityFactory.setButtonHover(this.server, instance.owner(), runtime, button, false);
                 }
             }
         }
@@ -712,15 +716,6 @@ final class WindowLifecycleCoordinator {
             return;
         }
         InteractiveDisplay.LOGGER.warn("[{}] window remove failed owner={} windowId={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, result.owner(), result.windowId(), result.reasonCode(), result.message());
-    }
-
-    private static String buildSignature(ComponentDefinition component) {
-        return switch (component.type()) {
-            case TEXT -> "text:" + component.id();
-            case BUTTON -> "button:" + component.id();
-            case IMAGE -> "image:" + component.id();
-            case PANEL -> "panel:" + component.id();
-        };
     }
 
     private static String componentIdFrom(String message) {
