@@ -23,11 +23,20 @@ final class UiHitResolver {
                 player.getUUID(),
                 player.level().dimension(),
                 player.getEyePosition(),
-                player.getViewVector(1.0f).normalize()
+                player.getViewVector(1.0f).normalize(),
+                true
         );
     }
 
     UiHitResult findUiHit(UUID owner, ResourceKey<Level> worldKey, Vec3 start, Vec3 direction) {
+        return findUiHit(owner, worldKey, start, direction, false);
+    }
+
+    private UiHitResult findUiHit(UUID owner,
+                                  ResourceKey<Level> worldKey,
+                                  Vec3 start,
+                                  Vec3 direction,
+                                  boolean useLivePassengerAnchor) {
         List<WindowContext> windows = this.stateStore.ownerWindowContexts(owner);
         if (windows.isEmpty()) {
             return null;
@@ -41,12 +50,15 @@ final class UiHitResolver {
             if (!worldKey.equals(instance.worldKey())) {
                 continue;
             }
+            Vec3 anchor = useLivePassengerAnchor && instance.virtualHolder() != null
+                    ? instance.virtualHolder().worldAnchor()
+                    : instance.currentAnchor();
             CoordinateTransformer.WindowBasis basis = this.transformer.basis(instance.positionMode(), instance.currentYaw(), instance.currentPitch());
             for (WindowComponentRuntime runtime : instance.runtimes()) {
                 if (!runtime.interactive()) {
                     continue;
                 }
-                Vec3 center = this.transformer.toWorld(instance.currentAnchor(), runtime.localPosition(), instance.positionMode(), instance.currentYaw(), instance.currentPitch());
+                Vec3 center = this.transformer.toWorld(anchor, runtime.localPosition(), instance.positionMode(), instance.currentYaw(), instance.currentPitch());
                 double distance = this.transformer.raycastQuadDistance(
                         start,
                         normalizedDirection,
