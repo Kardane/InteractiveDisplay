@@ -8,7 +8,11 @@ import eu.pb4.polymer.virtualentity.api.attachment.HolderAttachment;
 import eu.pb4.polymer.virtualentity.api.attachment.ManualAttachment;
 import eu.pb4.polymer.virtualentity.api.elements.GenericEntityElement;
 import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,6 +21,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 public final class VirtualWindowHolder {
+    // InteractiveDisplay runtime state is confined to the Minecraft server thread, so this registry does not need
+    // concurrent collections. It exists only to build one complete ride packet when an owner has multiple windows.
+    private static final Map<UUID, Set<VirtualWindowHolder>> ATTACHED_BY_OWNER = new HashMap<>();
+
     private final OwnerOnlyElementHolder holder = new OwnerOnlyElementHolder();
     private final ServerLevel world;
     private HolderAttachment attachment;
@@ -71,7 +79,8 @@ public final class VirtualWindowHolder {
         this.holder.startWatching(player);
         this.watching = true;
         if (this.playerAttached) {
-            sendRidePacket(true);
+            registerAttached();
+            sendOwnerRidePacket();
         }
     }
 
@@ -79,11 +88,12 @@ public final class VirtualWindowHolder {
         if (!isOwner(player) || !this.watching) {
             return;
         }
-        if (this.playerAttached) {
-            sendRidePacket(false);
-        }
         this.holder.stopWatching(player);
         this.watching = false;
+        if (this.playerAttached) {
+            unregisterAttached();
+            sendOwnerRidePacket();
+        }
     }
 
     public void setAnchor(Vec3 anchor) {
@@ -146,10 +156,15 @@ public final class VirtualWindowHolder {
     }
 
     public void destroy() {
-        if (this.playerAttached && this.watching) {
-            sendRidePacket(false);
+        boolean updateRidePacket = this.playerAttached && this.watching;
+        if (updateRidePacket) {
+            unregisterAttached();
+            this.watching = false;
         }
         this.holder.destroy();
+        if (updateRidePacket) {
+            sendOwnerRidePacket();
+        }
         this.watching = false;
     }
 
@@ -157,20 +172,55 @@ public final class VirtualWindowHolder {
         return player != null && this.owner != null && player.getUUID().equals(this.owner.getUUID());
     }
 
-    private void sendRidePacket(boolean includeVirtualPassengers) {
+    private void registerAttached() {
+        ATTACHED_BY_OWNER
+                .computeIfAbsent(this.owner.getUUID(), ignored -> new LinkedHashSet<>())
+                .add(this);
+    }
+
+    private void unregisterAttached() {
+        if (this.owner == null) {
+            return;
+        }
+        Set<VirtualWindowHolder> holders = ATTACHED_BY_OWNER.get(this.owner.getUUID());
+        if (holders == null) {
+            return;
+        }
+        holders.remove(this);
+        if (holders.isEmpty()) {
+            ATTACHED_BY_OWNER.remove(this.owner.getUUID());
+        }
+    }
+
+    private void sendOwnerRidePacket() {
         if (this.owner == null || this.owner.connection == null) {
             return;
         }
+
         List<Entity> realPassengers = this.owner.getPassengers();
-        int virtualCount = includeVirtualPassengers ? this.holder.getAttachedPassengerEntityIds().size() : 0;
+        Set<VirtualWindowHolder> attached = ATTACHED_BY_OWNER.get(this.owner.getUUID());
+        int virtualCount = 0;
+        if (attached != null) {
+            for (VirtualWindowHolder windowHolder : attached) {
+                if (windowHolder.watching) {
+                    virtualCount += windowHolder.holder.getAttachedPassengerEntityIds().size();
+                }
+            }
+        }
+
         int[] passengerIds = new int[realPassengers.size() + virtualCount];
         int index = 0;
         for (Entity passenger : realPassengers) {
             passengerIds[index++] = passenger.getId();
         }
-        if (includeVirtualPassengers) {
-            for (int virtualIndex = 0; virtualIndex < virtualCount; virtualIndex++) {
-                passengerIds[index++] = this.holder.getAttachedPassengerEntityIds().getInt(virtualIndex);
+        if (attached != null) {
+            for (VirtualWindowHolder windowHolder : attached) {
+                if (!windowHolder.watching) {
+                    continue;
+                }
+                for (int virtualIndex = 0; virtualIndex < windowHolder.holder.getAttachedPassengerEntityIds().size(); virtualIndex++) {
+                    passengerIds[index++] = windowHolder.holder.getAttachedPassengerEntityIds().getInt(virtualIndex);
+                }
             }
         }
         this.owner.connection.send(VirtualEntityUtils.createRidePacket(this.owner.getId(), passengerIds));
