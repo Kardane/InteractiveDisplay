@@ -20,7 +20,6 @@ import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.core.window.WindowNavigationContext;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
-import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.util.UUID;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -135,21 +134,8 @@ class UiHitClickHandlerTest {
     }
 
     private static UiHitResult buttonHit(ComponentAction action, String componentId) {
-        ButtonComponentDefinition button = new ButtonComponentDefinition(
-                componentId,
-                new ComponentPosition(0.0f, 0.0f, 0.0f),
-                new ComponentSize(1.0f, 0.3f),
-                true,
-                1.0f,
-                "버튼",
-                1.0f,
-                "#AA2222",
-                "#44FFFFFF",
-                null,
-                com.interactivedisplay.core.component.ClickType.RIGHT,
-                action
-        );
-        WindowComponentRuntime runtime = new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), new TextDisplayElement(), null);
+        ButtonComponentDefinition button = new ButtonComponentDefinition(componentId, new ComponentPosition(0.0f, 0.0f, 0.0f), new ComponentSize(1.0f, 0.3f), true, 1.0f, "버튼", 1.0f, "#AA2222", "#44FFFFFF", null, com.interactivedisplay.core.component.ClickType.RIGHT, action);
+        WindowComponentRuntime runtime = new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), null, null);
         return new UiHitResult("main", new WindowNavigationContext("main", null, PositionMode.FIXED, Vec3.ZERO, 0.0f, 0.0f), componentId, runtime, action, Vec3.ZERO, 1.0D);
     }
 
