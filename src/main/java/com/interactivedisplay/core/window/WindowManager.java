@@ -147,7 +147,6 @@ public final class WindowManager implements WindowActionExecutor {
 
     public void tick() {
         long currentTick = this.server.getTickCount();
-        this.lifecycleCoordinator.expirePooledEntities(currentTick);
 
         for (UUID owner : this.stateStore.owners()) {
             ServerPlayer player = this.server.getPlayerList().getPlayer(owner);
@@ -260,7 +259,7 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public int pooledEntityCount() {
-        return this.lifecycleCoordinator.pooledEntityCount();
+        return 0;
     }
 
     public int mapCacheEntryCount() {
