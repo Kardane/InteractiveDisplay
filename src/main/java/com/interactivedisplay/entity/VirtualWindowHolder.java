@@ -33,12 +33,16 @@ public final class VirtualWindowHolder {
     private final Map<DisplayElement, TransformSnapshot> baseTransforms = new IdentityHashMap<>();
     private HolderAttachment attachment;
     private ServerPlayer owner;
+    private ServerPlayer pendingWatcher;
     private boolean playerAttached;
     private Vec3 anchor;
     private Vec3 ownerPositionAtAnchor;
     private boolean watching;
     private boolean destroyed;
     private boolean pendingDestroy;
+    private boolean transitionConfigured;
+    private boolean enterPrepared;
+    private boolean enterPlayed;
     private long destroyAtTick;
     private WindowTransition transition = WindowTransition.none();
 
@@ -82,23 +86,43 @@ public final class VirtualWindowHolder {
 
     public void setTransition(WindowTransition transition) {
         this.transition = transition == null ? WindowTransition.none() : transition;
+        this.transitionConfigured = true;
         this.baseTransforms.clear();
         for (VirtualElement element : this.holder.getElements()) {
             if (element instanceof DisplayElement display) {
                 this.baseTransforms.put(display, TransformSnapshot.capture(display));
             }
         }
+
+        if (this.pendingWatcher != null) {
+            ServerPlayer watcher = this.pendingWatcher;
+            this.pendingWatcher = null;
+            if (this.transition.hasEnter() && !this.baseTransforms.isEmpty()) {
+                for (Map.Entry<DisplayElement, TransformSnapshot> entry : this.baseTransforms.entrySet()) {
+                    applyTransition(entry.getKey(), entry.getValue(), this.transition.enter(), true, this.transition.duration());
+                }
+                this.enterPrepared = true;
+            }
+            startWatchingNow(watcher);
+        }
     }
 
     public void playEnterTransition() {
-        if (this.destroyed || !this.transition.hasEnter() || this.baseTransforms.isEmpty()) {
+        if (this.destroyed || this.enterPlayed) {
+            return;
+        }
+        this.enterPlayed = true;
+        if (!this.transition.hasEnter() || this.baseTransforms.isEmpty()) {
             return;
         }
 
-        for (Map.Entry<DisplayElement, TransformSnapshot> entry : this.baseTransforms.entrySet()) {
-            applyTransition(entry.getKey(), entry.getValue(), this.transition.enter(), true, this.transition.duration());
+        if (!this.enterPrepared) {
+            for (Map.Entry<DisplayElement, TransformSnapshot> entry : this.baseTransforms.entrySet()) {
+                applyTransition(entry.getKey(), entry.getValue(), this.transition.enter(), true, this.transition.duration());
+            }
+            this.holder.tick();
         }
-        this.holder.tick();
+        this.enterPrepared = false;
 
         for (Map.Entry<DisplayElement, TransformSnapshot> entry : this.baseTransforms.entrySet()) {
             DisplayElement display = entry.getKey();
@@ -115,13 +139,21 @@ public final class VirtualWindowHolder {
         if (!isOwner(player) || this.destroyed) {
             return;
         }
-        this.holder.startWatching(player);
-        this.watching = true;
-        refreshOwnerPassengerRelation();
+        if (!this.transitionConfigured) {
+            this.pendingWatcher = player;
+            return;
+        }
+        startWatchingNow(player);
     }
 
     public void stopWatching(ServerPlayer player) {
-        if (!isOwner(player) || !this.watching) {
+        if (!isOwner(player)) {
+            return;
+        }
+        if (this.pendingWatcher == player) {
+            this.pendingWatcher = null;
+        }
+        if (!this.watching) {
             return;
         }
         this.holder.stopWatching(player);
@@ -226,10 +258,17 @@ public final class VirtualWindowHolder {
         }
     }
 
+    private void startWatchingNow(ServerPlayer player) {
+        this.holder.startWatching(player);
+        this.watching = true;
+        refreshOwnerPassengerRelation();
+    }
+
     private void destroyNow() {
         if (this.destroyed) {
             return;
         }
+        this.pendingWatcher = null;
         this.holder.destroy();
         this.watching = false;
         this.pendingDestroy = false;
