@@ -9,12 +9,7 @@ public final class WindowPositionTracker {
     private static final long UPDATE_INTERVAL_TICKS = 2L;
     private static final double APPLY_POSITION_EPSILON_SQUARED = 1.0E-6D;
     private static final float APPLY_ROTATION_EPSILON = 0.01f;
-
-    private static final float PLAYER_VIEW_YAW_DEADZONE = 1.5f;
-    private static final float PLAYER_VIEW_PITCH_DEADZONE = 1.0f;
-    private static final float PLAYER_VIEW_ROTATION_ALPHA = 0.30f;
     private static final float PLAYER_VIEW_ROTATION_APPLY_THRESHOLD = 0.35f;
-    private static final float PLAYER_VIEW_ROTATION_SNAP_THRESHOLD = 0.15f;
 
     private final CoordinateTransformer transformer;
 
@@ -61,17 +56,13 @@ public final class WindowPositionTracker {
     }
 
     public WindowTransformState applyDeadzone(WindowInstance instance, WindowTransformState rawState) {
-        return switch (instance.positionMode()) {
-            case FIXED, PLAYER_FIXED -> rawState;
-            case PLAYER_VIEW -> applyPlayerViewDeadzone(instance, rawState);
-        };
+        return rawState;
     }
 
     public WindowTransformState smooth(WindowInstance instance, WindowTransformState targetState) {
-        return switch (instance.positionMode()) {
-            case FIXED, PLAYER_FIXED -> targetState;
-            case PLAYER_VIEW -> smoothPlayerView(instance, targetState);
-        };
+        // Player-relative displays interpolate their transformation on the client. Keeping the server state exact
+        // prevents a passenger from visually lagging behind its owner while walking or sprinting.
+        return targetState;
     }
 
     public boolean shouldUpdate(WindowInstance instance, WindowTransformState nextState, long tick) {
@@ -90,52 +81,6 @@ public final class WindowPositionTracker {
         }
         return Math.abs(angleDelta(instance.currentYaw(), nextState.yaw())) >= PLAYER_VIEW_ROTATION_APPLY_THRESHOLD
                 || Math.abs(instance.currentPitch() - nextState.pitch()) >= PLAYER_VIEW_ROTATION_APPLY_THRESHOLD;
-    }
-
-    private WindowTransformState applyPlayerViewDeadzone(WindowInstance instance, WindowTransformState rawState) {
-        float targetYaw = Math.abs(angleDelta(instance.targetYaw(), rawState.yaw())) < PLAYER_VIEW_YAW_DEADZONE
-                ? instance.targetYaw()
-                : rawState.yaw();
-        float targetPitch = Math.abs(instance.targetPitch() - rawState.pitch()) < PLAYER_VIEW_PITCH_DEADZONE
-                ? instance.targetPitch()
-                : rawState.pitch();
-        Vec3 targetAnchor = anchorForPlayerView(instance, rawState.focusPoint(), rawState.anchor(), targetYaw, targetPitch);
-        return new WindowTransformState(targetAnchor, targetYaw, targetPitch, rawState.focusPoint());
-    }
-
-    private WindowTransformState smoothPlayerView(WindowInstance instance, WindowTransformState targetState) {
-        float yaw = smoothAngle(instance.currentYaw(), targetState.yaw(), PLAYER_VIEW_ROTATION_ALPHA, PLAYER_VIEW_ROTATION_SNAP_THRESHOLD);
-        float pitch = smoothLinear(instance.currentPitch(), targetState.pitch(), PLAYER_VIEW_ROTATION_ALPHA, PLAYER_VIEW_ROTATION_SNAP_THRESHOLD);
-        Vec3 anchor = anchorForPlayerView(instance, targetState.focusPoint(), targetState.anchor(), yaw, pitch);
-        return new WindowTransformState(anchor, yaw, pitch, targetState.focusPoint());
-    }
-
-    private Vec3 anchorForPlayerView(WindowInstance instance,
-                                     Vec3 focusPoint,
-                                     Vec3 fallbackAnchor,
-                                     float yaw,
-                                     float pitch) {
-        if (focusPoint == null) {
-            return fallbackAnchor;
-        }
-        Vec3 look = Vec3.directionFromRotation(pitch, yaw);
-        return this.transformer.toPlayerViewAnchor(focusPoint, look, instance.runtimeOffset());
-    }
-
-    private static float smoothAngle(float current, float target, float alpha, float snapThreshold) {
-        float delta = angleDelta(current, target);
-        if (Math.abs(delta) <= snapThreshold) {
-            return Mth.wrapDegrees(target);
-        }
-        return Mth.wrapDegrees(current + (delta * alpha));
-    }
-
-    private static float smoothLinear(float current, float target, float alpha, float snapThreshold) {
-        float delta = target - current;
-        if (Math.abs(delta) <= snapThreshold) {
-            return target;
-        }
-        return current + (delta * alpha);
     }
 
     private static float angleDelta(float current, float target) {
