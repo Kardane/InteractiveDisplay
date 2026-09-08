@@ -180,13 +180,13 @@ public final class WindowManager implements WindowActionExecutor {
                     }
                     instance.updateTransform(currentState.anchor(), currentState.yaw(), currentState.pitch(), currentTick);
                 }
-                this.lifecycleCoordinator.syncCanvases(instance, player.level().players());
             }
 
             UiHitResult hovered = InteractiveDisplayItems.isPointer(player.getMainHandItem())
                     ? this.uiHitResolver.findUiHit(player)
                     : null;
             this.lifecycleCoordinator.updateHover(player, windows, hovered);
+            this.lifecycleCoordinator.tickVirtualEntities(windows);
         }
     }
 
