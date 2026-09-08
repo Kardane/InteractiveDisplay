@@ -14,29 +14,28 @@ import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.interactivedisplay.mixin.BlockDisplayInvoker;
+import com.interactivedisplay.mixin.DisplayInvoker;
+import com.interactivedisplay.mixin.TextDisplayInvoker;
+import com.mojang.math.Transformation;
 import com.mojang.serialization.JsonOps;
-import eu.pb4.placeholders.api.PlaceholderContext;
-import eu.pb4.placeholders.api.Placeholders;
 import eu.pb4.mapcanvas.api.core.CanvasImage;
 import eu.pb4.mapcanvas.api.core.DrawableCanvas;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
+import eu.pb4.placeholders.api.PlaceholderContext;
+import eu.pb4.placeholders.api.Placeholders;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.function.BiFunction;
 import java.util.List;
 import java.util.Locale;
 import java.util.StringJoiner;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import javax.imageio.ImageIO;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.MutableComponent;
@@ -45,7 +44,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -54,11 +52,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 public final class DisplayEntityFactory {
     private static final int INTERPOLATION_DURATION = 3;
+    private static final int INTERPOLATION_DELAY = 0;
     private static final int TELEPORT_DURATION = 3;
     private static final float MIN_Z_SCALE = 0.001f;
 
@@ -87,21 +87,21 @@ public final class DisplayEntityFactory {
         try {
             if (component instanceof TextComponentDefinition text) {
                 UUID displayId = spawnText(server, world, owner, text, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
+                return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
             }
 
             if (component instanceof PanelComponentDefinition panel) {
-                UUID displayId = spawnPanel(server, world, panel, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
+                UUID displayId = spawnPanel(world, panel, position, positionMode, yaw, pitch);
+                return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
             }
 
             if (component instanceof ButtonComponentDefinition button) {
                 UUID displayId = spawnButton(server, world, owner, button, position, positionMode, yaw, pitch);
-                return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
+                return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
             }
 
             if (component instanceof ImageComponentDefinition image) {
-                return spawnImageRuntime(server, world, signature, image, position, positionMode, yaw, pitch, canvasViewers);
+                return spawnImageRuntime(world, signature, image, position, positionMode, yaw, pitch, canvasViewers);
             }
 
             throw new IllegalArgumentException("지원하지 않는 component type: " + component.type());
@@ -143,7 +143,7 @@ public final class DisplayEntityFactory {
         entity.setYRot(displayYaw(positionMode, yaw));
         entity.setXRot(displayPitch(positionMode, pitch));
         world.addFreshEntity(entity);
-        applyTextData(server, world, entity.getUUID(), Component.empty(), 1, 0, false, 0.0f, "fixed", 0.1f, "center", new org.joml.Vector3f());
+        applyTextData(entity, Component.empty(), 1, 0, false, 0.0f, Display.BillboardConstraints.FIXED, 0.1f, "center", new Vector3f());
         return entity.getUUID();
     }
 
@@ -280,8 +280,20 @@ public final class DisplayEntityFactory {
         if (runtime.displayEntityId() == null) {
             return;
         }
+        Entity entity = world.getEntity(runtime.displayEntityId());
+        if (!(entity instanceof Display.TextDisplay textDisplay)) {
+            return;
+        }
         int background = hovered ? parseArgb(button.hoverColor()) : parseArgb(button.backgroundColor());
-        applyTextData(server, world, runtime.displayEntityId(), renderButtonLabel(button.label(), ownerPlayer(server, owner)), buttonLineWidth(button), background, true, button.opacity(), billboard(positionMode), button.fontSize(), "center", new org.joml.Vector3f());
+        applyTextStyle(
+                textDisplay,
+                renderButtonLabel(button.label(), ownerPlayer(server, owner)),
+                buttonLineWidth(button),
+                background,
+                true,
+                button.opacity(),
+                "center"
+        );
         runtime.setHovered(hovered);
     }
 
@@ -309,9 +321,7 @@ public final class DisplayEntityFactory {
         entity.setXRot(displayPitch(positionMode, pitch));
         world.addFreshEntity(entity);
         applyTextData(
-                server,
-                world,
-                entity.getUUID(),
+                entity,
                 renderTextContent(component.content(), component.color(), ownerPlayer(server, owner)),
                 component.lineWidth(),
                 parseArgb(component.background()),
@@ -320,13 +330,12 @@ public final class DisplayEntityFactory {
                 billboard(positionMode),
                 component.fontSize(),
                 component.alignment(),
-                new org.joml.Vector3f()
+                new Vector3f()
         );
         return entity.getUUID();
     }
 
-    private UUID spawnPanel(MinecraftServer server,
-                            ServerLevel world,
+    private UUID spawnPanel(ServerLevel world,
                             PanelComponentDefinition component,
                             Vec3 position,
                             PositionMode positionMode,
@@ -340,9 +349,7 @@ public final class DisplayEntityFactory {
         world.addFreshEntity(entity);
         PanelRenderSpec spec = buildPanelRenderSpec(component);
         applyTextData(
-                server,
-                world,
-                entity.getUUID(),
+                entity,
                 spec.text(),
                 spec.lineWidth(),
                 parseArgb(component.backgroundColor()),
@@ -351,7 +358,7 @@ public final class DisplayEntityFactory {
                 billboard(positionMode),
                 spec.fontSize(),
                 "center",
-                new org.joml.Vector3f()
+                new Vector3f()
         );
         return entity.getUUID();
     }
@@ -371,9 +378,7 @@ public final class DisplayEntityFactory {
         entity.setXRot(displayPitch(positionMode, pitch));
         world.addFreshEntity(entity);
         applyTextData(
-                server,
-                world,
-                entity.getUUID(),
+                entity,
                 renderButtonLabel(component.label(), ownerPlayer(server, owner)),
                 buttonLineWidth(component),
                 parseArgb(component.backgroundColor()),
@@ -382,13 +387,12 @@ public final class DisplayEntityFactory {
                 billboard(positionMode),
                 component.fontSize(),
                 "center",
-                new org.joml.Vector3f()
+                new Vector3f()
         );
         return entity.getUUID();
     }
 
-    private WindowComponentRuntime spawnImageRuntime(MinecraftServer server,
-                                                     ServerLevel world,
+    private WindowComponentRuntime spawnImageRuntime(ServerLevel world,
                                                      String signature,
                                                      ImageComponentDefinition component,
                                                      Vec3 position,
@@ -397,24 +401,23 @@ public final class DisplayEntityFactory {
                                                      float pitch,
                                                      Collection<ServerPlayer> canvasViewers) throws IOException {
         if (component.imageType() == ImageType.ITEM) {
-            UUID displayId = spawnItemDisplay(server, world, buildItemStack(component.value()), component.scale(), position, positionMode, yaw, pitch);
-            return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
+            UUID displayId = spawnItemDisplay(world, buildItemStack(component.value()), component.scale(), position, positionMode, yaw, pitch);
+            return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
         }
         if (component.imageType() == ImageType.BLOCK) {
-            UUID displayId = spawnBlockDisplay(server, world, buildBlockState(component.value()), component.scale(), position, positionMode, yaw, pitch);
-            return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, null);
+            UUID displayId = spawnBlockDisplay(world, buildBlockState(component.value()), component.scale(), position, positionMode, yaw, pitch);
+            return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, null);
         }
 
         PlayerCanvas canvas = DrawableCanvas.create();
         BufferedImage image = ImageIO.read(component.source().resolvedPath().toFile());
         CanvasUtils.draw(canvas, 0, 0, 128, 128, CanvasImage.from(image));
         syncMapCanvas(canvas, canvasViewers);
-        UUID displayId = spawnItemDisplay(server, world, canvas.asStack(), component.scale(), position, positionMode, yaw, pitch);
-        return new WindowComponentRuntime(world.dimension(), signature, component, new org.joml.Vector3f(), displayId, canvas);
+        UUID displayId = spawnItemDisplay(world, canvas.asStack(), component.scale(), position, positionMode, yaw, pitch);
+        return new WindowComponentRuntime(world.dimension(), signature, component, new Vector3f(), displayId, canvas);
     }
 
-    private UUID spawnItemDisplay(MinecraftServer server,
-                                  ServerLevel world,
+    private UUID spawnItemDisplay(ServerLevel world,
                                   ItemStack stack,
                                   float scale,
                                   Vec3 position,
@@ -427,13 +430,12 @@ public final class DisplayEntityFactory {
         entity.setYRot(displayYaw(positionMode, yaw));
         entity.setXRot(displayPitch(positionMode, pitch));
         world.addFreshEntity(entity);
-        applyDisplayData(server, world, entity.getUUID(), billboard(positionMode), scale, new org.joml.Vector3f());
+        applyDisplayData(entity, billboard(positionMode), scale, new Vector3f());
         entity.getSlot(0).set(stack);
         return entity.getUUID();
     }
 
-    private UUID spawnBlockDisplay(MinecraftServer server,
-                                   ServerLevel world,
+    private UUID spawnBlockDisplay(ServerLevel world,
                                    BlockState state,
                                    float scale,
                                    Vec3 position,
@@ -446,121 +448,89 @@ public final class DisplayEntityFactory {
         entity.setYRot(displayYaw(positionMode, yaw));
         entity.setXRot(displayPitch(positionMode, pitch));
         world.addFreshEntity(entity);
-        CompoundTag data = new CompoundTag();
-        data.put("block_state", NbtUtils.writeBlockState(state));
-        applyEntityData(server, entity, merge(data, buildDisplayData(billboard(positionMode), scale, new org.joml.Vector3f())));
+        ((BlockDisplayInvoker) (Object) entity).interactivedisplay$setBlockState(state);
+        applyDisplayData(entity, billboard(positionMode), scale, new Vector3f());
         return entity.getUUID();
     }
 
-    private void applyTextData(MinecraftServer server,
-                               ServerLevel world,
-                               UUID entityId,
+    private void applyTextData(Display.TextDisplay entity,
                                Component text,
                                int lineWidth,
                                int background,
                                boolean shadow,
                                float opacity,
-                               String billboard,
+                               Display.BillboardConstraints billboard,
                                float scale,
                                String alignment,
-                               org.joml.Vector3f translation) {
-        applyTextData(server, world, entityId, text, lineWidth, background, shadow, opacity, billboard, uniformScale(scale), alignment, translation);
+                               Vector3f translation) {
+        applyDisplayData(entity, billboard, scale, translation);
+        applyTextStyle(entity, text, lineWidth, background, shadow, opacity, alignment);
     }
 
-    private void applyTextData(MinecraftServer server,
-                               ServerLevel world,
-                               UUID entityId,
-                               Component text,
-                               int lineWidth,
-                               int background,
-                               boolean shadow,
-                               float opacity,
-                               String billboard,
-                               org.joml.Vector3f scale,
-                               String alignment,
-                               org.joml.Vector3f translation) {
-        Entity entity = world.getEntity(entityId);
-        if (!(entity instanceof Display.TextDisplay textDisplayEntity)) {
-            return;
-        }
-        CompoundTag data = buildDisplayData(billboard, scale, translation);
-        data.put("text", ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, text).result().orElseThrow());
-        data.putInt("line_width", lineWidth);
-        data.putInt("background", background);
-        data.putBoolean("shadow", shadow);
-        data.putByte("text_opacity", (byte) Math.max(0, Math.min(255, Math.round(opacity * 255.0f))));
-        data.putString("alignment", normalizeAlignment(alignment));
-        applyEntityData(server, textDisplayEntity, data);
+    private void applyTextStyle(Display.TextDisplay entity,
+                                Component text,
+                                int lineWidth,
+                                int background,
+                                boolean shadow,
+                                float opacity,
+                                String alignment) {
+        TextDisplayInvoker invoker = (TextDisplayInvoker) (Object) entity;
+        invoker.interactivedisplay$setText(text);
+        invoker.interactivedisplay$setLineWidth(lineWidth);
+        invoker.interactivedisplay$setBackgroundColor(background);
+        invoker.interactivedisplay$setTextOpacity(toTextOpacity(opacity));
+        invoker.interactivedisplay$setFlags(buildTextFlags(shadow, alignment));
     }
 
-    private void applyDisplayData(MinecraftServer server,
-                                  ServerLevel world,
-                                  UUID entityId,
-                                  String billboard,
+    private void applyDisplayData(Display entity,
+                                  Display.BillboardConstraints billboard,
                                   float scale,
-                                  org.joml.Vector3f translation) {
-        Entity entity = world.getEntity(entityId);
-        if (entity == null) {
-            return;
-        }
-        applyEntityData(server, entity, buildDisplayData(billboard, scale, translation));
+                                  Vector3f translation) {
+        applyDisplayData(entity, billboard, uniformScale(scale), translation);
     }
 
-    static CompoundTag buildDisplayData(String billboard, float scale) {
-        return buildDisplayData(billboard, uniformScale(scale), new org.joml.Vector3f());
+    private void applyDisplayData(Display entity,
+                                  Display.BillboardConstraints billboard,
+                                  Vector3f scale,
+                                  Vector3f translation) {
+        DisplayInvoker invoker = (DisplayInvoker) (Object) entity;
+        invoker.interactivedisplay$setTransformationInterpolationDuration(INTERPOLATION_DURATION);
+        invoker.interactivedisplay$setTransformationInterpolationDelay(INTERPOLATION_DELAY);
+        invoker.interactivedisplay$setPosRotInterpolationDuration(TELEPORT_DURATION);
+        invoker.interactivedisplay$setBillboardConstraints(billboard);
+        invoker.interactivedisplay$setTransformation(buildTransformation(scale, translation));
     }
 
-    static CompoundTag buildDisplayData(String billboard, float scale, org.joml.Vector3f translation) {
-        return buildDisplayData(billboard, uniformScale(scale), translation);
+    static Transformation buildTransformation(float scale) {
+        return buildTransformation(uniformScale(scale), new Vector3f());
     }
 
-    static CompoundTag buildDisplayData(String billboard, org.joml.Vector3f scale, org.joml.Vector3f translation) {
-        try {
-            return TagParser.parseCompoundFully(buildDisplayDataSnbt(billboard, scale, translation));
-        } catch (CommandSyntaxException exception) {
-            throw new IllegalStateException("display transformation 생성 실패", exception);
-        }
-    }
-
-    static String buildDisplayDataSnbt(String billboard, float scale) {
-        return buildDisplayDataSnbt(billboard, uniformScale(scale), new org.joml.Vector3f());
-    }
-
-    static String buildDisplayDataSnbt(String billboard, float scale, org.joml.Vector3f translation) {
-        return buildDisplayDataSnbt(billboard, uniformScale(scale), translation);
-    }
-
-    static String buildDisplayDataSnbt(String billboard, org.joml.Vector3f scale, org.joml.Vector3f translation) {
-        return String.format(Locale.ROOT,
-                "{billboard:\"%s\",start_interpolation:0,interpolation_duration:%d,teleport_duration:%d,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],scale:[%sf,%sf,%sf],translation:[%sf,%sf,%sf]}}",
-                billboard,
-                INTERPOLATION_DURATION,
-                TELEPORT_DURATION,
-                scale.x,
-                scale.y,
-                Math.max(scale.z, MIN_Z_SCALE),
-                translation.x,
-                translation.y,
-                translation.z
+    static Transformation buildTransformation(Vector3f scale, Vector3f translation) {
+        Vector3f safeScale = new Vector3f(scale.x, scale.y, Math.max(scale.z, MIN_Z_SCALE));
+        return new Transformation(
+                new Vector3f(translation),
+                new Quaternionf(),
+                safeScale,
+                new Quaternionf()
         );
     }
 
-    private static CompoundTag merge(CompoundTag primary, CompoundTag secondary) {
-        CompoundTag merged = secondary.copy();
-        for (String key : primary.keySet()) {
-            merged.put(key, primary.get(key).copy());
+    static byte buildTextFlags(boolean shadow, String alignment) {
+        byte flags = 0;
+        if (shadow) {
+            flags |= Display.TextDisplay.FLAG_SHADOW;
         }
-        return merged;
+        switch (normalizeAlignment(alignment)) {
+            case "left" -> flags |= Display.TextDisplay.FLAG_ALIGN_LEFT;
+            case "right" -> flags |= Display.TextDisplay.FLAG_ALIGN_RIGHT;
+            default -> {
+            }
+        }
+        return flags;
     }
 
-    private void applyEntityData(MinecraftServer server, Entity entity, CompoundTag data) {
-        Vec3 position = entity.position();
-        float yaw = entity.getYRot();
-        float pitch = entity.getXRot();
-        entity.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), data));
-        entity.setPos(position);
-        entity.setYRot(yaw);
-        entity.setXRot(pitch);
+    static byte toTextOpacity(float opacity) {
+        return (byte) Math.max(0, Math.min(255, Math.round(opacity * 255.0f)));
     }
 
     private ItemStack buildItemStack(String value) {
@@ -684,8 +654,10 @@ public final class DisplayEntityFactory {
         return new Vec3(0.0, world.getMinY() - 128.0, 0.0);
     }
 
-    private static String billboard(PositionMode positionMode) {
-        return positionMode == PositionMode.PLAYER_VIEW ? "center" : "fixed";
+    private static Display.BillboardConstraints billboard(PositionMode positionMode) {
+        return positionMode == PositionMode.PLAYER_VIEW
+                ? Display.BillboardConstraints.CENTER
+                : Display.BillboardConstraints.FIXED;
     }
 
     private static float displayYaw(PositionMode positionMode, float yaw) {
@@ -719,11 +691,14 @@ public final class DisplayEntityFactory {
         if (runtime.displayEntityId() == null) {
             return;
         }
-        if (runtime.definition() instanceof TextComponentDefinition text) {
+        Entity entity = world.getEntity(runtime.displayEntityId());
+        if (!(entity instanceof Display display)) {
+            return;
+        }
+
+        if (runtime.definition() instanceof TextComponentDefinition text && entity instanceof Display.TextDisplay textDisplay) {
             applyTextData(
-                    server,
-                    world,
-                    runtime.displayEntityId(),
+                    textDisplay,
                     renderTextContent(text.content(), text.color(), ownerPlayer(server, owner)),
                     text.lineWidth(),
                     parseArgb(text.background()),
@@ -732,16 +707,14 @@ public final class DisplayEntityFactory {
                     billboard(positionMode),
                     text.fontSize(),
                     text.alignment(),
-                    new org.joml.Vector3f()
+                    new Vector3f()
             );
             return;
         }
-        if (runtime.definition() instanceof PanelComponentDefinition panel) {
+        if (runtime.definition() instanceof PanelComponentDefinition panel && entity instanceof Display.TextDisplay textDisplay) {
             PanelRenderSpec spec = buildPanelRenderSpec(panel);
             applyTextData(
-                    server,
-                    world,
-                    runtime.displayEntityId(),
+                    textDisplay,
                     spec.text(),
                     spec.lineWidth(),
                     parseArgb(panel.backgroundColor()),
@@ -750,15 +723,13 @@ public final class DisplayEntityFactory {
                     billboard(positionMode),
                     spec.fontSize(),
                     "center",
-                    new org.joml.Vector3f()
+                    new Vector3f()
             );
             return;
         }
-        if (runtime.definition() instanceof ButtonComponentDefinition button) {
+        if (runtime.definition() instanceof ButtonComponentDefinition button && entity instanceof Display.TextDisplay textDisplay) {
             applyTextData(
-                    server,
-                    world,
-                    runtime.displayEntityId(),
+                    textDisplay,
                     renderButtonLabel(button.label(), ownerPlayer(server, owner)),
                     buttonLineWidth(button),
                     parseArgb(runtime.hovered() ? button.hoverColor() : button.backgroundColor()),
@@ -767,15 +738,15 @@ public final class DisplayEntityFactory {
                     billboard(positionMode),
                     button.fontSize(),
                     "center",
-                    new org.joml.Vector3f()
+                    new Vector3f()
             );
             return;
         }
-        applyDisplayData(server, world, runtime.displayEntityId(), billboard(positionMode), componentScale(runtime.definition()), new org.joml.Vector3f());
+        applyDisplayData(display, billboard(positionMode), componentScale(runtime.definition()), new Vector3f());
     }
 
-    private static org.joml.Vector3f uniformScale(float scale) {
-        return new org.joml.Vector3f(scale, scale, Math.max(scale, MIN_Z_SCALE));
+    private static Vector3f uniformScale(float scale) {
+        return new Vector3f(scale, scale, Math.max(scale, MIN_Z_SCALE));
     }
 
     private static int buttonLineWidth(ButtonComponentDefinition button) {
