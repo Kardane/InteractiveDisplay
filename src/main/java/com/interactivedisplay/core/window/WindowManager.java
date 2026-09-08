@@ -339,7 +339,11 @@ public final class WindowManager implements WindowActionExecutor {
 
     @Override
     public ActionExecutionResult togglePlacementTracking(UUID owner, WindowNavigationContext context) {
-        return this.lifecycleCoordinator.togglePlacementTracking(owner, context);
+        ActionExecutionResult result = this.lifecycleCoordinator.togglePlacementTracking(owner, context);
+        if (result.success()) {
+            configureWindowEffects(activeWindowForContext(owner, context, context.windowId()));
+        }
+        return result;
     }
 
     private void migrateOrRemoveAcrossDimension(ServerPlayer player, WindowInstance instance) {
