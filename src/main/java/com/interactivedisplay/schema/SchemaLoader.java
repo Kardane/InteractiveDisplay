@@ -2,8 +2,8 @@ package com.interactivedisplay.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.interactivedisplay.InteractiveDisplay;
-import com.interactivedisplay.core.window.WindowGroupDefinition;
 import com.interactivedisplay.core.window.WindowDefinition;
+import com.interactivedisplay.core.window.WindowGroupDefinition;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
@@ -43,6 +43,8 @@ public final class SchemaLoader {
     private final MapImageResolver mapImageResolver;
     private final WindowDefinitionParser windowDefinitionParser;
     private final GroupDefinitionParser groupDefinitionParser;
+    private final Map<String, Path> windowIndex = new HashMap<>();
+    private final Map<String, Path> groupIndex = new HashMap<>();
 
     public SchemaLoader(Path configDir, SchemaValidator validator, DebugRecorder debugRecorder) {
         this.configRoot = configDir.resolve("interactivedisplay");
@@ -65,21 +67,15 @@ public final class SchemaLoader {
         Set<String> brokenWindowIds = new TreeSet<>();
         Set<String> brokenGroupIds = new TreeSet<>();
 
-        try {
-            Files.createDirectories(this.windowsDir);
-            Files.createDirectories(this.groupsDir);
-            Files.createDirectories(this.imagesDir);
-            this.ensureDefaultAssets();
-        } catch (IOException exception) {
-            String message = "window config 디렉터리 준비 실패: " + exception.getMessage();
-            errors.add(message);
-            recordSchemaFailure(null, message, exception);
+        if (!prepareConfig(errors)) {
             return new LoadResult(definitions, groups, errors, brokenWindowIds, brokenGroupIds);
         }
 
+        this.windowIndex.clear();
+        this.groupIndex.clear();
         warnUnsupportedLegacyConfigFiles(this.windowsDir);
         try (var paths = Files.list(this.windowsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
+            paths.filter(this::isYamlFile)
                     .sorted()
                     .forEach(path -> loadSingleFile(path, definitions, errors, brokenWindowIds));
         } catch (IOException exception) {
@@ -90,7 +86,7 @@ public final class SchemaLoader {
 
         warnUnsupportedLegacyConfigFiles(this.groupsDir);
         try (var paths = Files.list(this.groupsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
+            paths.filter(this::isYamlFile)
                     .sorted()
                     .forEach(path -> loadSingleGroupFile(path, groups, errors, brokenGroupIds));
         } catch (IOException exception) {
@@ -99,6 +95,33 @@ public final class SchemaLoader {
             recordSchemaFailure(null, message, exception);
         }
 
+        return new LoadResult(definitions, groups, errors, brokenWindowIds, brokenGroupIds);
+    }
+
+    /**
+     * Loads exactly one window definition. The index is populated by loadAll() and refreshed lazily when files move.
+     * Group files and unrelated MAP sources are not parsed as part of this operation.
+     */
+    public LoadResult loadWindow(String windowId) {
+        Map<String, WindowDefinition> definitions = new HashMap<>();
+        Map<String, WindowGroupDefinition> groups = new HashMap<>();
+        List<String> errors = new ArrayList<>();
+        Set<String> brokenWindowIds = new TreeSet<>();
+        Set<String> brokenGroupIds = new TreeSet<>();
+
+        if (!prepareConfig(errors)) {
+            return new LoadResult(definitions, groups, errors, brokenWindowIds, brokenGroupIds);
+        }
+
+        warnUnsupportedLegacyConfigFiles(this.windowsDir);
+        Path path = resolveWindowPath(windowId);
+        if (path != null) {
+            loadSingleFile(path, definitions, errors, brokenWindowIds);
+            WindowDefinition loaded = definitions.get(windowId);
+            if (loaded == null && errors.isEmpty()) {
+                this.windowIndex.remove(windowId);
+            }
+        }
         return new LoadResult(definitions, groups, errors, brokenWindowIds, brokenGroupIds);
     }
 
@@ -114,9 +137,13 @@ public final class SchemaLoader {
 
         warnUnsupportedLegacyConfigFiles(this.windowsDir);
         try (var paths = Files.list(this.windowsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
+            paths.filter(this::isYamlFile)
                     .sorted()
-                    .forEach(path -> windowIds.add(readWindowId(path)));
+                    .forEach(path -> {
+                        String id = readWindowId(path);
+                        windowIds.add(id);
+                        this.windowIndex.put(id, path);
+                    });
         } catch (IOException exception) {
             recordSchemaFailure(null, "window id 목록 조회 실패: " + exception.getMessage(), exception);
         }
@@ -131,13 +158,66 @@ public final class SchemaLoader {
 
         warnUnsupportedLegacyConfigFiles(this.groupsDir);
         try (var paths = Files.list(this.groupsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
+            paths.filter(this::isYamlFile)
                     .sorted()
-                    .forEach(path -> groupIds.add(readGroupId(path)));
+                    .forEach(path -> {
+                        String id = readGroupId(path);
+                        groupIds.add(id);
+                        this.groupIndex.put(id, path);
+                    });
         } catch (IOException exception) {
             recordSchemaFailure(null, "group id 목록 조회 실패: " + exception.getMessage(), exception);
         }
         return groupIds;
+    }
+
+    private boolean prepareConfig(List<String> errors) {
+        try {
+            Files.createDirectories(this.windowsDir);
+            Files.createDirectories(this.groupsDir);
+            Files.createDirectories(this.imagesDir);
+            ensureDefaultAssets();
+            return true;
+        } catch (IOException exception) {
+            String message = "window config 디렉터리 준비 실패: " + exception.getMessage();
+            errors.add(message);
+            recordSchemaFailure(null, message, exception);
+            return false;
+        }
+    }
+
+    private Path resolveWindowPath(String windowId) {
+        Path indexed = this.windowIndex.get(windowId);
+        if (indexed != null && Files.isRegularFile(indexed) && windowId.equals(readWindowId(indexed))) {
+            return indexed;
+        }
+        this.windowIndex.remove(windowId);
+        if (!Files.isDirectory(this.windowsDir)) {
+            return null;
+        }
+
+        try (var paths = Files.list(this.windowsDir)) {
+            List<Path> yamlFiles = paths.filter(this::isYamlFile).sorted().toList();
+            for (Path path : yamlFiles) {
+                if (stripYamlExtension(path.getFileName().toString()).equals(windowId)) {
+                    String id = readWindowId(path);
+                    this.windowIndex.put(id, path);
+                    if (windowId.equals(id)) {
+                        return path;
+                    }
+                }
+            }
+            for (Path path : yamlFiles) {
+                String id = readWindowId(path);
+                this.windowIndex.put(id, path);
+                if (windowId.equals(id)) {
+                    return path;
+                }
+            }
+        } catch (IOException exception) {
+            recordSchemaFailure(windowId, "window definition 탐색 실패: " + exception.getMessage(), exception);
+        }
+        return null;
     }
 
     private void loadSingleFile(Path path,
@@ -148,20 +228,25 @@ public final class SchemaLoader {
 
         try {
             JsonNode root = this.documentLoader.load(path);
+            String indexedId = readId(root, "id", stripYamlExtension(sourceName));
+            this.windowIndex.put(indexedId, path);
             List<String> validationErrors = this.validator.validate(root, sourceName);
             if (!validationErrors.isEmpty()) {
                 errors.addAll(validationErrors);
-                brokenWindowIds.add(readId(root, "id", stripYamlExtension(sourceName)));
+                brokenWindowIds.add(indexedId);
                 recordSchemaValidationFailure(sourceName, validationErrors);
                 return;
             }
 
             WindowDefinition definition = this.windowDefinitionParser.parse(root, sourceName);
             definitions.put(definition.id(), definition);
+            this.windowIndex.put(definition.id(), path);
         } catch (Exception exception) {
             String message = sourceName + ": " + exception.getMessage();
             errors.add(message);
-            brokenWindowIds.add(readWindowId(path));
+            String fallbackId = readWindowId(path);
+            brokenWindowIds.add(fallbackId);
+            this.windowIndex.put(fallbackId, path);
             recordSchemaFailure(sourceName, message, exception);
         }
     }
@@ -174,20 +259,25 @@ public final class SchemaLoader {
 
         try {
             JsonNode root = this.documentLoader.load(path);
+            String indexedId = readId(root, "id", stripYamlExtension(sourceName));
+            this.groupIndex.put(indexedId, path);
             List<String> validationErrors = this.validator.validateGroup(root, sourceName);
             if (!validationErrors.isEmpty()) {
                 errors.addAll(validationErrors);
-                brokenGroupIds.add(readId(root, "id", stripYamlExtension(sourceName)));
+                brokenGroupIds.add(indexedId);
                 recordSchemaValidationFailure(sourceName, validationErrors);
                 return;
             }
 
             WindowGroupDefinition definition = this.groupDefinitionParser.parse(root);
             groups.put(definition.id(), definition);
+            this.groupIndex.put(definition.id(), path);
         } catch (Exception exception) {
             String message = sourceName + ": " + exception.getMessage();
             errors.add(message);
-            brokenGroupIds.add(readGroupId(path));
+            String fallbackId = readGroupId(path);
+            brokenGroupIds.add(fallbackId);
+            this.groupIndex.put(fallbackId, path);
             recordSchemaFailure(sourceName, message, exception);
         }
     }
@@ -260,6 +350,10 @@ public final class SchemaLoader {
         graphics.drawString("ID", 56, 68);
         graphics.dispose();
         ImageIO.write(image, "png", imagePath.toFile());
+    }
+
+    private boolean isYamlFile(Path path) {
+        return path.getFileName().toString().endsWith(".yaml");
     }
 
     private void recordSchemaValidationFailure(String sourceName, List<String> validationErrors) {
