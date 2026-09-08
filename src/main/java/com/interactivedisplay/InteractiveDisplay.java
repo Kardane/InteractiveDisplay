@@ -47,6 +47,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
 
     private final DebugRecorder debugRecorder = new DebugRecorder(DEBUG_BUFFER_CAPACITY);
     private final Map<UUID, Long> lastConsumedUiClickTicks = new HashMap<>();
+    private final Map<UUID, Long> lastRightUiInputTicks = new HashMap<>();
 
     private volatile WindowManager windowManager;
     private volatile ClickHandler clickHandler;
@@ -122,6 +123,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
                 manager.removeAll(handler.player.getUUID());
             }
             this.lastConsumedUiClickTicks.remove(handler.player.getUUID());
+            this.lastRightUiInputTicks.remove(handler.player.getUUID());
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -133,6 +135,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
                 manager.shutdown();
             }
             this.lastConsumedUiClickTicks.clear();
+            this.lastRightUiInputTicks.clear();
             this.clickHandler = null;
             this.windowManager = null;
         });
@@ -160,10 +163,16 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         if (wasUiClickConsumedThisTick(player)) {
             return true;
         }
+        if (clickType == ClickType.LEFT && wasRightUiInputThisTick(player)) {
+            return false;
+        }
 
         UiHitResult hitResult = manager.findUiHit(player);
         if (hitResult == null || !(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
             return false;
+        }
+        if (clickType == ClickType.RIGHT) {
+            rememberRightUiInput(player);
         }
         if (!button.clickType().allows(clickType == ClickType.LEFT)) {
             return false;
@@ -195,10 +204,26 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         return previous != null && previous == server.getTickCount();
     }
 
+    private boolean wasRightUiInputThisTick(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return false;
+        }
+        Long previous = this.lastRightUiInputTicks.get(player.getUUID());
+        return previous != null && previous == server.getTickCount();
+    }
+
     private void rememberConsumedUiClick(ServerPlayer player) {
         MinecraftServer server = player.getServer();
         if (server != null) {
             this.lastConsumedUiClickTicks.put(player.getUUID(), (long) server.getTickCount());
+        }
+    }
+
+    private void rememberRightUiInput(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server != null) {
+            this.lastRightUiInputTicks.put(player.getUUID(), (long) server.getTickCount());
         }
     }
 
