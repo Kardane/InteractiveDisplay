@@ -1,7 +1,7 @@
 package com.interactivedisplay.command;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
@@ -14,6 +14,7 @@ import com.interactivedisplay.debug.DebugEvent;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -78,14 +79,14 @@ class InteractiveDisplayCommandFormatTest {
                 true,
                 "#00000000"
         );
-        WindowInstance instance = new WindowInstance(UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.FIXED, new Vec3(1, 2, 3), 90.0f, 0.0f, UUID.randomUUID(), new Vec3(1, 2, 3), 90.0f, 0.0f, new Vec3(1, 2, 3), 90.0f, 0.0f, 0L);
-        instance.addRuntime(new WindowComponentRuntime(Level.OVERWORLD, "sig-a", text, new Vector3f(), UUID.randomUUID(), null));
-        instance.addRuntime(new WindowComponentRuntime(Level.OVERWORLD, "sig-b", new com.interactivedisplay.core.component.ButtonComponentDefinition("close", new ComponentPosition(0.0f, 0.0f, 0.0f), new ComponentSize(1.0f, 0.3f), true, 1.0f, "닫기", 1.0f, "#AA2222", "#44FFFFFF", null, com.interactivedisplay.core.component.ClickType.RIGHT, com.interactivedisplay.core.component.ComponentAction.closeWindow()), new Vector3f(), UUID.randomUUID(), null));
-        instance.addRuntime(new WindowComponentRuntime(Level.OVERWORLD, "sig-c", text2, new Vector3f(), UUID.randomUUID(), null));
+        WindowInstance instance = new WindowInstance(UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.FIXED, new Vec3(1, 2, 3), 90.0f, 0.0f, null, new Vec3(1, 2, 3), 90.0f, 0.0f, new Vec3(1, 2, 3), 90.0f, 0.0f, 0L);
+        instance.addRuntime(new WindowComponentRuntime(Level.OVERWORLD, text, new Vector3f(), new TextDisplayElement(), null));
+        instance.addRuntime(new WindowComponentRuntime(Level.OVERWORLD, new com.interactivedisplay.core.component.ButtonComponentDefinition("close", new ComponentPosition(0.0f, 0.0f, 0.0f), new ComponentSize(1.0f, 0.3f), true, 1.0f, "닫기", 1.0f, "#AA2222", "#44FFFFFF", null, com.interactivedisplay.core.component.ClickType.RIGHT, com.interactivedisplay.core.component.ComponentAction.closeWindow()), new Vector3f(), new TextDisplayElement(), null));
+        instance.addRuntime(new WindowComponentRuntime(Level.OVERWORLD, text2, new Vector3f(), new TextDisplayElement(), null));
 
         List<String> lines = InteractiveDisplayCommand.buildWindowLines("main_menu", true, instance, null);
 
-        assertTrue(lines.get(0).contains("entityCount=4"));
+        assertTrue(lines.get(0).contains("entityCount=3"));
         assertTrue(lines.get(0).contains("bindings=1"));
         assertTrue(lines.get(0).contains(PositionMode.FIXED.name()));
         assertTrue(lines.get(0).contains("fixedYaw=90.0"));
