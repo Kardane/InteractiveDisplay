@@ -1,7 +1,6 @@
 package com.interactivedisplay.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
@@ -16,8 +15,8 @@ import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
-import com.interactivedisplay.debug.DebugEventType;
-import com.interactivedisplay.debug.DebugLevel;
+import com.interactivedisplay.core.window.WindowTransition;
+import com.interactivedisplay.core.window.WindowTransitionType;
 import com.interactivedisplay.debug.DebugRecorder;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,6 +24,7 @@ import java.util.List;
 
 public final class WindowDefinitionParser {
     private final MapImageResolver mapImageResolver;
+    @SuppressWarnings("unused")
     private final DebugRecorder debugRecorder;
 
     public WindowDefinitionParser(MapImageResolver mapImageResolver, DebugRecorder debugRecorder) {
@@ -38,7 +38,8 @@ public final class WindowDefinitionParser {
         WindowOffset offset = parseOffset(root, WindowOffset.defaults());
         LayoutMode layoutMode = LayoutMode.fromString(getString(root, "layout", null));
         List<ComponentDefinition> components = parseComponents(root.get("components"), sourceName + ".components");
-        return new WindowDefinition(id, size, offset, layoutMode, components);
+        WindowTransition transition = parseTransition(root.get("transition"));
+        return new WindowDefinition(id, size, offset, layoutMode, components, transition);
     }
 
     private List<ComponentDefinition> parseComponents(JsonNode array, String sourceName) throws IOException, InterruptedException {
@@ -70,34 +71,12 @@ public final class WindowDefinitionParser {
                     getString(component, "alignment", "left"),
                     getInt(component, "lineWidth", 200),
                     getBoolean(component, "shadow", true),
-                    getString(component, "background", "#00000000")
+                    getString(component, "background", "#00000000"),
+                    getInt(component, "refreshInterval", 0)
             );
         }
 
         if ("button".equals(type)) {
-            ClickType parsedClickType = parseClickType(getString(component, "clickType", "RIGHT"));
-            if (parsedClickType != ClickType.RIGHT) {
-                this.debugRecorder.record(
-                        DebugEventType.SCHEMA_LOAD,
-                        DebugLevel.WARN,
-                        null,
-                        null,
-                        null,
-                        id,
-                        null,
-                        null,
-                        sourceName + ": legacy clickType=" + parsedClickType + " ignored, RIGHT로 정규화",
-                        null
-                );
-                InteractiveDisplay.LOGGER.warn(
-                        "[{}] schema warn componentId={} source={} legacy clickType={} -> RIGHT",
-                        InteractiveDisplay.MOD_ID,
-                        id,
-                        sourceName,
-                        parsedClickType
-                );
-            }
-
             return new ButtonComponentDefinition(
                     id,
                     position,
@@ -109,8 +88,9 @@ public final class WindowDefinitionParser {
                     getString(component, "backgroundColor", "#00000000"),
                     getString(component, "hoverColor", "#44FFFFFF"),
                     getString(component, "clickSound", null),
-                    ClickType.RIGHT,
-                    parseAction(component.get("action"))
+                    parseClickType(getString(component, "clickType", "RIGHT")),
+                    parseAction(component.get("action")),
+                    getFloat(component, "hoverScale", 1.0f)
             );
         }
 
@@ -146,6 +126,17 @@ public final class WindowDefinitionParser {
         }
 
         throw new SchemaValidationException("지원하지 않는 component type: " + type);
+    }
+
+    private static WindowTransition parseTransition(JsonNode transition) {
+        if (transition == null || !transition.isObject()) {
+            return WindowTransition.none();
+        }
+        return new WindowTransition(
+                getInt(transition, "duration", WindowTransition.DEFAULT_DURATION),
+                WindowTransitionType.fromString(getString(transition, "enter", "none")),
+                WindowTransitionType.fromString(getString(transition, "exit", "none"))
+        );
     }
 
     private static ComponentAction parseAction(JsonNode action) {
