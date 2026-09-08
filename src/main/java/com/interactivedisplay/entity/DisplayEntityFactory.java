@@ -71,8 +71,11 @@ public final class DisplayEntityFactory {
         this.placeholderResolver = placeholderResolver;
     }
 
-    public VirtualWindowHolder createHolder(ServerLevel world, Vec3 anchor) {
-        return new VirtualWindowHolder(world, anchor);
+    public VirtualWindowHolder createHolder(ServerLevel world,
+                                            Vec3 anchor,
+                                            ServerPlayer owner,
+                                            PositionMode positionMode) {
+        return new VirtualWindowHolder(world, anchor, owner, positionMode != PositionMode.FIXED);
     }
 
     public WindowComponentRuntime spawnRuntime(MinecraftServer server,
@@ -144,7 +147,7 @@ public final class DisplayEntityFactory {
                 throw new IllegalArgumentException("지원하지 않는 component type: " + component.type());
             }
 
-            positionElement(element, holder.anchor(), position, positionMode, yaw, pitch);
+            positionElement(element, holder, position, positionMode, yaw, pitch, false);
             holder.addElement(element);
             return new WindowComponentRuntime(world.dimension(), component, new Vector3f(), element, canvas);
         } catch (Exception exception) {
@@ -162,7 +165,7 @@ public final class DisplayEntityFactory {
         if (element == null) {
             return;
         }
-        positionElement(element, holder.anchor(), position, positionMode, yaw, pitch);
+        positionElement(element, holder, position, positionMode, yaw, pitch, true);
     }
 
     public void destroyRuntime(WindowComponentRuntime runtime) {
@@ -222,15 +225,32 @@ public final class DisplayEntityFactory {
     }
 
     private void positionElement(DisplayElement element,
-                                 Vec3 holderAnchor,
+                                 VirtualWindowHolder holder,
                                  Vec3 worldPosition,
                                  PositionMode positionMode,
                                  float yaw,
-                                 float pitch) {
-        element.setOffset(worldPosition.subtract(holderAnchor));
-        element.setYaw(displayYaw(positionMode, yaw));
-        element.setPitch(displayPitch(positionMode, pitch));
-        element.setBillboardMode(billboard(positionMode));
+                                 float pitch,
+                                 boolean interpolate) {
+        if (!holder.playerAttached()) {
+            element.setOffset(worldPosition.subtract(holder.anchor()));
+            element.setYaw(displayYaw(positionMode, yaw));
+            element.setPitch(displayPitch(positionMode, pitch));
+            element.setBillboardMode(billboard(positionMode));
+            return;
+        }
+
+        // Spawn at the correct world position, then let the ride relationship carry the entity with the player.
+        // Rendering displacement/orientation lives in Display transformation data so no entity move packet is needed.
+        element.setOffset(worldPosition.subtract(holder.attachmentPosition()));
+        Vec3 relative = worldPosition.subtract(holder.passengerRenderOrigin());
+        element.setYaw(0.0f);
+        element.setPitch(0.0f);
+        element.setBillboardMode(Display.BillboardConstraints.FIXED);
+        element.setTranslation(new Vector3f((float) relative.x, (float) relative.y, (float) relative.z));
+        element.setLeftRotation(attachedRotation(positionMode, yaw, pitch));
+        if (interpolate) {
+            element.startInterpolationIfDirty();
+        }
     }
 
     private void applyTextData(TextDisplayElement element,
@@ -432,6 +452,16 @@ public final class DisplayEntityFactory {
         return positionMode == PositionMode.PLAYER_VIEW
                 ? Display.BillboardConstraints.CENTER
                 : Display.BillboardConstraints.FIXED;
+    }
+
+    private static Quaternionf attachedRotation(PositionMode positionMode, float yaw, float pitch) {
+        float renderedYaw = displayYaw(positionMode, yaw);
+        float renderedPitch = displayPitch(positionMode, pitch);
+        return new Quaternionf().rotationYXZ(
+                (float) Math.toRadians(-renderedYaw),
+                (float) Math.toRadians(renderedPitch),
+                0.0f
+        );
     }
 
     private static float displayYaw(PositionMode positionMode, float yaw) {
