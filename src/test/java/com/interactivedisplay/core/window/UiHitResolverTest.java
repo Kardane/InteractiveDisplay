@@ -13,6 +13,7 @@ import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.interaction.UiHitResult;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.PositionMode;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.util.UUID;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -129,7 +130,7 @@ class UiHitResolverTest {
                 anchor,
                 0.0f,
                 0.0f,
-                UUID.randomUUID(),
+                null,
                 anchor,
                 0.0f,
                 0.0f,
@@ -143,7 +144,6 @@ class UiHitResolverTest {
     private static WindowComponentRuntime buttonRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
                 Level.OVERWORLD,
-                "button:" + componentId,
                 new ButtonComponentDefinition(
                         componentId,
                         new ComponentPosition(0.0f, 0.0f, 0.0f),
@@ -159,7 +159,7 @@ class UiHitResolverTest {
                         ComponentAction.closeWindow()
                 ),
                 localPosition,
-                UUID.randomUUID(),
+                new TextDisplayElement(),
                 null
         );
     }
@@ -167,7 +167,6 @@ class UiHitResolverTest {
     private static WindowComponentRuntime textRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(
                 Level.OVERWORLD,
-                "text:" + componentId,
                 new TextComponentDefinition(
                         componentId,
                         new ComponentPosition(0.0f, 0.0f, 0.0f),
@@ -183,7 +182,7 @@ class UiHitResolverTest {
                         "#00000000"
                 ),
                 localPosition,
-                UUID.randomUUID(),
+                new TextDisplayElement(),
                 null
         );
     }
