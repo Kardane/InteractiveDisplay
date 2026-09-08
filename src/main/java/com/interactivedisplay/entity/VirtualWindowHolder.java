@@ -183,7 +183,8 @@ public final class VirtualWindowHolder {
         if (this.destroyed || this.pendingDestroy) {
             return;
         }
-        if (!this.watching || !this.transition.hasExit() || this.baseTransforms.isEmpty()) {
+        boolean ownerChangedWorld = this.playerAttached && this.owner != null && this.owner.level() != this.world;
+        if (ownerChangedWorld || !this.watching || !this.transition.hasExit() || this.baseTransforms.isEmpty()) {
             destroyNow();
             return;
         }
