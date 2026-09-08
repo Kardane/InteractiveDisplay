@@ -46,7 +46,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     private static volatile InteractiveDisplay INSTANCE;
 
     private final DebugRecorder debugRecorder = new DebugRecorder(DEBUG_BUFFER_CAPACITY);
-    private final Map<UUID, Long> lastLeftClickTicks = new HashMap<>();
+    private final Map<UUID, Long> lastConsumedUiClickTicks = new HashMap<>();
 
     private volatile WindowManager windowManager;
     private volatile ClickHandler clickHandler;
@@ -121,7 +121,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             if (manager != null) {
                 manager.removeAll(handler.player.getUUID());
             }
-            this.lastLeftClickTicks.remove(handler.player.getUUID());
+            this.lastConsumedUiClickTicks.remove(handler.player.getUUID());
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -132,7 +132,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
                 }
                 manager.shutdown();
             }
-            this.lastLeftClickTicks.clear();
+            this.lastConsumedUiClickTicks.clear();
             this.clickHandler = null;
             this.windowManager = null;
         });
@@ -157,6 +157,9 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         if (!InteractiveDisplayItems.isPointer(player.getMainHandItem())) {
             return false;
         }
+        if (wasUiClickConsumedThisTick(player)) {
+            return true;
+        }
 
         UiHitResult hitResult = manager.findUiHit(player);
         if (hitResult == null || !(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
@@ -166,12 +169,9 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             return false;
         }
 
-        if (clickType == ClickType.LEFT && isDuplicateLeftClick(player)) {
-            return true;
-        }
-
         ClickHandleResult result = handler.handle(player.getUUID(), player.getGameProfile().getName(), hitResult);
         if (result.consumed()) {
+            rememberConsumedUiClick(player);
             playButtonSound(player, hitResult);
         }
         return result.consumed();
@@ -186,14 +186,20 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         return bootstrap != null && bootstrap.bootstrap(MOD_ID);
     }
 
-    private boolean isDuplicateLeftClick(ServerPlayer player) {
+    private boolean wasUiClickConsumedThisTick(ServerPlayer player) {
         MinecraftServer server = player.getServer();
         if (server == null) {
             return false;
         }
-        long tick = server.getTickCount();
-        Long previous = this.lastLeftClickTicks.put(player.getUUID(), tick);
-        return previous != null && previous == tick;
+        Long previous = this.lastConsumedUiClickTicks.get(player.getUUID());
+        return previous != null && previous == server.getTickCount();
+    }
+
+    private void rememberConsumedUiClick(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server != null) {
+            this.lastConsumedUiClickTicks.put(player.getUUID(), (long) server.getTickCount());
+        }
     }
 
     private static void playButtonSound(ServerPlayer player, UiHitResult hitResult) {
