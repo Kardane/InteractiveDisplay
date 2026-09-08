@@ -1,0 +1,23 @@
+id: nested_panel
+size:
+  width: 4.0
+  height: 3.0
+components:
+  - id: panel
+    type: panel
+    position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    size:
+      width: 3.0
+      height: 2.0
+    layout: vertical
+    children:
+      - id: child_text
+        type: text
+        position:
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        content: nested

@@ -1,0 +1,18 @@
+id: gallery
+size:
+  width: 4.0
+  height: 2.5
+layout: horizontal
+components:
+  - id: local_map
+    type: image
+    position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    size:
+      width: 1.0
+      height: 1.0
+    imageType: map
+    value: "sample_local.png"
+    scale: 1.0

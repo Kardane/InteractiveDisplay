@@ -1,28 +1,9 @@
 package com.interactivedisplay.schema;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.interactivedisplay.InteractiveDisplay;
-import com.interactivedisplay.core.component.ButtonComponentDefinition;
-import com.interactivedisplay.core.component.ClickType;
-import com.interactivedisplay.core.component.ComponentAction;
-import com.interactivedisplay.core.component.ComponentActionType;
-import com.interactivedisplay.core.component.ComponentDefinition;
-import com.interactivedisplay.core.component.ComponentPosition;
-import com.interactivedisplay.core.component.ComponentSize;
-import com.interactivedisplay.core.component.ImageComponentDefinition;
-import com.interactivedisplay.core.component.ImageSource;
-import com.interactivedisplay.core.component.ImageType;
-import com.interactivedisplay.core.component.PanelComponentDefinition;
-import com.interactivedisplay.core.component.TextComponentDefinition;
-import com.interactivedisplay.core.layout.LayoutMode;
-import com.interactivedisplay.core.positioning.PositionMode;
-import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowGroupDefinition;
-import com.interactivedisplay.core.window.WindowGroupEntry;
 import com.interactivedisplay.core.window.WindowDefinition;
-import com.interactivedisplay.core.window.WindowOrbit;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
@@ -31,7 +12,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -43,10 +24,12 @@ import java.util.TreeSet;
 import javax.imageio.ImageIO;
 
 public final class SchemaLoader {
-    private static final String DEFAULT_WINDOW_FILE = "main_menu.json";
-    private static final String DEFAULT_GALLERY_FILE = "gallery.json";
-    private static final String DEFAULT_GROUP_FILE = "menu_group.json";
-    private static final String DEFAULT_REMOTE_EXAMPLE_FILE = "gallery_remote.example.json.disabled";
+    private static final String DEFAULT_RESOURCE_ROOT = "/defaults/interactivedisplay/";
+    private static final String DEFAULT_WINDOW_FILE = "main_menu.yaml";
+    private static final String DEFAULT_MAIN_MENU2_FILE = "main_menu2.yaml";
+    private static final String DEFAULT_GALLERY_FILE = "gallery.yaml";
+    private static final String DEFAULT_GROUP_FILE = "menu_group.yaml";
+    private static final String DEFAULT_REMOTE_EXAMPLE_FILE = "gallery_remote.example.yaml.disabled";
     private static final String DEFAULT_SAMPLE_IMAGE = "sample_local.png";
 
     private final Path configRoot;
@@ -54,9 +37,12 @@ public final class SchemaLoader {
     private final Path groupsDir;
     private final Path imagesDir;
     private final SchemaValidator validator;
+    private final ConfigDocumentLoader documentLoader;
     private final DebugRecorder debugRecorder;
     private final RemoteImageCache remoteImageCache;
     private final MapImageResolver mapImageResolver;
+    private final WindowDefinitionParser windowDefinitionParser;
+    private final GroupDefinitionParser groupDefinitionParser;
 
     public SchemaLoader(Path configDir, SchemaValidator validator, DebugRecorder debugRecorder) {
         this.configRoot = configDir.resolve("interactivedisplay");
@@ -64,9 +50,12 @@ public final class SchemaLoader {
         this.groupsDir = this.configRoot.resolve("groups");
         this.imagesDir = this.configRoot.resolve("images");
         this.validator = validator;
+        this.documentLoader = new ConfigDocumentLoader();
         this.debugRecorder = debugRecorder;
         this.remoteImageCache = new RemoteImageCache(configDir, debugRecorder);
         this.mapImageResolver = new MapImageResolver(configDir, this.remoteImageCache);
+        this.windowDefinitionParser = new WindowDefinitionParser(this.mapImageResolver, this.debugRecorder);
+        this.groupDefinitionParser = new GroupDefinitionParser();
     }
 
     public LoadResult loadAll() {
@@ -88,8 +77,9 @@ public final class SchemaLoader {
             return new LoadResult(definitions, groups, errors, brokenWindowIds, brokenGroupIds);
         }
 
+        warnUnsupportedLegacyConfigFiles(this.windowsDir);
         try (var paths = Files.list(this.windowsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
                     .sorted()
                     .forEach(path -> loadSingleFile(path, definitions, errors, brokenWindowIds));
         } catch (IOException exception) {
@@ -98,8 +88,9 @@ public final class SchemaLoader {
             recordSchemaFailure(null, message, exception);
         }
 
+        warnUnsupportedLegacyConfigFiles(this.groupsDir);
         try (var paths = Files.list(this.groupsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
                     .sorted()
                     .forEach(path -> loadSingleGroupFile(path, groups, errors, brokenGroupIds));
         } catch (IOException exception) {
@@ -121,8 +112,9 @@ public final class SchemaLoader {
             return windowIds;
         }
 
+        warnUnsupportedLegacyConfigFiles(this.windowsDir);
         try (var paths = Files.list(this.windowsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
                     .sorted()
                     .forEach(path -> windowIds.add(readWindowId(path)));
         } catch (IOException exception) {
@@ -137,8 +129,9 @@ public final class SchemaLoader {
             return groupIds;
         }
 
+        warnUnsupportedLegacyConfigFiles(this.groupsDir);
         try (var paths = Files.list(this.groupsDir)) {
-            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+            paths.filter(path -> path.getFileName().toString().endsWith(".yaml"))
                     .sorted()
                     .forEach(path -> groupIds.add(readGroupId(path)));
         } catch (IOException exception) {
@@ -154,16 +147,16 @@ public final class SchemaLoader {
         String sourceName = path.getFileName().toString();
 
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonNode root = this.documentLoader.load(path);
             List<String> validationErrors = this.validator.validate(root, sourceName);
             if (!validationErrors.isEmpty()) {
                 errors.addAll(validationErrors);
-                brokenWindowIds.add(root.has("id") ? root.get("id").getAsString() : stripJsonExtension(sourceName));
+                brokenWindowIds.add(readId(root, "id", stripYamlExtension(sourceName)));
                 recordSchemaValidationFailure(sourceName, validationErrors);
                 return;
             }
 
-            WindowDefinition definition = parseDefinition(root, sourceName);
+            WindowDefinition definition = this.windowDefinitionParser.parse(root, sourceName);
             definitions.put(definition.id(), definition);
         } catch (Exception exception) {
             String message = sourceName + ": " + exception.getMessage();
@@ -180,16 +173,16 @@ public final class SchemaLoader {
         String sourceName = path.getFileName().toString();
 
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonNode root = this.documentLoader.load(path);
             List<String> validationErrors = this.validator.validateGroup(root, sourceName);
             if (!validationErrors.isEmpty()) {
                 errors.addAll(validationErrors);
-                brokenGroupIds.add(root.has("id") ? root.get("id").getAsString() : stripJsonExtension(sourceName));
+                brokenGroupIds.add(readId(root, "id", stripYamlExtension(sourceName)));
                 recordSchemaValidationFailure(sourceName, validationErrors);
                 return;
             }
 
-            WindowGroupDefinition definition = parseGroupDefinition(root);
+            WindowGroupDefinition definition = this.groupDefinitionParser.parse(root);
             groups.put(definition.id(), definition);
         } catch (Exception exception) {
             String message = sourceName + ": " + exception.getMessage();
@@ -202,364 +195,53 @@ public final class SchemaLoader {
     private String readWindowId(Path path) {
         String fileName = path.getFileName().toString();
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
-            if (root.has("id") && root.get("id").isJsonPrimitive() && root.get("id").getAsJsonPrimitive().isString()) {
-                return root.get("id").getAsString();
+            JsonNode root = this.documentLoader.load(path);
+            String id = readId(root, "id", null);
+            if (id != null) {
+                return id;
             }
         } catch (Exception ignored) {
-            return stripJsonExtension(fileName);
+            return stripYamlExtension(fileName);
         }
-        return stripJsonExtension(fileName);
+        return stripYamlExtension(fileName);
     }
 
     private String readGroupId(Path path) {
         String fileName = path.getFileName().toString();
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
-            if (root.has("id") && root.get("id").isJsonPrimitive() && root.get("id").getAsJsonPrimitive().isString()) {
-                return root.get("id").getAsString();
+            JsonNode root = this.documentLoader.load(path);
+            String id = readId(root, "id", null);
+            if (id != null) {
+                return id;
             }
         } catch (Exception ignored) {
-            return stripJsonExtension(fileName);
+            return stripYamlExtension(fileName);
         }
-        return stripJsonExtension(fileName);
-    }
-
-    private WindowDefinition parseDefinition(JsonObject root, String sourceName) throws IOException, InterruptedException {
-        String id = root.get("id").getAsString();
-        ComponentSize size = parseSize(root, 1.0f, 1.0f);
-        WindowOffset offset = parseOffset(root, WindowOffset.defaults());
-        LayoutMode layoutMode = LayoutMode.fromString(getString(root, "layout", null));
-        List<ComponentDefinition> components = parseComponents(root.getAsJsonArray("components"), sourceName + ".components");
-        return new WindowDefinition(id, size, offset, layoutMode, components);
-    }
-
-    private WindowGroupDefinition parseGroupDefinition(JsonObject root) {
-        String id = root.get("id").getAsString();
-        String initialWindowId = root.get("initialWindowId").getAsString();
-        PositionMode defaultMode = PositionMode.fromArgument(root.get("defaultMode").getAsString());
-        JsonArray windows = root.getAsJsonArray("windows");
-        List<WindowGroupEntry> entries = new ArrayList<>();
-        for (int i = 0; i < windows.size(); i++) {
-            JsonObject entry = windows.get(i).getAsJsonObject();
-            entries.add(new WindowGroupEntry(
-                    entry.get("windowId").getAsString(),
-                    parseOffset(entry, WindowOffset.zero()),
-                    parseOrbit(entry.getAsJsonObject("orbit"))
-            ));
-        }
-        return new WindowGroupDefinition(id, initialWindowId, defaultMode, entries);
-    }
-
-    private List<ComponentDefinition> parseComponents(JsonArray array, String sourceName) throws IOException, InterruptedException {
-        List<ComponentDefinition> components = new ArrayList<>();
-        for (int i = 0; i < array.size(); i++) {
-            JsonObject component = array.get(i).getAsJsonObject();
-            components.add(parseComponent(component, sourceName + "[" + i + "]"));
-        }
-        return components;
-    }
-
-    private ComponentDefinition parseComponent(JsonObject component, String sourceName) throws IOException, InterruptedException {
-        String type = component.get("type").getAsString();
-        String id = component.get("id").getAsString();
-        ComponentPosition position = parsePosition(component.getAsJsonObject("position"));
-        boolean visible = getBoolean(component, "visible", true);
-        float opacity = getFloat(component, "opacity", 1.0f);
-
-        if ("text".equals(type)) {
-            return new TextComponentDefinition(
-                    id,
-                    position,
-                    parseSize(component, 1.0f, 0.25f),
-                    visible,
-                    opacity,
-                    component.get("content").getAsString(),
-                    getFloat(component, "fontSize", 0.5f),
-                    getString(component, "color", "#FFFFFF"),
-                    getString(component, "alignment", "left"),
-                    getInt(component, "lineWidth", 200),
-                    getBoolean(component, "shadow", true),
-                    getString(component, "background", "#00000000")
-            );
-        }
-
-        if ("button".equals(type)) {
-            ClickType parsedClickType = parseClickType(getString(component, "clickType", "RIGHT"));
-            if (parsedClickType != ClickType.RIGHT) {
-                this.debugRecorder.record(
-                        DebugEventType.SCHEMA_LOAD,
-                        DebugLevel.WARN,
-                        null,
-                        null,
-                        null,
-                        id,
-                        null,
-                        null,
-                        sourceName + ": legacy clickType=" + parsedClickType + " ignored, RIGHT로 정규화",
-                        null
-                );
-                InteractiveDisplay.LOGGER.warn(
-                        "[{}] schema warn componentId={} source={} legacy clickType={} -> RIGHT",
-                        InteractiveDisplay.MOD_ID,
-                        id,
-                        sourceName,
-                        parsedClickType
-                );
-            }
-
-            return new ButtonComponentDefinition(
-                    id,
-                    position,
-                    parseSize(component, 1.0f, 0.35f),
-                    visible,
-                    opacity,
-                    component.get("label").getAsString(),
-                    getFloat(component, "fontSize", 1.0f),
-                    getString(component, "backgroundColor", "#00000000"),
-                    getString(component, "hoverColor", "#44FFFFFF"),
-                    getString(component, "clickSound", null),
-                    ClickType.RIGHT,
-                    parseAction(component.getAsJsonObject("action"))
-            );
-        }
-
-        if ("image".equals(type)) {
-            ImageType imageType = ImageType.fromString(component.get("imageType").getAsString());
-            String value = component.get("value").getAsString();
-            ImageSource source = imageType == ImageType.MAP ? this.mapImageResolver.resolve(value) : null;
-            return new ImageComponentDefinition(
-                    id,
-                    position,
-                    parseSize(component, 1.0f, 1.0f),
-                    visible,
-                    opacity,
-                    imageType,
-                    value,
-                    getFloat(component, "scale", 1.0f),
-                    source
-            );
-        }
-
-        if ("panel".equals(type)) {
-            return new PanelComponentDefinition(
-                    id,
-                    position,
-                    parseSize(component, 1.0f, 1.0f),
-                    visible,
-                    opacity,
-                    getString(component, "backgroundColor", "#00000000"),
-                    getFloat(component, "padding", 0.0f),
-                    LayoutMode.fromString(getString(component, "layout", "absolute")),
-                    parseComponents(component.getAsJsonArray("children"), sourceName + ".children")
-            );
-        }
-
-        throw new SchemaValidationException("지원하지 않는 component type: " + type);
-    }
-
-    private static ComponentAction parseAction(JsonObject action) {
-        String actionType = action.get("type").getAsString();
-        return switch (actionType) {
-            case "close_window" -> ComponentAction.closeWindow();
-            case "open_window" -> ComponentAction.openWindow(action.get("target").getAsString());
-            case "switch_mode_fixed" -> ComponentAction.switchModeFixed();
-            case "switch_mode_player_fixed" -> ComponentAction.switchModePlayerFixed();
-            case "toggle_placement_tracking" -> ComponentAction.togglePlacementTracking();
-            case "run_command" -> ComponentAction.runCommand(
-                    action.get("command").getAsString(),
-                    action.has("permissionLevel") ? action.get("permissionLevel").getAsInt() : null
-            );
-            case "callback" -> ComponentAction.callback(action.get("id").getAsString());
-            default -> throw new SchemaValidationException("지원하지 않는 action type: " + actionType);
-        };
-    }
-
-    private WindowOffset parseOffset(JsonObject root, WindowOffset fallback) {
-        JsonObject offsetObject = root.getAsJsonObject("offset");
-        if (offsetObject == null) {
-            return fallback;
-        }
-        return new WindowOffset(
-                getFloat(offsetObject, "forward", fallback.forward()),
-                getFloat(offsetObject, "horizontal", fallback.horizontal()),
-                getFloat(offsetObject, "vertical", fallback.vertical())
-        );
-    }
-
-    private WindowOrbit parseOrbit(JsonObject orbitObject) {
-        if (orbitObject == null) {
-            return WindowOrbit.zero();
-        }
-        return new WindowOrbit(
-                getFloat(orbitObject, "yaw", 0.0f),
-                getFloat(orbitObject, "pitch", 0.0f)
-        );
-    }
-
-    private static ComponentSize parseSize(JsonObject object, float defaultWidth, float defaultHeight) {
-        JsonObject sizeObject = object.getAsJsonObject("size");
-        if (sizeObject != null) {
-            return new ComponentSize(sizeObject.get("width").getAsFloat(), sizeObject.get("height").getAsFloat());
-        }
-        return new ComponentSize(
-                getFloat(object, "width", defaultWidth),
-                getFloat(object, "height", defaultHeight)
-        );
-    }
-
-    private static ComponentPosition parsePosition(JsonObject object) {
-        return new ComponentPosition(
-                object.get("x").getAsFloat(),
-                object.get("y").getAsFloat(),
-                object.get("z").getAsFloat()
-        );
+        return stripYamlExtension(fileName);
     }
 
     private void ensureDefaultAssets() throws IOException {
-        ensureDefaultWindowFile();
-        ensureGalleryWindowFile();
-        ensureDefaultGroupFile();
-        ensureRemoteExampleFile();
+        copyDefaultResource("windows/" + DEFAULT_WINDOW_FILE);
+        copyDefaultResource("windows/" + DEFAULT_MAIN_MENU2_FILE);
+        copyDefaultResource("windows/" + DEFAULT_GALLERY_FILE);
+        copyDefaultResource("windows/" + DEFAULT_REMOTE_EXAMPLE_FILE);
+        copyDefaultResource("groups/" + DEFAULT_GROUP_FILE);
         ensureSampleImage();
     }
 
-    private void ensureDefaultWindowFile() throws IOException {
-        Path path = this.windowsDir.resolve(DEFAULT_WINDOW_FILE);
-        if (Files.exists(path)) {
+    private void copyDefaultResource(String relativePath) throws IOException {
+        Path target = this.configRoot.resolve(relativePath).normalize();
+        if (Files.exists(target)) {
             return;
         }
-        String json = """
-                {
-                  "id": "main_menu",
-                  "size": { "width": 3.0, "height": 2.0 },
-                  "offset": { "forward": 2.0, "horizontal": 0.0, "vertical": 0.5 },
-                  "components": [
-                    {
-                      "id": "background",
-                      "type": "panel",
-                      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
-                      "size": { "width": 3.0, "height": 2.0 },
-                      "backgroundColor": "#88000000",
-                      "children": []
-                    },
-                    {
-                      "id": "title",
-                      "type": "text",
-                      "position": { "x": 0.0, "y": 0.45, "z": 0.01 },
-                      "width": 2.6,
-                      "height": 0.35,
-                      "content": "InteractiveDisplay",
-                      "fontSize": 0.7,
-                      "alignment": "center",
-                      "background": "#00000000"
-                    },
-                    {
-                      "id": "content",
-                      "type": "text",
-                      "position": { "x": 0.0, "y": 0.05, "z": 0.01 },
-                      "width": 2.6,
-                      "height": 0.45,
-                      "content": "샘플 창 내용",
-                      "fontSize": 0.5,
-                      "alignment": "center",
-                      "color": "#E8E8E8",
-                      "background": "#00000000"
-                    },
-                    {
-                      "id": "close",
-                      "type": "button",
-                      "position": { "x": 0.0, "y": -0.55, "z": 0.01 },
-                      "size": { "width": 0.45, "height": 0.35 },
-                      "label": "☒",
-                      "fontSize": 1.0,
-                      "backgroundColor": "#CC992222",
-                      "hoverColor": "#EECC4444",
-                      "clickSound": "minecraft:ui.button.click",
-                      "action": { "type": "close_window" }
-                    }
-                  ]
-                }
-                """;
-        Files.writeString(path, json, StandardCharsets.UTF_8);
-    }
 
-    private void ensureGalleryWindowFile() throws IOException {
-        Path path = this.windowsDir.resolve(DEFAULT_GALLERY_FILE);
-        if (Files.exists(path)) {
-            return;
+        Files.createDirectories(target.getParent());
+        try (InputStream input = SchemaLoader.class.getResourceAsStream(DEFAULT_RESOURCE_ROOT + relativePath)) {
+            if (input == null) {
+                throw new IOException("기본 설정 리소스를 찾을 수 없음: " + relativePath);
+            }
+            Files.copy(input, target);
         }
-        String json = """
-                {
-                  "id": "gallery",
-                  "size": { "width": 4.0, "height": 2.5 },
-                  "layout": "horizontal",
-                  "components": [
-                    {
-                      "id": "local_map",
-                      "type": "image",
-                      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
-                      "size": { "width": 1.0, "height": 1.0 },
-                      "imageType": "MAP",
-                      "value": "sample_local.png",
-                      "scale": 1.0
-                    }
-                  ]
-                }
-                """;
-        Files.writeString(path, json, StandardCharsets.UTF_8);
-    }
-
-    private void ensureDefaultGroupFile() throws IOException {
-        Path path = this.groupsDir.resolve(DEFAULT_GROUP_FILE);
-        if (Files.exists(path)) {
-            return;
-        }
-        String json = """
-                {
-                  "id": "menu_group",
-                  "initialWindowId": "main_menu",
-                  "defaultMode": "player_fixed",
-                  "windows": [
-                    {
-                      "windowId": "main_menu",
-                      "offset": { "forward": 2.0, "horizontal": 0.0, "vertical": 0.5 },
-                      "orbit": { "yaw": 0.0, "pitch": 0.0 }
-                    },
-                    {
-                      "windowId": "gallery",
-                      "offset": { "forward": 2.0, "horizontal": 0.75, "vertical": 0.5 },
-                      "orbit": { "yaw": 25.0, "pitch": 0.0 }
-                    }
-                  ]
-                }
-                """;
-        Files.writeString(path, json, StandardCharsets.UTF_8);
-    }
-
-    private void ensureRemoteExampleFile() throws IOException {
-        Path path = this.windowsDir.resolve(DEFAULT_REMOTE_EXAMPLE_FILE);
-        if (Files.exists(path)) {
-            return;
-        }
-        String json = """
-                {
-                  "id": "gallery_remote",
-                  "size": { "width": 2.0, "height": 1.5 },
-                  "components": [
-                    {
-                      "id": "remote_map",
-                      "type": "image",
-                      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
-                      "size": { "width": 1.0, "height": 1.0 },
-                      "imageType": "MAP",
-                      "value": "https://textures.minecraft.net/texture/4f7d0baf5f5931c37d399a8ce28ed5ab828a53ea50ccaa43d562e2eb06b1e0cc",
-                      "scale": 1.0
-                    }
-                  ]
-                }
-                """;
-        Files.writeString(path, json, StandardCharsets.UTF_8);
     }
 
     private void ensureSampleImage() throws IOException {
@@ -625,32 +307,40 @@ public final class SchemaLoader {
         );
     }
 
-    private static ClickType parseClickType(String value) {
-        return switch (value.toUpperCase()) {
-            case "LEFT" -> ClickType.LEFT;
-            case "BOTH" -> ClickType.BOTH;
-            default -> ClickType.RIGHT;
-        };
+    private static String readId(JsonNode root, String key, String fallback) {
+        if (root != null && root.isObject()) {
+            JsonNode value = root.get(key);
+            if (value != null && value.isTextual()) {
+                return value.textValue();
+            }
+        }
+        return fallback;
     }
 
-    private static String stripJsonExtension(String fileName) {
-        return fileName.endsWith(".json") ? fileName.substring(0, fileName.length() - 5) : fileName;
+    private static String stripYamlExtension(String fileName) {
+        return fileName.endsWith(".yaml") ? fileName.substring(0, fileName.length() - 5) : fileName;
     }
 
-    private static boolean getBoolean(JsonObject object, String key, boolean defaultValue) {
-        return object.has(key) ? object.get(key).getAsBoolean() : defaultValue;
-    }
-
-    private static int getInt(JsonObject object, String key, int defaultValue) {
-        return object.has(key) ? object.get(key).getAsInt() : defaultValue;
-    }
-
-    private static float getFloat(JsonObject object, String key, float defaultValue) {
-        return object.has(key) ? object.get(key).getAsFloat() : defaultValue;
-    }
-
-    private static String getString(JsonObject object, String key, String defaultValue) {
-        return object.has(key) ? object.get(key).getAsString() : defaultValue;
+    private void warnUnsupportedLegacyConfigFiles(Path directory) {
+        if (!Files.isDirectory(directory)) {
+            return;
+        }
+        try (var paths = Files.list(directory)) {
+            paths.filter(path -> path.getFileName().toString().endsWith(".json"))
+                    .sorted()
+                    .forEach(path -> InteractiveDisplay.LOGGER.warn(
+                            "[{}] Unsupported legacy config file: {}. InteractiveDisplay supports .yaml configuration only.",
+                            InteractiveDisplay.MOD_ID,
+                            this.configRoot.relativize(path)
+                    ));
+        } catch (IOException exception) {
+            InteractiveDisplay.LOGGER.warn(
+                    "[{}] Unsupported config scan failed for {}: {}",
+                    InteractiveDisplay.MOD_ID,
+                    directory,
+                    exception.getMessage()
+            );
+        }
     }
 
     public record LoadResult(Map<String, WindowDefinition> definitions,

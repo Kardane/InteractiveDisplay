@@ -1,9 +1,6 @@
 package com.interactivedisplay.schema;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.interactivedisplay.core.positioning.PositionMode;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -17,9 +14,14 @@ public final class SchemaValidator {
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
     private static final Set<String> POSITION_MODES = Set.of("fixed", "player_fixed", "player_view");
+    private static final List<String> COLOR_FIELDS = List.of("color", "backgroundColor", "hoverColor", "background");
 
-    public List<String> validate(JsonObject root, String sourceName) {
+    public List<String> validate(JsonNode root, String sourceName) {
         List<String> errors = new ArrayList<>();
+        if (!isObject(root)) {
+            errors.add(sourceName + ": root must be object");
+            return errors;
+        }
 
         requireString(root, "id", sourceName, errors);
         requireObject(root, "size", sourceName, errors);
@@ -27,13 +29,13 @@ public final class SchemaValidator {
         requireLayout(root, sourceName, errors);
         validateOffset(root, sourceName, errors);
 
-        JsonObject size = getObject(root, "size");
+        JsonNode size = getObject(root, "size");
         if (size != null) {
             requirePositiveNumber(size, "width", sourceName + ".size", errors);
             requirePositiveNumber(size, "height", sourceName + ".size", errors);
         }
 
-        JsonArray components = getArray(root, "components");
+        JsonNode components = getArray(root, "components");
         if (components != null) {
             validateComponents(components, sourceName + ".components", errors, new HashSet<>());
         }
@@ -41,8 +43,13 @@ public final class SchemaValidator {
         return errors;
     }
 
-    public List<String> validateGroup(JsonObject root, String sourceName) {
+    public List<String> validateGroup(JsonNode root, String sourceName) {
         List<String> errors = new ArrayList<>();
+        if (!isObject(root)) {
+            errors.add(sourceName + ": root must be object");
+            return errors;
+        }
+
         requireString(root, "id", sourceName, errors);
         requireString(root, "initialWindowId", sourceName, errors);
         String defaultMode = requireString(root, "defaultMode", sourceName, errors);
@@ -51,25 +58,25 @@ public final class SchemaValidator {
         }
         requireArray(root, "windows", sourceName, errors);
 
-        JsonArray windows = getArray(root, "windows");
+        JsonNode windows = getArray(root, "windows");
         if (windows != null) {
             validateGroupWindows(windows, sourceName + ".windows", errors);
         }
         return errors;
     }
 
-    private void validateComponents(JsonArray components,
+    private void validateComponents(JsonNode components,
                                     String sourceName,
                                     List<String> errors,
                                     Set<String> componentIds) {
         for (int i = 0; i < components.size(); i++) {
-            JsonElement element = components.get(i);
-            if (!element.isJsonObject()) {
+            JsonNode element = components.get(i);
+            if (!isObject(element)) {
                 errors.add(sourceName + "[" + i + "]: component must be object");
                 continue;
             }
 
-            JsonObject component = element.getAsJsonObject();
+            JsonNode component = element;
             String componentName = sourceName + "[" + i + "]";
             String id = requireString(component, "id", componentName, errors);
             if (id != null && !componentIds.add(id)) {
@@ -83,13 +90,18 @@ public final class SchemaValidator {
 
             requireObject(component, "position", componentName, errors);
             validatePosition(component, componentName, errors);
+            validateOptionalBoolean(component, "visible", componentName, errors);
             validateOpacity(component, componentName, errors);
             requireLayout(component, componentName, errors);
+            validateColorFields(component, componentName, errors);
 
             if ("text".equals(type)) {
                 requireString(component, "content", componentName, errors);
                 validateOptionalTextSize(component, componentName, errors);
+                validatePositiveOptional(component, "fontSize", componentName, errors);
                 validateAlignment(component, componentName, errors);
+                validateOptionalNumber(component, "lineWidth", componentName, errors);
+                validateOptionalBoolean(component, "shadow", componentName, errors);
                 continue;
             }
 
@@ -97,6 +109,7 @@ public final class SchemaValidator {
                 requireString(component, "label", componentName, errors);
                 validateSize(component, componentName, errors, true);
                 validatePositiveOptional(component, "fontSize", componentName, errors);
+                validateOptionalString(component, "clickType", componentName, errors);
                 String clickType = optionalString(component, "clickType");
                 if (clickType != null && !CLICK_TYPES.contains(clickType.toLowerCase())) {
                     errors.add(componentName + ": clickType must be LEFT, RIGHT, BOTH");
@@ -122,7 +135,7 @@ public final class SchemaValidator {
                 requireArray(component, "children", componentName, errors);
                 validateNonNegativeOptional(component, "padding", componentName, errors);
                 requireLayout(component, componentName, errors);
-                JsonArray children = getArray(component, "children");
+                JsonNode children = getArray(component, "children");
                 if (children != null) {
                     validateComponents(children, componentName + ".children", errors, componentIds);
                 }
@@ -130,8 +143,8 @@ public final class SchemaValidator {
         }
     }
 
-    private static void validateAction(JsonObject component, String sourceName, List<String> errors) {
-        JsonObject action = getObject(component, "action");
+    private static void validateAction(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode action = getObject(component, "action");
         if (action == null) {
             errors.add(sourceName + ": action is required");
             return;
@@ -156,38 +169,38 @@ public final class SchemaValidator {
         }
     }
 
-    private static void validatePermissionLevel(JsonObject action, String sourceName, List<String> errors) {
-        JsonElement element = action.get("permissionLevel");
+    private static void validatePermissionLevel(JsonNode action, String sourceName, List<String> errors) {
+        JsonNode element = action.get("permissionLevel");
         if (element == null) {
             return;
         }
-        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+        if (!element.isNumber()) {
             errors.add(sourceName + ": permissionLevel must be integer between 0 and 4");
             return;
         }
-        double value = element.getAsDouble();
+        double value = element.doubleValue();
         if (value != Math.rint(value) || value < 0.0D || value > 4.0D) {
             errors.add(sourceName + ": permissionLevel must be integer between 0 and 4");
         }
     }
 
-    private static void validateGroupWindows(JsonArray windows, String sourceName, List<String> errors) {
+    private static void validateGroupWindows(JsonNode windows, String sourceName, List<String> errors) {
         for (int i = 0; i < windows.size(); i++) {
-            JsonElement element = windows.get(i);
-            if (!element.isJsonObject()) {
+            JsonNode element = windows.get(i);
+            if (!isObject(element)) {
                 errors.add(sourceName + "[" + i + "]: window entry must be object");
                 continue;
             }
-            JsonObject entry = element.getAsJsonObject();
+            JsonNode entry = element;
             String entryName = sourceName + "[" + i + "]";
             requireString(entry, "windowId", entryName, errors);
-            JsonObject offset = getObject(entry, "offset");
+            JsonNode offset = getObject(entry, "offset");
             if (offset != null) {
                 requireNumber(offset, "forward", entryName + ".offset", errors);
                 requireNumber(offset, "horizontal", entryName + ".offset", errors);
                 requireNumber(offset, "vertical", entryName + ".offset", errors);
             }
-            JsonObject orbit = getObject(entry, "orbit");
+            JsonNode orbit = getObject(entry, "orbit");
             if (orbit != null) {
                 requireNumber(orbit, "yaw", entryName + ".orbit", errors);
                 requireNumber(orbit, "pitch", entryName + ".orbit", errors);
@@ -195,8 +208,8 @@ public final class SchemaValidator {
         }
     }
 
-    private static void validatePosition(JsonObject component, String sourceName, List<String> errors) {
-        JsonObject position = getObject(component, "position");
+    private static void validatePosition(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode position = getObject(component, "position");
         if (position == null) {
             return;
         }
@@ -205,8 +218,8 @@ public final class SchemaValidator {
         requireNumber(position, "z", sourceName + ".position", errors);
     }
 
-    private static void validateOffset(JsonObject root, String sourceName, List<String> errors) {
-        JsonObject offset = getObject(root, "offset");
+    private static void validateOffset(JsonNode root, String sourceName, List<String> errors) {
+        JsonNode offset = getObject(root, "offset");
         if (offset == null) {
             return;
         }
@@ -215,23 +228,23 @@ public final class SchemaValidator {
         requireNumber(offset, "vertical", sourceName + ".offset", errors);
     }
 
-    private static void validateOpacity(JsonObject component, String sourceName, List<String> errors) {
-        JsonElement opacity = component.get("opacity");
+    private static void validateOpacity(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode opacity = component.get("opacity");
         if (opacity == null) {
             return;
         }
-        if (!opacity.isJsonPrimitive() || !opacity.getAsJsonPrimitive().isNumber()) {
+        if (!opacity.isNumber()) {
             errors.add(sourceName + ": opacity must be number");
             return;
         }
-        float value = opacity.getAsFloat();
+        float value = opacity.floatValue();
         if (value < 0.0f || value > 1.0f) {
             errors.add(sourceName + ": opacity must be between 0 and 1");
         }
     }
 
-    private static void validateSize(JsonObject component, String sourceName, List<String> errors, boolean requireSizeObject) {
-        JsonObject size = getObject(component, "size");
+    private static void validateSize(JsonNode component, String sourceName, List<String> errors, boolean requireSizeObject) {
+        JsonNode size = getObject(component, "size");
         if (size != null) {
             requirePositiveNumber(size, "width", sourceName + ".size", errors);
             requirePositiveNumber(size, "height", sourceName + ".size", errors);
@@ -247,8 +260,8 @@ public final class SchemaValidator {
         errors.add(sourceName + ": size is required");
     }
 
-    private static void validateOptionalTextSize(JsonObject component, String sourceName, List<String> errors) {
-        JsonObject size = getObject(component, "size");
+    private static void validateOptionalTextSize(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode size = getObject(component, "size");
         if (size != null) {
             requirePositiveNumber(size, "width", sourceName + ".size", errors);
             requirePositiveNumber(size, "height", sourceName + ".size", errors);
@@ -268,120 +281,148 @@ public final class SchemaValidator {
         requirePositiveNumber(component, "height", sourceName, errors);
     }
 
-    private static void requireLayout(JsonObject object, String sourceName, List<String> errors) {
-        String layout = optionalString(object, "layout");
-        if (layout == null) {
+    private static void requireLayout(JsonNode object, String sourceName, List<String> errors) {
+        JsonNode element = object.get("layout");
+        if (element == null) {
             return;
         }
-        if (!LAYOUT_TYPES.contains(layout.toLowerCase())) {
+        if (!element.isTextual()) {
+            errors.add(sourceName + ": layout must be string");
+            return;
+        }
+        if (!LAYOUT_TYPES.contains(element.textValue().toLowerCase())) {
             errors.add(sourceName + ": layout must be absolute, vertical, horizontal");
         }
     }
 
-    private static void validateAlignment(JsonObject object, String sourceName, List<String> errors) {
-        String alignment = optionalString(object, "alignment");
-        if (alignment == null) {
+    private static void validateAlignment(JsonNode object, String sourceName, List<String> errors) {
+        JsonNode element = object.get("alignment");
+        if (element == null) {
             return;
         }
-        if (!ALIGNMENTS.contains(alignment.toLowerCase())) {
+        if (!element.isTextual()) {
+            errors.add(sourceName + ": alignment must be string");
+            return;
+        }
+        if (!ALIGNMENTS.contains(element.textValue().toLowerCase())) {
             errors.add(sourceName + ": alignment must be left, center, right");
         }
     }
 
-    private static void validateOptionalString(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
-        if (element == null) {
-            return;
+    private static void validateColorFields(JsonNode object, String sourceName, List<String> errors) {
+        for (String key : COLOR_FIELDS) {
+            validateOptionalString(object, key, sourceName, errors);
         }
-        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+    }
+
+    private static void validateOptionalString(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element != null && !element.isTextual()) {
             errors.add(sourceName + ": " + key + " must be string");
         }
     }
 
-    private static void validatePositiveOptional(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
+    private static void validateOptionalNumber(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element != null && !element.isNumber()) {
+            errors.add(sourceName + ": " + key + " must be number");
+        }
+    }
+
+    private static void validateOptionalBoolean(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element != null && !element.isBoolean()) {
+            errors.add(sourceName + ": " + key + " must be boolean");
+        }
+    }
+
+    private static void validatePositiveOptional(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
         if (element == null) {
             return;
         }
-        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+        if (!element.isNumber()) {
             errors.add(sourceName + ": " + key + " must be number");
             return;
         }
-        if (element.getAsFloat() <= 0.0f) {
+        if (element.floatValue() <= 0.0f) {
             errors.add(sourceName + ": " + key + " must be > 0");
         }
     }
 
-    private static void validateNonNegativeOptional(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
+    private static void validateNonNegativeOptional(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
         if (element == null) {
             return;
         }
-        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+        if (!element.isNumber()) {
             errors.add(sourceName + ": " + key + " must be number");
             return;
         }
-        if (element.getAsFloat() < 0.0f) {
+        if (element.floatValue() < 0.0f) {
             errors.add(sourceName + ": " + key + " must be >= 0");
         }
     }
 
-    private static String requireString(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
-        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+    private static String requireString(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null || !element.isTextual()) {
             errors.add(sourceName + ": " + key + " must be string");
             return null;
         }
-        return element.getAsString();
+        return element.textValue();
     }
 
-    private static String optionalString(JsonObject object, String key) {
-        JsonElement element = object.get(key);
-        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
-            return null;
-        }
-        return element.getAsString();
+    private static String optionalString(JsonNode object, String key) {
+        JsonNode element = object.get(key);
+        return element != null && element.isTextual() ? element.textValue() : null;
     }
 
-    private static void requireObject(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
-        if (element == null || !element.isJsonObject()) {
+    private static void requireObject(JsonNode object, String key, String sourceName, List<String> errors) {
+        if (!isObject(object.get(key))) {
             errors.add(sourceName + ": " + key + " must be object");
         }
     }
 
-    private static void requireArray(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
-        if (element == null || !element.isJsonArray()) {
+    private static void requireArray(JsonNode object, String key, String sourceName, List<String> errors) {
+        if (!isArray(object.get(key))) {
             errors.add(sourceName + ": " + key + " must be array");
         }
     }
 
-    private static void requireNumber(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
-        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+    private static void requireNumber(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null || !element.isNumber()) {
             errors.add(sourceName + ": " + key + " must be number");
         }
     }
 
-    private static void requirePositiveNumber(JsonObject object, String key, String sourceName, List<String> errors) {
-        JsonElement element = object.get(key);
-        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+    private static void requirePositiveNumber(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null || !element.isNumber()) {
             errors.add(sourceName + ": " + key + " must be number");
             return;
         }
-        if (element.getAsFloat() <= 0.0f) {
+        if (element.floatValue() <= 0.0f) {
             errors.add(sourceName + ": " + key + " must be > 0");
         }
     }
 
-    private static JsonObject getObject(JsonObject object, String key) {
-        JsonElement element = object.get(key);
-        return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
+    private static JsonNode getObject(JsonNode object, String key) {
+        JsonNode element = object.get(key);
+        return isObject(element) ? element : null;
     }
 
-    private static JsonArray getArray(JsonObject object, String key) {
-        JsonElement element = object.get(key);
-        return element != null && element.isJsonArray() ? element.getAsJsonArray() : null;
+    private static JsonNode getArray(JsonNode object, String key) {
+        JsonNode element = object.get(key);
+        return isArray(element) ? element : null;
+    }
+
+    private static boolean isObject(JsonNode node) {
+        return node != null && node.isObject();
+    }
+
+    private static boolean isArray(JsonNode node) {
+        return node != null && node.isArray();
     }
 }

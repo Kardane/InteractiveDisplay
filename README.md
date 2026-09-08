@@ -2,7 +2,7 @@
 
 
 `InteractiveDisplay`는 Minecraft 1.21.8 Fabric 서버에서 동작하는 서버사이드 3D HUD / 창 시스템임.  
-`display entity` 기반으로 UI를 띄우고, JSON 설정으로 창 레이아웃과 버튼 동작을 정의하는 구조임.
+`display entity` 기반으로 UI를 띄우고, YAML 설정으로 창 레이아웃과 버튼 동작을 정의하는 구조임.
 
 ## 스크린샷
 
@@ -11,7 +11,7 @@
 
 ## 핵심 특징
 
-- JSON 기반 창(`windows`) / 그룹(`groups`) 정의
+- YAML 기반 창(`windows`) / 그룹(`groups`) 정의
 - `FIXED`, `PLAYER_FIXED`, `PLAYER_VIEW` 배치 모드 지원
 - `text`, `button`, `panel`, `image` 컴포넌트 지원
 - 버튼 액션으로 창 열기, 모드 전환, 명령 실행, 콜백 처리 지원
@@ -63,18 +63,20 @@ GRADLE_USER_HOME=/home/parkj/test-projects/MC_InteractiveDisplay/.gradle ./gradl
 
 기본 설정 루트는 `run/config/interactivedisplay/` 임.
 
+설정 파일이 없을 때만 JAR에 포함된 `defaults/interactivedisplay/` 리소스를 복사하며, 이미 존재하는 사용자 설정은 덮어쓰지 않는다.
+
 ```text
 run/config/interactivedisplay/
-├── command_whitelist.json
+├── command_whitelist.yaml
 ├── groups/
-│   └── menu_group.json
+│   └── menu_group.yaml
 ├── images/
 │   └── sample_local.png
 └── windows/
-    ├── gallery.json
-    ├── gallery_remote.example.json.disabled
-    ├── main_menu.json
-    └── main_menu2.json
+    ├── gallery.yaml
+    ├── gallery_remote.example.yaml.disabled
+    ├── main_menu.yaml
+    └── main_menu2.yaml
 ```
 
 | 경로 | 역할 |
@@ -82,39 +84,35 @@ run/config/interactivedisplay/
 | `windows/` | 각 창의 루트 설정 파일 위치. `id`, `size`, `offset`, `layout`, `components`를 정의함 |
 | `groups/` | 여러 창을 묶는 그룹 설정 위치. 어떤 창이 먼저 열리는지, 각 창이 그룹 내에서 어디에 배치되는지 정의함 |
 | `images/` | `imageType: "MAP"`에서 로컬 파일을 쓸 때 참조하는 이미지 저장 위치 |
-| `command_whitelist.json` | `run_command` 액션으로 실행 가능한 명령 접두사를 제한하는 보안 설정 파일. 기본값은 빈 배열이라 아무 명령도 허용되지 않음 |
+| `command_whitelist.yaml` | `run_command` 액션으로 실행 가능한 명령 접두사를 제한하는 보안 설정 파일. 기본값은 빈 배열이라 아무 명령도 허용되지 않음 |
 
 ## 설정 스키마 상세
 
 ### 1. 창 파일 경로
 
-- `run/config/interactivedisplay/windows/*.json`
+- `run/config/interactivedisplay/windows/*.yaml`
 
 예시 파일
 
-- `run/config/interactivedisplay/windows/main_menu.json`
-- `run/config/interactivedisplay/windows/main_menu2.json`
-- `run/config/interactivedisplay/windows/gallery.json`
+- `run/config/interactivedisplay/windows/main_menu.yaml`
+- `run/config/interactivedisplay/windows/main_menu2.yaml`
+- `run/config/interactivedisplay/windows/gallery.yaml`
 
 ### 2. 창 루트 구조
 
-모든 창 JSON은 최소한 아래 구조를 가짐.
+모든 창 YAML은 최소한 아래 구조를 가짐.
 
-```json
-{
-  "id": "main_menu",
-  "size": {
-    "width": 3.2,
-    "height": 2.4
-  },
-  "offset": {
-    "forward": 3.0,
-    "horizontal": 0.0,
-    "vertical": 0.5
-  },
-  "layout": "absolute",
-  "components": []
-}
+```yaml
+id: main_menu
+size:
+  width: 3.2
+  height: 2.4
+offset:
+  forward: 3.0
+  horizontal: 0.0
+  vertical: 0.5
+layout: absolute
+components: []
 ```
 
 | 필드 | 설명 | 비고 |
@@ -127,27 +125,27 @@ run/config/interactivedisplay/
 
 ### 3. 그룹 파일 경로
 
-- `run/config/interactivedisplay/groups/*.json`
+- `run/config/interactivedisplay/groups/*.yaml`
 
 예시 파일
 
-- `run/config/interactivedisplay/groups/menu_group.json`
+- `run/config/interactivedisplay/groups/menu_group.yaml`
 
 예시 구조
 
-```json
-{
-  "id": "menu_group",
-  "initialWindowId": "main_menu",
-  "defaultMode": "player_fixed",
-  "windows": [
-    {
-      "windowId": "main_menu",
-      "offset": { "forward": 2.0, "horizontal": 0.0, "vertical": 0.5 },
-      "orbit": { "yaw": 0.0, "pitch": 0.0 }
-    }
-  ]
-}
+```yaml
+id: menu_group
+initialWindowId: main_menu
+defaultMode: player_fixed
+windows:
+  - windowId: main_menu
+    offset:
+      forward: 2.0
+      horizontal: 0.0
+      vertical: 0.5
+    orbit:
+      yaw: 0.0
+      pitch: 0.0
 ```
 
 | 필드 | 설명 | 비고 |
@@ -180,6 +178,41 @@ run/config/interactivedisplay/
 | `image` | 아이템, 블록, 맵 이미지 표시 | `size.width`, `size.height`, `imageType`, `value`, `scale` | `scale=1.0` |
 | `panel` | 자식 컴포넌트 컨테이너 | `size.width`, `size.height`, `backgroundColor`, `padding`, `layout`, `children` | `backgroundColor=#00000000`, `padding=0.0`, `layout=absolute` |
 
+#### YAML 색상 표기 규칙
+
+YAML 설정에서 `#`는 주석 시작 문자이므로 색상 값은 반드시 문자열로 감싼다.
+창과 그룹 설정은 이제 `.yaml` 확장자로만 탐색한다.
+
+```yaml
+color: "#FFFFFF"
+backgroundColor: "#88000000"
+hoverColor: "#44FFFFFF"
+background: "#00000000"
+```
+
+### YAML-only 설정 탐색
+
+창과 그룹 설정은 `.yaml` 확장자만 탐색한다. `.yml`과 레거시 `.json`은 읽지 않으며, 레거시 JSON이 남아 있으면 경고만 기록한다. JSON을 YAML로 자동 변환하거나 fallback으로 읽지 않는다.
+
+#### 여러 줄 텍스트
+
+`text.content`는 YAML block scalar를 사용해 여러 줄 텍스트를 그대로 전달할 수 있다.
+
+```yaml
+content: |
+  InteractiveDisplay
+  YAML configuration
+  example
+```
+
+`run_command`의 `command`는 명령 해석 경계를 단순하게 유지하기 위해 한 줄 사용을 권장한다.
+
+#### YAML 작성 규칙
+
+- 들여쓰기는 공백 2칸을 사용하고 탭은 사용하지 않는다.
+- enum-like 값은 `absolute`, `vertical`, `horizontal`, `fixed`, `player_fixed`, `player_view`, `text`, `button`, `panel`, `image`, `item`, `block`, `map`처럼 소문자로 작성한다.
+- 색상, Minecraft 식별자, URL, 명령어는 문자열로 감싼다. 특히 `#`로 시작하는 색상은 반드시 quote한다.
+
 버튼 `clickType` 관련 주의
 
 | 항목 | 내용 |
@@ -198,8 +231,8 @@ run/config/interactivedisplay/
 
 관련 예시 파일
 
-- `run/config/interactivedisplay/windows/gallery.json`
-- `run/config/interactivedisplay/windows/gallery_remote.example.json.disabled`
+- `run/config/interactivedisplay/windows/gallery.yaml`
+- `run/config/interactivedisplay/windows/gallery_remote.example.yaml.disabled`
 
 ### 6. 버튼 액션 타입
 
@@ -217,40 +250,32 @@ run/config/interactivedisplay/
 
 예시
 
-```json
-{
-  "action": {
-    "type": "run_command",
-    "command": "title @s actionbar {\"text\":\"버튼 컨텍스트 실행\"}",
-    "permissionLevel": 2
-  }
-}
+```yaml
+action:
+  type: run_command
+  command: 'title @s actionbar {"text":"버튼 컨텍스트 실행"}'
+  permissionLevel: 2
 ```
 
 ### 7. 버튼 명령 실행 보안 설정
 
 `run_command`는 아무 명령이나 바로 실행되지 않음. 아래 파일에서 접두사 화이트리스트를 먼저 통과해야 함.
 
-- `run/config/interactivedisplay/command_whitelist.json`
+- `run/config/interactivedisplay/command_whitelist.yaml`
 
 기본 구조
 
-```json
-{
-  "allowedPrefixes": []
-}
+```yaml
+allowedPrefixes: []
 ```
 
 예시
 
-```json
-{
-  "allowedPrefixes": [
-    "say ",
-    "title ",
-    "tellraw "
-  ]
-}
+```yaml
+allowedPrefixes:
+  - "say "
+  - "title "
+  - "tellraw "
 ```
 
 | 항목 | 설명 |
@@ -273,14 +298,14 @@ run/config/interactivedisplay/
 2. `/interactivedisplay reload`로 문법과 로드 상태 확인
 3. `groups/`에서 여러 창 배치 정의
 4. 필요한 경우 `images/`에 로컬 이미지 추가
-5. `run_command`를 쓸 때만 `command_whitelist.json` 갱신
+5. `run_command`를 쓸 때만 `command_whitelist.yaml` 갱신
 
 ### 10. 실전 예시 파일
 
-- 메인 메뉴: `run/config/interactivedisplay/windows/main_menu.json`
-- 두 번째 메뉴: `run/config/interactivedisplay/windows/main_menu2.json`
-- 이미지 갤러리: `run/config/interactivedisplay/windows/gallery.json`
-- 그룹 예시: `run/config/interactivedisplay/groups/menu_group.json`
+- 메인 메뉴: `run/config/interactivedisplay/windows/main_menu.yaml`
+- 두 번째 메뉴: `run/config/interactivedisplay/windows/main_menu2.yaml`
+- 이미지 갤러리: `run/config/interactivedisplay/windows/gallery.yaml`
+- 그룹 예시: `run/config/interactivedisplay/groups/menu_group.yaml`
 
 ## 주요 명령어
 
@@ -323,7 +348,7 @@ src/main/java/com/interactivedisplay/
 ├── entity/         display entity 생성 및 풀링
 ├── item/           포인터 아이템 등록
 ├── polymer/        리소스팩 부트스트랩
-├── schema/         JSON 로드와 검증
+├── schema/         YAML 로드와 검증
 └── debug/          디버그 이벤트 기록
 ```
 

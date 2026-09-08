@@ -1,0 +1,25 @@
+id: parser_window
+size:
+  width: 3.0
+  height: 2.0
+offset:
+  forward: 2.0
+  horizontal: 0.25
+  vertical: 0.5
+layout: vertical
+components:
+  - id: title
+    type: text
+    position:
+      x: 0.0
+      y: 0.5
+      z: 0.01
+    size:
+      width: 2.5
+      height: 0.4
+    content: |
+      첫 번째 줄
+      두 번째 줄
+    fontSize: 0.6
+    alignment: center
+    color: "#FFFFFF"

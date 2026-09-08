@@ -1,0 +1,20 @@
+id: menu_group
+initialWindowId: main_menu
+defaultMode: player_fixed
+windows:
+  - windowId: main_menu
+    offset:
+      forward: 2.0
+      horizontal: 0.0
+      vertical: 0.5
+    orbit:
+      yaw: 0.0
+      pitch: 0.0
+  - windowId: gallery
+    offset:
+      forward: 2.0
+      horizontal: 0.75
+      vertical: 0.5
+    orbit:
+      yaw: 25.0
+      pitch: 0.0

@@ -1,0 +1,17 @@
+id: gallery_remote
+size:
+  width: 2.0
+  height: 1.5
+components:
+  - id: remote_map
+    type: image
+    position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    size:
+      width: 1.0
+      height: 1.0
+    imageType: map
+    value: "https://textures.minecraft.net/texture/4f7d0baf5f5931c37d399a8ce28ed5ab828a53ea50ccaa43d562e2eb06b1e0cc"
+    scale: 1.0

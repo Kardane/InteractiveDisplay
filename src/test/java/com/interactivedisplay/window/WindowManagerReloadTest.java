@@ -29,7 +29,7 @@ class WindowManagerReloadTest {
         Path windows = tempDir.resolve("interactivedisplay").resolve("windows");
         Files.createDirectories(windows);
 
-        Path target = windows.resolve("menu.json");
+        Path target = windows.resolve("menu.yaml");
         Files.writeString(target, """
                 {
                   "id": "main_menu",
@@ -117,7 +117,7 @@ class WindowManagerReloadTest {
         Files.createDirectories(windows);
         Files.createDirectories(groups);
 
-        Files.writeString(windows.resolve("main_menu.json"), """
+        Files.writeString(windows.resolve("main_menu.yaml"), """
                 {
                   "id": "main_menu",
                   "size": {"width": 3.0, "height": 2.0},
@@ -131,7 +131,7 @@ class WindowManagerReloadTest {
                   ]
                 }
                 """, StandardCharsets.UTF_8);
-        Files.writeString(windows.resolve("gallery.json"), """
+        Files.writeString(windows.resolve("gallery.yaml"), """
                 {
                   "id": "gallery",
                   "size": {"width": 3.0, "height": 2.0},
@@ -145,7 +145,7 @@ class WindowManagerReloadTest {
                   ]
                 }
                 """, StandardCharsets.UTF_8);
-        Files.writeString(groups.resolve("menu_group.json"), """
+        Files.writeString(groups.resolve("menu_group.yaml"), """
                 {
                   "id": "menu_group",
                   "initialWindowId": "main_menu",
@@ -176,7 +176,7 @@ class WindowManagerReloadTest {
         assertTrue(manager.loadedWindowIds().contains("gallery"));
         assertTrue(manager.loadedGroupIds().contains("menu_group"));
 
-        Files.writeString(windows.resolve("gallery.json"), """
+        Files.writeString(windows.resolve("gallery.yaml"), """
                 {
                   "id": "gallery",
                   "size": {"width": 3.0, "height": 2.0},
@@ -190,7 +190,7 @@ class WindowManagerReloadTest {
                   ]
                 }
                 """, StandardCharsets.UTF_8);
-        Files.writeString(groups.resolve("menu_group.json"), """
+        Files.writeString(groups.resolve("menu_group.yaml"), """
                 {
                   "id": "menu_group",
                   "defaultMode": "player_fixed",

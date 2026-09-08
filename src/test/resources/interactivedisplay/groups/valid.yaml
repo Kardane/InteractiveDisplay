@@ -1,0 +1,12 @@
+id: parser_group
+initialWindowId: parser_window
+defaultMode: player_fixed
+windows:
+  - windowId: parser_window
+    offset:
+      forward: 2.0
+      horizontal: 0.5
+      vertical: 0.25
+    orbit:
+      yaw: 15.0
+      pitch: -5.0
