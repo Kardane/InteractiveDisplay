@@ -10,6 +10,8 @@ import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
+import com.interactivedisplay.core.window.WindowTransition;
+import com.interactivedisplay.core.window.WindowTransitionType;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
@@ -28,6 +30,7 @@ import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.StringJoiner;
 import java.util.UUID;
@@ -58,6 +61,8 @@ public final class DisplayEntityFactory {
     private static final int INTERPOLATION_DELAY = 0;
     private static final int TELEPORT_DURATION = 3;
     private static final float MIN_Z_SCALE = 0.001f;
+    private static final float MIN_TRANSITION_SCALE = 0.01f;
+    private static final float TRANSITION_SLIDE_DISTANCE = 0.35f;
 
     private final DebugRecorder debugRecorder;
     private final BiFunction<ServerPlayer, Component, Component> placeholderResolver;
@@ -191,7 +196,75 @@ public final class DisplayEntityFactory {
                 button.opacity(),
                 "center"
         );
+        Vector3f targetScale = runtime.baseScale();
+        if (hovered && button.hoverScale() != 1.0f) {
+            targetScale.mul(button.hoverScale());
+        }
+        textElement.setInterpolationDuration(INTERPOLATION_DURATION);
+        textElement.setScale(targetScale);
+        textElement.startInterpolationIfDirty();
         runtime.setHovered(hovered);
+    }
+
+    public boolean refreshText(MinecraftServer server,
+                               UUID owner,
+                               WindowComponentRuntime runtime,
+                               TextComponentDefinition text) {
+        if (!(runtime.displayElement() instanceof TextDisplayElement textElement)) {
+            return false;
+        }
+        Component rendered = renderTextContent(text.content(), text.color(), ownerPlayer(server, owner));
+        if (rendered.equals(textElement.getText())) {
+            return false;
+        }
+        textElement.setText(rendered);
+        return true;
+    }
+
+    public void prepareEnterTransition(Collection<WindowComponentRuntime> runtimes, WindowTransition transition) {
+        if (transition == null || !transition.hasEnter()) {
+            return;
+        }
+        for (WindowComponentRuntime runtime : runtimes) {
+            applyTransitionInitial(runtime, transition.enter(), transition.duration());
+        }
+    }
+
+    public void playEnterTransition(Collection<WindowComponentRuntime> runtimes, WindowTransition transition) {
+        if (transition == null || !transition.hasEnter()) {
+            return;
+        }
+        for (WindowComponentRuntime runtime : runtimes) {
+            DisplayElement element = runtime.displayElement();
+            if (element == null) {
+                continue;
+            }
+            element.setInterpolationDuration(transition.duration());
+            element.setScale(runtime.baseScale());
+            element.setTranslation(runtime.baseTranslation());
+            element.startInterpolationIfDirty();
+        }
+    }
+
+    public void playExitTransition(Collection<WindowComponentRuntime> runtimes, WindowTransition transition) {
+        if (transition == null || !transition.hasExit()) {
+            return;
+        }
+        for (WindowComponentRuntime runtime : runtimes) {
+            DisplayElement element = runtime.displayElement();
+            if (element == null) {
+                continue;
+            }
+            element.setInterpolationDuration(transition.duration());
+            switch (transition.exit()) {
+                case SCALE -> element.setScale(runtime.baseScale().mul(MIN_TRANSITION_SCALE));
+                case SLIDE_UP -> element.setTranslation(runtime.baseTranslation().add(0.0f, TRANSITION_SLIDE_DISTANCE, 0.0f));
+                case SLIDE_DOWN -> element.setTranslation(runtime.baseTranslation().add(0.0f, -TRANSITION_SLIDE_DISTANCE, 0.0f));
+                case NONE -> {
+                }
+            }
+            element.startInterpolationIfDirty();
+        }
     }
 
     public void syncMapCanvas(PlayerCanvas canvas, ServerPlayer viewer) {
@@ -201,6 +274,23 @@ public final class DisplayEntityFactory {
         canvas.addPlayer(viewer);
         if (canvas.isDirty()) {
             canvas.sendUpdates();
+        }
+    }
+
+    private void applyTransitionInitial(WindowComponentRuntime runtime,
+                                        WindowTransitionType transition,
+                                        int duration) {
+        DisplayElement element = runtime.displayElement();
+        if (element == null) {
+            return;
+        }
+        element.setInterpolationDuration(duration);
+        switch (transition) {
+            case SCALE -> element.setScale(runtime.baseScale().mul(MIN_TRANSITION_SCALE));
+            case SLIDE_UP -> element.setTranslation(runtime.baseTranslation().add(0.0f, -TRANSITION_SLIDE_DISTANCE, 0.0f));
+            case SLIDE_DOWN -> element.setTranslation(runtime.baseTranslation().add(0.0f, TRANSITION_SLIDE_DISTANCE, 0.0f));
+            case NONE -> {
+            }
         }
     }
 
@@ -238,8 +328,6 @@ public final class DisplayEntityFactory {
             return;
         }
 
-        // Spawn at the correct world position, then let the ride relationship carry the entity with the player.
-        // Rendering displacement/orientation lives in Display transformation data so no entity move packet is needed.
         element.setOffset(worldPosition.subtract(holder.attachmentPosition()));
         Vec3 relative = worldPosition.subtract(holder.passengerRenderOrigin());
         element.setYaw(0.0f);
