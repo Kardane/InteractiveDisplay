@@ -14,6 +14,7 @@ public final class SchemaValidator {
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
     private static final Set<String> POSITION_MODES = Set.of("fixed", "player_fixed", "player_view");
+    private static final Set<String> TRANSITION_TYPES = Set.of("none", "scale", "slide_up", "slide_down");
     private static final List<String> COLOR_FIELDS = List.of("color", "backgroundColor", "hoverColor", "background");
 
     public List<String> validate(JsonNode root, String sourceName) {
@@ -28,6 +29,7 @@ public final class SchemaValidator {
         requireArray(root, "components", sourceName, errors);
         requireLayout(root, sourceName, errors);
         validateOffset(root, sourceName, errors);
+        validateTransition(root, sourceName, errors);
 
         JsonNode size = getObject(root, "size");
         if (size != null) {
@@ -102,6 +104,7 @@ public final class SchemaValidator {
                 validateAlignment(component, componentName, errors);
                 validateOptionalNumber(component, "lineWidth", componentName, errors);
                 validateOptionalBoolean(component, "shadow", componentName, errors);
+                validateNonNegativeIntegerOptional(component, "refreshInterval", componentName, errors);
                 continue;
             }
 
@@ -115,6 +118,7 @@ public final class SchemaValidator {
                     errors.add(componentName + ": clickType must be LEFT, RIGHT, BOTH");
                 }
                 validateOptionalString(component, "clickSound", componentName, errors);
+                validatePositiveOptional(component, "hoverScale", componentName, errors);
                 validateAction(component, componentName, errors);
                 continue;
             }
@@ -181,6 +185,35 @@ public final class SchemaValidator {
         double value = element.doubleValue();
         if (value != Math.rint(value) || value < 0.0D || value > 4.0D) {
             errors.add(sourceName + ": permissionLevel must be integer between 0 and 4");
+        }
+    }
+
+    private static void validateTransition(JsonNode root, String sourceName, List<String> errors) {
+        JsonNode transition = root.get("transition");
+        if (transition == null) {
+            return;
+        }
+        if (!transition.isObject()) {
+            errors.add(sourceName + ": transition must be object");
+            return;
+        }
+        String transitionName = sourceName + ".transition";
+        validateNonNegativeIntegerOptional(transition, "duration", transitionName, errors);
+        validateTransitionType(transition, "enter", transitionName, errors);
+        validateTransitionType(transition, "exit", transitionName, errors);
+    }
+
+    private static void validateTransitionType(JsonNode transition, String key, String sourceName, List<String> errors) {
+        JsonNode element = transition.get(key);
+        if (element == null) {
+            return;
+        }
+        if (!element.isTextual()) {
+            errors.add(sourceName + ": " + key + " must be string");
+            return;
+        }
+        if (!TRANSITION_TYPES.contains(element.textValue().toLowerCase())) {
+            errors.add(sourceName + ": " + key + " must be none, scale, slide_up, slide_down");
         }
     }
 
@@ -361,6 +394,16 @@ public final class SchemaValidator {
         }
         if (element.floatValue() < 0.0f) {
             errors.add(sourceName + ": " + key + " must be >= 0");
+        }
+    }
+
+    private static void validateNonNegativeIntegerOptional(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null) {
+            return;
+        }
+        if (!element.isIntegralNumber() || element.longValue() < 0L || element.longValue() > Integer.MAX_VALUE) {
+            errors.add(sourceName + ": " + key + " must be a non-negative integer");
         }
     }
 
