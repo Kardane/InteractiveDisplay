@@ -1,6 +1,7 @@
 package com.interactivedisplay.core.window;
 
 import com.interactivedisplay.core.positioning.PositionMode;
+import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.entity.VirtualWindowHolder;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -24,12 +25,14 @@ public final class WindowInstance {
     private final float fixedPitch;
     private final VirtualWindowHolder virtualHolder;
     private final Map<String, WindowComponentRuntime> components = new LinkedHashMap<>();
+    private WindowOffset runtimeOffset = WindowOffset.zero();
     private Vec3 targetAnchor;
     private float targetYaw;
     private float targetPitch;
     private Vec3 currentAnchor;
     private float currentYaw;
     private float currentPitch;
+    private Vec3 currentFocusPoint;
     private long lastUpdateTick;
 
     public WindowInstance(UUID owner,
@@ -126,6 +129,14 @@ public final class WindowInstance {
         return this.virtualHolder;
     }
 
+    public WindowOffset runtimeOffset() {
+        return this.runtimeOffset;
+    }
+
+    public void setRuntimeOffset(WindowOffset runtimeOffset) {
+        this.runtimeOffset = runtimeOffset == null ? WindowOffset.zero() : runtimeOffset;
+    }
+
     public Vec3 currentAnchor() {
         return this.currentAnchor;
     }
@@ -150,6 +161,10 @@ public final class WindowInstance {
         return this.currentPitch;
     }
 
+    public Vec3 currentFocusPoint() {
+        return this.currentFocusPoint;
+    }
+
     public void updateTarget(Vec3 targetAnchor, float targetYaw, float targetPitch) {
         this.targetAnchor = targetAnchor;
         this.targetYaw = targetYaw;
@@ -157,9 +172,18 @@ public final class WindowInstance {
     }
 
     public void updateTransform(Vec3 currentAnchor, float currentYaw, float currentPitch, long tick) {
+        updateTransform(currentAnchor, currentYaw, currentPitch, this.currentFocusPoint, tick);
+    }
+
+    public void updateTransform(Vec3 currentAnchor,
+                                float currentYaw,
+                                float currentPitch,
+                                Vec3 currentFocusPoint,
+                                long tick) {
         this.currentAnchor = currentAnchor;
         this.currentYaw = currentYaw;
         this.currentPitch = currentPitch;
+        this.currentFocusPoint = currentFocusPoint;
         this.lastUpdateTick = tick;
     }
 
