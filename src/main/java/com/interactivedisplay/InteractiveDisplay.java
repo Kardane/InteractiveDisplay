@@ -2,6 +2,7 @@ package com.interactivedisplay;
 
 import com.interactivedisplay.command.InteractiveDisplayCommand;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.ClickHandleResult;
 import com.interactivedisplay.core.interaction.ClickHandler;
@@ -14,12 +15,15 @@ import com.interactivedisplay.core.window.WindowManager;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
 import com.interactivedisplay.item.InteractiveDisplayItems;
-import com.interactivedisplay.polymer.ConfigImageAssetPackBuilder;
 import com.interactivedisplay.polymer.PolymerBridge;
 import com.interactivedisplay.polymer.PolymerConfigEnsurer;
 import com.interactivedisplay.polymer.ResourcePackBootstrap;
 import com.interactivedisplay.schema.SchemaLoader;
 import com.interactivedisplay.schema.SchemaValidator;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -27,10 +31,10 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
-import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +46,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     private static volatile InteractiveDisplay INSTANCE;
 
     private final DebugRecorder debugRecorder = new DebugRecorder(DEBUG_BUFFER_CAPACITY);
+    private final Map<UUID, Long> lastLeftClickTicks = new HashMap<>();
 
     private volatile WindowManager windowManager;
     private volatile ClickHandler clickHandler;
@@ -65,13 +70,8 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         InteractiveDisplayItems.register();
 
         Path configDir = FabricLoader.getInstance().getConfigDir();
-        Path gameDir = FabricLoader.getInstance().getGameDir();
         PolymerConfigEnsurer configEnsurer = new PolymerConfigEnsurer(configDir);
-        this.resourcePackBootstrap = new ResourcePackBootstrap(
-                configEnsurer,
-                new PolymerBridge(),
-                new ConfigImageAssetPackBuilder(configDir, gameDir)
-        );
+        this.resourcePackBootstrap = new ResourcePackBootstrap(configEnsurer, new PolymerBridge());
         this.resourcePackBootstrap.prepareFiles();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
@@ -121,6 +121,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             if (manager != null) {
                 manager.removeAll(handler.player.getUUID());
             }
+            this.lastLeftClickTicks.remove(handler.player.getUUID());
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -129,7 +130,9 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     manager.removeAll(player.getUUID());
                 }
+                manager.shutdown();
             }
+            this.lastLeftClickTicks.clear();
             this.clickHandler = null;
             this.windowManager = null;
         });
@@ -138,9 +141,17 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     }
 
     public boolean consumeUiRightClick(ServerPlayer player) {
+        return consumeUiClick(player, ClickType.RIGHT);
+    }
+
+    public boolean consumeUiLeftClick(ServerPlayer player) {
+        return consumeUiClick(player, ClickType.LEFT);
+    }
+
+    public boolean consumeUiClick(ServerPlayer player, ClickType clickType) {
         WindowManager manager = this.windowManager;
         ClickHandler handler = this.clickHandler;
-        if (manager == null || handler == null) {
+        if (manager == null || handler == null || clickType == null) {
             return false;
         }
         if (!InteractiveDisplayItems.isPointer(player.getMainHandItem())) {
@@ -148,8 +159,15 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         }
 
         UiHitResult hitResult = manager.findUiHit(player);
-        if (hitResult == null) {
+        if (hitResult == null || !(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
             return false;
+        }
+        if (!button.clickType().allows(clickType == ClickType.LEFT)) {
+            return false;
+        }
+
+        if (clickType == ClickType.LEFT && isDuplicateLeftClick(player)) {
+            return true;
         }
 
         ClickHandleResult result = handler.handle(player.getUUID(), player.getGameProfile().getName(), hitResult);
@@ -166,6 +184,16 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     public boolean rebuildResourcePack() {
         ResourcePackBootstrap bootstrap = this.resourcePackBootstrap;
         return bootstrap != null && bootstrap.bootstrap(MOD_ID);
+    }
+
+    private boolean isDuplicateLeftClick(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return false;
+        }
+        long tick = server.getTickCount();
+        Long previous = this.lastLeftClickTicks.put(player.getUUID(), tick);
+        return previous != null && previous == tick;
     }
 
     private static void playButtonSound(ServerPlayer player, UiHitResult hitResult) {
