@@ -71,11 +71,8 @@ public final class DisplayEntityFactory {
         this.placeholderResolver = placeholderResolver;
     }
 
-    public VirtualWindowHolder createHolder(ServerLevel world,
-                                            Vec3 anchor,
-                                            ServerPlayer owner,
-                                            PositionMode positionMode) {
-        return new VirtualWindowHolder(world, anchor, owner, positionMode != PositionMode.FIXED);
+    public VirtualWindowHolder createHolder(ServerLevel world, Vec3 anchor) {
+        return new VirtualWindowHolder(world, anchor);
     }
 
     public WindowComponentRuntime spawnRuntime(MinecraftServer server,
@@ -89,6 +86,8 @@ public final class DisplayEntityFactory {
                                                ServerPlayer canvasViewer,
                                                VirtualWindowHolder holder) {
         try {
+            holder.configure(positionMode, canvasViewer);
+
             DisplayElement element;
             PlayerCanvas canvas = null;
 
