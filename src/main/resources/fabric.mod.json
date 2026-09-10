@@ -3,7 +3,7 @@
   "id": "${mod_id}",
   "version": "${version}",
   "name": "InteractiveDisplay",
-  "description": "서버사이드 3D HUD 프레임워크 (Display Entity 기반)",
+  "description": "서버사이드 3D HUD 프레임워크 (Polymer Virtual Entity 기반)",
   "authors": [
     "Your Name"
   ],
@@ -16,7 +16,8 @@
   "environment": "server",
   "entrypoints": {
     "server": [
-      "com.interactivedisplay.InteractiveDisplay"
+      "com.interactivedisplay.InteractiveDisplay",
+      "com.interactivedisplay.internal.api.InteractiveDisplayApiBootstrap"
     ]
   },
   "mixins": [
