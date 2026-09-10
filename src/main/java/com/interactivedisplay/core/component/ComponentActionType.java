@@ -7,6 +7,5 @@ public enum ComponentActionType {
     SWITCH_MODE_PLAYER_FIXED,
     TOGGLE_PLACEMENT_TRACKING,
     RUN_COMMAND,
-    CALLBACK,
-    CUSTOM
+    CALLBACK
 }
