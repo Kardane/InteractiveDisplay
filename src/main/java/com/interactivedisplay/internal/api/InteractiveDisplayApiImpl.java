@@ -12,11 +12,13 @@ import com.interactivedisplay.api.window.WindowOpenOptions;
 import com.interactivedisplay.api.window.WindowPositionMode;
 import com.interactivedisplay.api.window.WindowSpec;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
+import com.interactivedisplay.core.interaction.CallbackRegistry.InteractiveDisplayCallback;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.CreateWindowResult;
 import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowInstance;
 import com.interactivedisplay.core.window.WindowManager;
+import com.interactivedisplay.schema.CustomActionToken;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +42,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
 
     public InteractiveDisplayApiImpl(CallbackRegistry callbackRegistry) {
         this.callbackRegistry = callbackRegistry;
+        this.callbackRegistry.setFallbackResolver(this::resolveFallbackCallback);
     }
 
     @Override
@@ -242,11 +245,11 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
                 );
                 boolean registered = callbackRegistry.registerIfAbsent(
                         callbackId.toString(),
-                        (player, windowId, componentId) -> PublicActionDispatcher.execute(
+                        (player, windowId, componentId) -> executePublicActionOrThrow(
                                 player,
                                 windowId,
                                 componentId,
-                                id.toString(),
+                                id,
                                 safeParameters
                         )
                 );
@@ -254,6 +257,46 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
                     return WindowSpec.Actions.callback(callbackId);
                 }
             }
+        }
+    }
+
+    private Optional<InteractiveDisplayCallback> resolveFallbackCallback(String callbackId) {
+        if (!CustomActionToken.isToken(callbackId)) {
+            return Optional.empty();
+        }
+        try {
+            CustomActionToken.Decoded decoded = CustomActionToken.decode(callbackId);
+            if (!PublicActionDispatcher.isRegistered(decoded.actionId())) {
+                return Optional.empty();
+            }
+            return Optional.of((player, windowId, componentId) -> executePublicActionOrThrow(
+                    player,
+                    windowId,
+                    componentId,
+                    decoded.actionId(),
+                    decoded.parameters()
+            ));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
+    }
+
+    private static void executePublicActionOrThrow(
+            ServerPlayer player,
+            String windowId,
+            String componentId,
+            ResourceLocation actionId,
+            Map<String, String> parameters
+    ) {
+        PublicActionDispatcher.ExecutionResult result = PublicActionDispatcher.execute(
+                player,
+                windowId,
+                componentId,
+                actionId.toString(),
+                parameters
+        );
+        if (!result.success()) {
+            throw new IllegalStateException(result.message());
         }
     }
 
