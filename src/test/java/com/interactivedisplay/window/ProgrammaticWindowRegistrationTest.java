@@ -24,7 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ProgrammaticWindowRegistrationTest {
     @Test
-    void programmaticWindowShouldSurviveReloadAllAndRejectDuplicateRegistration(@TempDir Path tempDir) {
+    void programmaticWindowShouldSurviveReloadsAndRejectDuplicateRegistration(@TempDir Path tempDir) {
         DebugRecorder debugRecorder = new DebugRecorder(10);
         CoordinateTransformer transformer = new CoordinateTransformer();
         WindowManager manager = new WindowManager(
@@ -48,6 +48,9 @@ class ProgrammaticWindowRegistrationTest {
 
         assertTrue(manager.registerProgrammaticWindow(definition));
         assertFalse(manager.registerProgrammaticWindow(definition));
+        assertTrue(manager.loadedWindowIds().contains("economy:shop"));
+
+        assertTrue(manager.reloadOne("economy:shop").success());
         assertTrue(manager.loadedWindowIds().contains("economy:shop"));
 
         manager.reloadAll();
