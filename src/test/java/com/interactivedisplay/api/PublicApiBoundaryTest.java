@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import com.interactivedisplay.api.action.ActionApi;
 import com.interactivedisplay.api.callback.CallbackApi;
 import com.interactivedisplay.api.event.EventApi;
+import com.interactivedisplay.api.group.GroupApi;
+import com.interactivedisplay.api.group.GroupOpenOptions;
 import com.interactivedisplay.api.window.WindowApi;
 import com.interactivedisplay.api.window.WindowOpenOptions;
 import com.interactivedisplay.api.window.WindowSpec;
@@ -30,6 +32,8 @@ class PublicApiBoundaryTest {
                 ActionApi.class,
                 CallbackApi.class,
                 EventApi.class,
+                GroupApi.class,
+                GroupOpenOptions.class,
                 WindowApi.class,
                 WindowOpenOptions.class,
                 WindowSpec.class
