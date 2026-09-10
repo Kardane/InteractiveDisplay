@@ -1,5 +1,7 @@
 package com.interactivedisplay.core.interaction;
 
+import com.interactivedisplay.internal.api.PublicActionDispatcher;
+import com.interactivedisplay.schema.CustomActionToken;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,7 +15,29 @@ public final class CallbackRegistry {
     }
 
     public Optional<InteractiveDisplayCallback> find(String id) {
-        return Optional.ofNullable(this.callbacks.get(id));
+        InteractiveDisplayCallback callback = this.callbacks.get(id);
+        if (callback != null) {
+            return Optional.of(callback);
+        }
+        if (!CustomActionToken.isToken(id)) {
+            return Optional.empty();
+        }
+        try {
+            CustomActionToken.Decoded decoded = CustomActionToken.decode(id);
+            if (!PublicActionDispatcher.isRegistered(decoded.actionId())) {
+                return Optional.empty();
+            }
+            return Optional.of((player, windowId, componentId) ->
+                    PublicActionDispatcher.execute(
+                            player,
+                            windowId,
+                            componentId,
+                            decoded.actionId().toString(),
+                            decoded.parameters()
+                    ));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
     }
 
     @FunctionalInterface
