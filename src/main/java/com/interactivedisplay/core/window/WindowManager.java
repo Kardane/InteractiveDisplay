@@ -99,6 +99,26 @@ public final class WindowManager implements WindowActionExecutor {
 
     public ReloadWindowResult reloadOne(String windowId) {
         tryReloadSupport();
+
+        WindowDefinition programmatic = this.programmaticDefinitions.get(windowId);
+        if (programmatic != null) {
+            Set<String> brokenWindowIds = new HashSet<>(this.stateStore.brokenWindowIds());
+            brokenWindowIds.remove(windowId);
+            this.stateStore.replaceBrokenWindowIds(brokenWindowIds);
+            this.stateStore.putDefinition(windowId, programmatic);
+            rebuildActiveWindowDefinitions(windowId);
+            rebuildActiveGroupsContainingWindow(windowId);
+            ReloadWindowResult result = ReloadWindowResult.success(
+                    windowId,
+                    this.stateStore.loadedWindowCount(),
+                    0,
+                    List.of(),
+                    "프로그램 창 리로드 완료: " + windowId
+            );
+            recordReload(DebugLevel.DEBUG, result);
+            return result;
+        }
+
         SchemaLoader.LoadResult loadResult = this.schemaLoader.loadWindow(windowId);
         Set<String> brokenWindowIds = new HashSet<>(this.stateStore.brokenWindowIds());
         if (loadResult.brokenWindowIds().contains(windowId)) {
@@ -117,10 +137,6 @@ public final class WindowManager implements WindowActionExecutor {
         }
 
         this.stateStore.putDefinition(windowId, definition);
-        WindowDefinition programmatic = this.programmaticDefinitions.get(windowId);
-        if (programmatic != null) {
-            this.stateStore.putDefinition(windowId, programmatic);
-        }
         rebuildActiveWindowDefinitions(windowId);
         rebuildActiveGroupsContainingWindow(windowId);
         ReloadWindowResult result = ReloadWindowResult.success(windowId, this.stateStore.loadedWindowCount(), 0, loadResult.errors(), "창 리로드 완료: " + windowId);
@@ -297,6 +313,10 @@ public final class WindowManager implements WindowActionExecutor {
 
     public WindowInstance findWindow(UUID owner, String windowId) {
         return this.stateStore.findWindow(owner, windowId);
+    }
+
+    public List<WindowInstance> ownerWindows(UUID owner) {
+        return this.stateStore.ownerWindows(owner);
     }
 
     public boolean hasDefinition(String windowId) {
