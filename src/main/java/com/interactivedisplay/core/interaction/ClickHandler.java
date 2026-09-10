@@ -106,7 +106,30 @@ public final class ClickHandler {
             if (callbackId == null || callbackId.isBlank()) {
                 return pass(DebugLevel.WARN, DebugReason.ACTION_TARGET_NOT_FOUND, playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, "callback id 없음");
             }
-            ActionExecutionResult result = this.actionExecutor.executeCallback(playerId, hitResult.windowId(), hitResult.componentId(), callbackId);
+            ActionExecutionResult result;
+            try {
+                result = this.actionExecutor.executeCallback(playerId, hitResult.windowId(), hitResult.componentId(), callbackId);
+            } catch (RuntimeException exception) {
+                InteractiveDisplay.LOGGER.error(
+                        "[{}] callback action failed player={} windowId={} componentId={} callbackId={}",
+                        InteractiveDisplay.MOD_ID,
+                        playerName,
+                        hitResult.windowId(),
+                        hitResult.componentId(),
+                        callbackId,
+                        exception
+                );
+                return pass(
+                        DebugLevel.ERROR,
+                        DebugReason.ACTION_EXECUTION_FAILED,
+                        playerId,
+                        playerName,
+                        hitResult.windowId(),
+                        hitResult.componentId(),
+                        callbackId,
+                        "callback 실행 실패: " + exception.getMessage()
+                );
+            }
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), callbackId, result.message());
             }
