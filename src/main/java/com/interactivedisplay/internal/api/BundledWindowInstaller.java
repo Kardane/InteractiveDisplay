@@ -6,7 +6,6 @@ import com.interactivedisplay.schema.ConfigDocumentLoader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.loader.api.FabricLoader;
@@ -52,7 +51,8 @@ final class BundledWindowInstaller {
         if (!Files.isDirectory(sourceDir)) {
             return new DirectoryInstallResult(0, 0, List.of());
         }
-        Files.createDirectories(targetDir);
+        Path normalizedTargetDir = targetDir.toAbsolutePath().normalize();
+        Files.createDirectories(normalizedTargetDir);
         ConfigDocumentLoader documentLoader = new ConfigDocumentLoader();
         List<String> errors = new ArrayList<>();
         int installed = 0;
@@ -75,8 +75,8 @@ final class BundledWindowInstaller {
                     }
 
                     String targetName = modId + "__" + source.getFileName();
-                    Path target = targetDir.resolve(targetName).normalize();
-                    if (!target.startsWith(targetDir.toAbsolutePath().normalize()) && target.isAbsolute()) {
+                    Path target = normalizedTargetDir.resolve(targetName).normalize();
+                    if (!target.startsWith(normalizedTargetDir)) {
                         errors.add(sourceName + ": invalid target path");
                         skipped++;
                         continue;
@@ -85,7 +85,7 @@ final class BundledWindowInstaller {
                         skipped++;
                         continue;
                     }
-                    Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+                    Files.copy(source, target);
                     installed++;
                 } catch (Exception exception) {
                     errors.add(sourceName + ": bundled window install failed: " + exception.getMessage());
