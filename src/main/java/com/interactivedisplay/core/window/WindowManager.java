@@ -20,8 +20,10 @@ import com.interactivedisplay.schema.SchemaLoader;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -36,6 +38,7 @@ public final class WindowManager implements WindowActionExecutor {
     private final WindowStateStore stateStore;
     private final WindowLifecycleCoordinator lifecycleCoordinator;
     private final UiHitResolver uiHitResolver;
+    private final Map<String, WindowDefinition> programmaticDefinitions = new ConcurrentHashMap<>();
 
     public WindowManager(MinecraftServer server,
                          SchemaLoader schemaLoader,
@@ -75,6 +78,7 @@ public final class WindowManager implements WindowActionExecutor {
 
         if (!loadResult.hasErrors()) {
             this.stateStore.replaceDefinitions(loadResult.definitions());
+            this.stateStore.mergeDefinitions(this.programmaticDefinitions);
             this.stateStore.replaceGroupDefinitions(loadResult.groups());
             rebuildActiveWindows(loadResult.definitions().keySet());
             rebuildActiveGroups(loadResult.groups().keySet(), loadResult.definitions().keySet());
@@ -84,6 +88,7 @@ public final class WindowManager implements WindowActionExecutor {
         }
 
         this.stateStore.mergeDefinitions(loadResult.definitions());
+        this.stateStore.mergeDefinitions(this.programmaticDefinitions);
         this.stateStore.mergeGroupDefinitions(loadResult.groups());
         rebuildActiveWindows(loadResult.definitions().keySet());
         rebuildActiveGroups(loadResult.groups().keySet(), loadResult.definitions().keySet());
@@ -94,6 +99,26 @@ public final class WindowManager implements WindowActionExecutor {
 
     public ReloadWindowResult reloadOne(String windowId) {
         tryReloadSupport();
+
+        WindowDefinition programmatic = this.programmaticDefinitions.get(windowId);
+        if (programmatic != null) {
+            Set<String> brokenWindowIds = new HashSet<>(this.stateStore.brokenWindowIds());
+            brokenWindowIds.remove(windowId);
+            this.stateStore.replaceBrokenWindowIds(brokenWindowIds);
+            this.stateStore.putDefinition(windowId, programmatic);
+            rebuildActiveWindowDefinitions(windowId);
+            rebuildActiveGroupsContainingWindow(windowId);
+            ReloadWindowResult result = ReloadWindowResult.success(
+                    windowId,
+                    this.stateStore.loadedWindowCount(),
+                    0,
+                    List.of(),
+                    "프로그램 창 리로드 완료: " + windowId
+            );
+            recordReload(DebugLevel.DEBUG, result);
+            return result;
+        }
+
         SchemaLoader.LoadResult loadResult = this.schemaLoader.loadWindow(windowId);
         Set<String> brokenWindowIds = new HashSet<>(this.stateStore.brokenWindowIds());
         if (loadResult.brokenWindowIds().contains(windowId)) {
@@ -117,6 +142,23 @@ public final class WindowManager implements WindowActionExecutor {
         ReloadWindowResult result = ReloadWindowResult.success(windowId, this.stateStore.loadedWindowCount(), 0, loadResult.errors(), "창 리로드 완료: " + windowId);
         recordReload(DebugLevel.DEBUG, result);
         return result;
+    }
+
+    public synchronized boolean registerProgrammaticWindow(WindowDefinition definition) {
+        if (definition == null || definition.id() == null || definition.id().isBlank()) {
+            return false;
+        }
+        String windowId = definition.id();
+        if (this.programmaticDefinitions.containsKey(windowId) || this.stateStore.hasDefinition(windowId)) {
+            return false;
+        }
+        this.programmaticDefinitions.put(windowId, definition);
+        this.stateStore.putDefinition(windowId, definition);
+        return true;
+    }
+
+    public Set<String> programmaticWindowIds() {
+        return Set.copyOf(this.programmaticDefinitions.keySet());
     }
 
     public CreateWindowResult createWindow(ServerPlayer player, String windowId, PositionMode positionMode, Vec3 overrideAnchor) {
@@ -271,6 +313,10 @@ public final class WindowManager implements WindowActionExecutor {
 
     public WindowInstance findWindow(UUID owner, String windowId) {
         return this.stateStore.findWindow(owner, windowId);
+    }
+
+    public List<WindowInstance> ownerWindows(UUID owner) {
+        return this.stateStore.ownerWindows(owner);
     }
 
     public boolean hasDefinition(String windowId) {

@@ -39,6 +39,7 @@ public final class ConfigDocumentLoader {
             if (trailingToken != null) {
                 throw new IOException("multiple YAML documents are not supported");
             }
+            CustomActionNormalizer.normalize(root);
             return root;
         }
     }

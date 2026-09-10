@@ -2,16 +2,17 @@ package com.interactivedisplay.core.interaction;
 
 import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.core.component.ComponentActionType;
+import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.ActionExecutionResult;
 import com.interactivedisplay.core.window.CreateWindowResult;
 import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowActionExecutor;
 import com.interactivedisplay.core.window.WindowNavigationContext;
-import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
+import com.interactivedisplay.internal.api.PublicEventDispatcher;
 import java.util.UUID;
 
 public final class ClickHandler {
@@ -28,12 +29,14 @@ public final class ClickHandler {
             return pass(DebugLevel.DEBUG, DebugReason.INTERACTION_NOT_FOUND, playerId, playerName, null, null, null, "선택된 UI hit 없음");
         }
         WindowNavigationContext context = hitResult.navigationContext();
+        PublicEventDispatcher.fireButtonClicked(playerId, hitResult.windowId(), hitResult.componentId());
 
         if (hitResult.action().type() == ComponentActionType.CLOSE_WINDOW) {
             RemoveWindowResult result = this.actionExecutor.closeWindow(playerId, context);
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, result.message());
             }
+            PublicEventDispatcher.fireWindowClosed(playerId, hitResult.windowId(), context.positionMode());
             ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, "close_window 처리 완료");
             record(DebugLevel.DEBUG, clickResult);
             return clickResult;
@@ -48,6 +51,7 @@ public final class ClickHandler {
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), targetWindowId, result.message());
             }
+            PublicEventDispatcher.fireWindowOpened(playerId, targetWindowId, context.positionMode());
             ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), targetWindowId, "open_window 처리 완료");
             record(DebugLevel.DEBUG, clickResult);
             return clickResult;
@@ -102,7 +106,30 @@ public final class ClickHandler {
             if (callbackId == null || callbackId.isBlank()) {
                 return pass(DebugLevel.WARN, DebugReason.ACTION_TARGET_NOT_FOUND, playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, "callback id 없음");
             }
-            ActionExecutionResult result = this.actionExecutor.executeCallback(playerId, hitResult.windowId(), hitResult.componentId(), callbackId);
+            ActionExecutionResult result;
+            try {
+                result = this.actionExecutor.executeCallback(playerId, hitResult.windowId(), hitResult.componentId(), callbackId);
+            } catch (RuntimeException exception) {
+                InteractiveDisplay.LOGGER.error(
+                        "[{}] callback action failed player={} windowId={} componentId={} callbackId={}",
+                        InteractiveDisplay.MOD_ID,
+                        playerName,
+                        hitResult.windowId(),
+                        hitResult.componentId(),
+                        callbackId,
+                        exception
+                );
+                return pass(
+                        DebugLevel.ERROR,
+                        DebugReason.ACTION_EXECUTION_FAILED,
+                        playerId,
+                        playerName,
+                        hitResult.windowId(),
+                        hitResult.componentId(),
+                        callbackId,
+                        "callback 실행 실패: " + exception.getMessage()
+                );
+            }
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), callbackId, result.message());
             }
