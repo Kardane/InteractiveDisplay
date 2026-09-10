@@ -520,8 +520,10 @@ public final class DisplayEntityFactory {
         int rowCount = Math.max(1, (int) Math.ceil(panel.size().height() / 0.25f));
         float fontSize = Math.max(0.1f, panel.size().height() / rowCount);
         int columnCount = Math.max(1, (int) Math.ceil(panel.size().width() / Math.max(fontSize * 0.6f, 0.05f)));
+        int lineWidth = Math.max(1, columnCount * 6);
+        int spaceCount = Math.max(1, (int) Math.ceil(lineWidth / 4.0f));
 
-        String row = "█".repeat(columnCount);
+        String row = " ".repeat(spaceCount);
         StringJoiner joiner = new StringJoiner("\n");
         for (int index = 0; index < rowCount; index++) {
             joiner.add(row);
@@ -529,7 +531,7 @@ public final class DisplayEntityFactory {
 
         return new PanelRenderSpec(
                 Component.literal(joiner.toString()),
-                Math.max(1, columnCount * 6),
+                lineWidth,
                 fontSize,
                 0.0f
         );

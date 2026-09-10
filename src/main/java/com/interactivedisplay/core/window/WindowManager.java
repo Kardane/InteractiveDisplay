@@ -204,6 +204,7 @@ public final class WindowManager implements WindowActionExecutor {
                 }
 
                 refreshDynamicText(instance, currentTick);
+                this.lifecycleCoordinator.syncCanvases(instance, player);
             }
 
             UiHitResult hovered = InteractiveDisplayItems.isPointer(player.getMainHandItem())
@@ -399,7 +400,9 @@ public final class WindowManager implements WindowActionExecutor {
     private WindowInstance activeWindowForContext(UUID owner, WindowNavigationContext context, String fallbackWindowId) {
         if (context.groupId() != null) {
             WindowGroupInstance group = this.stateStore.findActiveGroup(owner, context.groupId());
-            return group == null ? null : group.currentWindow();
+            if (group != null) {
+                return group.currentWindow();
+            }
         }
         WindowInstance exact = this.stateStore.findActiveWindow(owner, fallbackWindowId);
         return exact != null ? exact : this.stateStore.findWindow(owner, fallbackWindowId);

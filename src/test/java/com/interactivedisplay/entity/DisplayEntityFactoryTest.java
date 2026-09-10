@@ -1,6 +1,7 @@
 package com.interactivedisplay.entity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ComponentPosition;
@@ -75,6 +76,7 @@ class DisplayEntityFactoryTest {
         DisplayEntityFactory.PanelRenderSpec spec = DisplayEntityFactory.buildPanelRenderSpec(panel(1.0f, 1.5f));
 
         assertTrue(spec.text().getString().contains("\n"));
+        assertFalse(spec.text().getString().contains("█"));
         assertEquals(0.0f, spec.textOpacity());
     }
 
