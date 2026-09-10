@@ -2,7 +2,9 @@ package com.interactivedisplay.api;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import com.interactivedisplay.api.action.ActionApi;
 import com.interactivedisplay.api.callback.CallbackApi;
+import com.interactivedisplay.api.event.EventApi;
 import com.interactivedisplay.api.window.WindowApi;
 import com.interactivedisplay.api.window.WindowOpenOptions;
 import com.interactivedisplay.api.window.WindowSpec;
@@ -25,7 +27,9 @@ class PublicApiBoundaryTest {
                 InteractiveDisplayApi.class,
                 InteractiveDisplayRegistrar.class,
                 InteractiveDisplayEntrypoint.class,
+                ActionApi.class,
                 CallbackApi.class,
+                EventApi.class,
                 WindowApi.class,
                 WindowOpenOptions.class,
                 WindowSpec.class
