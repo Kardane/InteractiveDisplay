@@ -17,6 +17,7 @@ import com.interactivedisplay.core.window.CreateWindowResult;
 import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowInstance;
 import com.interactivedisplay.core.window.WindowManager;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -158,8 +159,14 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         @Override
         public void closeAll(ServerPlayer player) {
             WindowManager current = manager;
-            if (current != null && player != null) {
-                current.removeAll(player.getUUID());
+            if (current == null || player == null) {
+                return;
+            }
+            UUID ownerId = player.getUUID();
+            List<WindowInstance> existing = List.copyOf(current.ownerWindows(ownerId));
+            current.removeAll(ownerId);
+            for (WindowInstance instance : existing) {
+                PublicEventDispatcher.fireWindowClosed(ownerId, instance.windowId(), instance.positionMode());
             }
         }
 
@@ -192,13 +199,20 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
             if (id == null || callback == null) {
                 return RegistrationResult.failure(id, "callback id and callback are required");
             }
-            String internalId = id.toString();
-            if (callbackRegistry.find(internalId).isPresent() || !callbackIds.add(id)) {
+            if (!callbackIds.add(id)) {
                 return RegistrationResult.failure(id, "callback id is already registered");
             }
-            callbackRegistry.register(internalId, (player, windowId, componentId) -> callback.execute(
-                    new CallbackContext(player, PublicIdCodec.toPublicWindowId(windowId), componentId, windowApi)
-            ));
+            String internalId = id.toString();
+            boolean registered = callbackRegistry.registerIfAbsent(
+                    internalId,
+                    (player, windowId, componentId) -> callback.execute(
+                            new CallbackContext(player, PublicIdCodec.toPublicWindowId(windowId), componentId, windowApi)
+                    )
+            );
+            if (!registered) {
+                callbackIds.remove(id);
+                return RegistrationResult.failure(id, "callback id is already registered");
+            }
             return RegistrationResult.success(id);
         }
     }
@@ -221,19 +235,25 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
                 throw new IllegalArgumentException("action id is required");
             }
             Map<String, String> safeParameters = Map.copyOf(parameters == null ? Map.of() : parameters);
-            ResourceLocation callbackId = ResourceLocation.fromNamespaceAndPath(
-                    InteractiveDisplay.MOD_ID,
-                    "bound_action/" + actionBindingSequence.incrementAndGet()
-            );
-            callbackRegistry.register(callbackId.toString(), (player, windowId, componentId) ->
-                    PublicActionDispatcher.execute(
-                            player,
-                            windowId,
-                            componentId,
-                            id.toString(),
-                            safeParameters
-                    ));
-            return WindowSpec.Actions.callback(callbackId);
+            while (true) {
+                ResourceLocation callbackId = ResourceLocation.fromNamespaceAndPath(
+                        InteractiveDisplay.MOD_ID,
+                        "bound_action/" + actionBindingSequence.incrementAndGet()
+                );
+                boolean registered = callbackRegistry.registerIfAbsent(
+                        callbackId.toString(),
+                        (player, windowId, componentId) -> PublicActionDispatcher.execute(
+                                player,
+                                windowId,
+                                componentId,
+                                id.toString(),
+                                safeParameters
+                        )
+                );
+                if (registered) {
+                    return WindowSpec.Actions.callback(callbackId);
+                }
+            }
         }
     }
 
