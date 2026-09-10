@@ -28,7 +28,7 @@ class CustomActionYamlTest {
                     size: { width: 1.0, height: 0.35 }
                     label: Buy
                     action:
-                      type: economy:purchase
+                      type: economy:yaml_purchase
                       product: diamond_sword
                       amount: 2
                 """, StandardCharsets.UTF_8);
@@ -40,7 +40,7 @@ class CustomActionYamlTest {
         String token = action.path("id").textValue();
         assertTrue(CustomActionToken.isToken(token));
         CustomActionToken.Decoded decoded = CustomActionToken.decode(token);
-        assertEquals("economy:purchase", decoded.actionId().toString());
+        assertEquals("economy:yaml_purchase", decoded.actionId().toString());
         assertEquals("diamond_sword", decoded.parameters().get("product"));
         assertEquals("2", decoded.parameters().get("amount"));
         assertTrue(new SchemaValidator().validate(root, "shop.yaml").isEmpty());
@@ -49,7 +49,7 @@ class CustomActionYamlTest {
         assertFalse(callbacks.find(token).isPresent());
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(callbacks);
         assertTrue(api.actions().register(
-                ResourceLocation.fromNamespaceAndPath("economy", "purchase"),
+                ResourceLocation.fromNamespaceAndPath("economy", "yaml_purchase"),
                 context -> { }
         ).success());
         assertTrue(callbacks.find(token).isPresent());
@@ -68,7 +68,7 @@ class CustomActionYamlTest {
                     size: { width: 1.0, height: 0.35 }
                     label: Buy
                     action:
-                      type: economy:purchase
+                      type: economy:yaml_nested
                       product:
                         id: diamond_sword
                 """, StandardCharsets.UTF_8);
