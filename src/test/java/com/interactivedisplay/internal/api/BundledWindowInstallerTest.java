@@ -48,6 +48,32 @@ class BundledWindowInstallerTest {
     }
 
     @Test
+    void existingConfigWithSameWindowIdShouldPreventBundledInstall(@TempDir Path tempDir) throws Exception {
+        Path sourceDir = tempDir.resolve("jar-windows");
+        Path targetDir = tempDir.resolve("config-windows");
+        Files.createDirectories(sourceDir);
+        Files.createDirectories(targetDir);
+        Files.writeString(sourceDir.resolve("shop.yaml"), """
+                id: economy:shop
+                size: { width: 3.0, height: 2.0 }
+                components: []
+                """, StandardCharsets.UTF_8);
+        Files.writeString(targetDir.resolve("operator-shop.yaml"), """
+                id: economy:shop
+                size: { width: 4.0, height: 3.0 }
+                components: []
+                """, StandardCharsets.UTF_8);
+
+        BundledWindowInstaller.DirectoryInstallResult result =
+                BundledWindowInstaller.installDirectory("economy", sourceDir, targetDir);
+
+        assertEquals(0, result.installed());
+        assertEquals(1, result.skipped());
+        assertTrue(result.errors().isEmpty());
+        assertFalse(Files.exists(targetDir.resolve("economy__shop.yaml")));
+    }
+
+    @Test
     void shouldRejectUnnamespacedOrForeignWindowIds(@TempDir Path tempDir) throws Exception {
         Path sourceDir = tempDir.resolve("jar-windows");
         Path targetDir = tempDir.resolve("config-windows");
