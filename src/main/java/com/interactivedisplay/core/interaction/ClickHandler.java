@@ -51,6 +51,9 @@ public final class ClickHandler {
             if (!result.success()) {
                 return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), targetWindowId, result.message());
             }
+            if (!hitResult.windowId().equals(targetWindowId)) {
+                PublicEventDispatcher.fireWindowClosed(playerId, hitResult.windowId(), context.positionMode());
+            }
             PublicEventDispatcher.fireWindowOpened(playerId, targetWindowId, context.positionMode());
             ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), targetWindowId, "open_window 처리 완료");
             record(DebugLevel.DEBUG, clickResult);
