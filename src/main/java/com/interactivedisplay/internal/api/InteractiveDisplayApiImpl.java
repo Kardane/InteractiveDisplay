@@ -60,10 +60,8 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
     }
 
-    public synchronized void detach(WindowManager manager) {
-        if (this.manager == manager) {
-            this.manager = null;
-        }
+    public synchronized void detach() {
+        this.manager = null;
     }
 
     public boolean attached() {
