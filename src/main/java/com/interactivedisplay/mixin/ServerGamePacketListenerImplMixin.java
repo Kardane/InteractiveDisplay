@@ -1,7 +1,10 @@
 package com.interactivedisplay.mixin;
 
 import com.interactivedisplay.InteractiveDisplay;
+import com.interactivedisplay.core.component.ClickType;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -30,8 +33,7 @@ public abstract class ServerGamePacketListenerImplMixin {
             ci.cancel();
             return;
         }
-        InteractiveDisplay mod = InteractiveDisplay.instance();
-        if (mod != null && mod.consumeUiRightClick(this.player)) {
+        if (interactivedisplay$consume(ClickType.RIGHT)) {
             this.ackBlockChangesUpTo(packet.getSequence());
             ci.cancel();
         }
@@ -46,9 +48,37 @@ public abstract class ServerGamePacketListenerImplMixin {
             ci.cancel();
             return;
         }
-        InteractiveDisplay mod = InteractiveDisplay.instance();
-        if (mod != null && mod.consumeUiRightClick(this.player)) {
+        if (interactivedisplay$consume(ClickType.RIGHT)) {
             this.ackBlockChangesUpTo(packet.getSequence());
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "handlePlayerAction", at = @At("HEAD"), cancellable = true)
+    private void interactivedisplay$interceptBlockAttack(ServerboundPlayerActionPacket packet, CallbackInfo ci) {
+        if (packet.getAction() != ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK) {
+            return;
+        }
+        if (this.interactivedisplay$deferToServerThread(() -> ((ServerGamePacketListenerImpl) (Object) this).handlePlayerAction(packet))) {
+            ci.cancel();
+            return;
+        }
+        if (interactivedisplay$consume(ClickType.LEFT)) {
+            this.ackBlockChangesUpTo(packet.getSequence());
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "handleAnimate", at = @At("HEAD"), cancellable = true)
+    private void interactivedisplay$interceptSwing(ServerboundSwingPacket packet, CallbackInfo ci) {
+        if (packet.getHand() != InteractionHand.MAIN_HAND) {
+            return;
+        }
+        if (this.interactivedisplay$deferToServerThread(() -> ((ServerGamePacketListenerImpl) (Object) this).handleAnimate(packet))) {
+            ci.cancel();
+            return;
+        }
+        if (interactivedisplay$consume(ClickType.LEFT)) {
             ci.cancel();
         }
     }
@@ -59,30 +89,36 @@ public abstract class ServerGamePacketListenerImplMixin {
             ci.cancel();
             return;
         }
-        boolean[] shouldHandle = {false};
+        ClickType[] clickType = {null};
         packet.dispatch(new ServerboundInteractPacket.Handler() {
             @Override
             public void onInteraction(InteractionHand hand) {
-                shouldHandle[0] = hand == InteractionHand.MAIN_HAND;
+                if (hand == InteractionHand.MAIN_HAND) {
+                    clickType[0] = ClickType.RIGHT;
+                }
             }
 
             @Override
             public void onInteraction(InteractionHand hand, net.minecraft.world.phys.Vec3 hitPos) {
-                shouldHandle[0] = hand == InteractionHand.MAIN_HAND;
+                if (hand == InteractionHand.MAIN_HAND) {
+                    clickType[0] = ClickType.RIGHT;
+                }
             }
 
             @Override
             public void onAttack() {
-                shouldHandle[0] = false;
+                clickType[0] = ClickType.LEFT;
             }
         });
-        if (!shouldHandle[0]) {
-            return;
-        }
-        InteractiveDisplay mod = InteractiveDisplay.instance();
-        if (mod != null && mod.consumeUiRightClick(this.player)) {
+        if (clickType[0] != null && interactivedisplay$consume(clickType[0])) {
             ci.cancel();
         }
+    }
+
+    @Unique
+    private boolean interactivedisplay$consume(ClickType clickType) {
+        InteractiveDisplay mod = InteractiveDisplay.instance();
+        return mod != null && mod.consumeUiClick(this.player, clickType);
     }
 
     @Unique

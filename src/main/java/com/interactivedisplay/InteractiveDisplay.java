@@ -2,6 +2,7 @@ package com.interactivedisplay;
 
 import com.interactivedisplay.command.InteractiveDisplayCommand;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.ClickHandleResult;
 import com.interactivedisplay.core.interaction.ClickHandler;
@@ -14,12 +15,15 @@ import com.interactivedisplay.core.window.WindowManager;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
 import com.interactivedisplay.item.InteractiveDisplayItems;
-import com.interactivedisplay.polymer.ConfigImageAssetPackBuilder;
 import com.interactivedisplay.polymer.PolymerBridge;
 import com.interactivedisplay.polymer.PolymerConfigEnsurer;
 import com.interactivedisplay.polymer.ResourcePackBootstrap;
 import com.interactivedisplay.schema.SchemaLoader;
 import com.interactivedisplay.schema.SchemaValidator;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -27,10 +31,10 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
-import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +46,8 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     private static volatile InteractiveDisplay INSTANCE;
 
     private final DebugRecorder debugRecorder = new DebugRecorder(DEBUG_BUFFER_CAPACITY);
+    private final Map<UUID, Long> lastConsumedUiClickTicks = new HashMap<>();
+    private final Map<UUID, Long> lastRightUiInputTicks = new HashMap<>();
 
     private volatile WindowManager windowManager;
     private volatile ClickHandler clickHandler;
@@ -65,13 +71,8 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         InteractiveDisplayItems.register();
 
         Path configDir = FabricLoader.getInstance().getConfigDir();
-        Path gameDir = FabricLoader.getInstance().getGameDir();
         PolymerConfigEnsurer configEnsurer = new PolymerConfigEnsurer(configDir);
-        this.resourcePackBootstrap = new ResourcePackBootstrap(
-                configEnsurer,
-                new PolymerBridge(),
-                new ConfigImageAssetPackBuilder(configDir, gameDir)
-        );
+        this.resourcePackBootstrap = new ResourcePackBootstrap(configEnsurer, new PolymerBridge());
         this.resourcePackBootstrap.prepareFiles();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
@@ -121,6 +122,8 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             if (manager != null) {
                 manager.removeAll(handler.player.getUUID());
             }
+            this.lastConsumedUiClickTicks.remove(handler.player.getUUID());
+            this.lastRightUiInputTicks.remove(handler.player.getUUID());
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -129,7 +132,10 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     manager.removeAll(player.getUUID());
                 }
+                manager.shutdown();
             }
+            this.lastConsumedUiClickTicks.clear();
+            this.lastRightUiInputTicks.clear();
             this.clickHandler = null;
             this.windowManager = null;
         });
@@ -138,22 +144,43 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     }
 
     public boolean consumeUiRightClick(ServerPlayer player) {
+        return consumeUiClick(player, ClickType.RIGHT);
+    }
+
+    public boolean consumeUiLeftClick(ServerPlayer player) {
+        return consumeUiClick(player, ClickType.LEFT);
+    }
+
+    public boolean consumeUiClick(ServerPlayer player, ClickType clickType) {
         WindowManager manager = this.windowManager;
         ClickHandler handler = this.clickHandler;
-        if (manager == null || handler == null) {
+        if (manager == null || handler == null || clickType == null) {
             return false;
         }
         if (!InteractiveDisplayItems.isPointer(player.getMainHandItem())) {
             return false;
         }
+        if (wasUiClickConsumedThisTick(player)) {
+            return true;
+        }
+        if (clickType == ClickType.LEFT && wasRightUiInputThisTick(player)) {
+            return false;
+        }
 
         UiHitResult hitResult = manager.findUiHit(player);
-        if (hitResult == null) {
+        if (hitResult == null || !(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
+            return false;
+        }
+        if (clickType == ClickType.RIGHT) {
+            rememberRightUiInput(player);
+        }
+        if (!button.clickType().allows(clickType == ClickType.LEFT)) {
             return false;
         }
 
         ClickHandleResult result = handler.handle(player.getUUID(), player.getGameProfile().getName(), hitResult);
         if (result.consumed()) {
+            rememberConsumedUiClick(player);
             playButtonSound(player, hitResult);
         }
         return result.consumed();
@@ -166,6 +193,38 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     public boolean rebuildResourcePack() {
         ResourcePackBootstrap bootstrap = this.resourcePackBootstrap;
         return bootstrap != null && bootstrap.bootstrap(MOD_ID);
+    }
+
+    private boolean wasUiClickConsumedThisTick(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return false;
+        }
+        Long previous = this.lastConsumedUiClickTicks.get(player.getUUID());
+        return previous != null && previous == server.getTickCount();
+    }
+
+    private boolean wasRightUiInputThisTick(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return false;
+        }
+        Long previous = this.lastRightUiInputTicks.get(player.getUUID());
+        return previous != null && previous == server.getTickCount();
+    }
+
+    private void rememberConsumedUiClick(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server != null) {
+            this.lastConsumedUiClickTicks.put(player.getUUID(), (long) server.getTickCount());
+        }
+    }
+
+    private void rememberRightUiInput(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server != null) {
+            this.lastRightUiInputTicks.put(player.getUUID(), (long) server.getTickCount());
+        }
     }
 
     private static void playButtonSound(ServerPlayer player, UiHitResult hitResult) {

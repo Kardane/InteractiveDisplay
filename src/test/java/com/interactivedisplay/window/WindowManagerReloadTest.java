@@ -1,6 +1,7 @@
 package com.interactivedisplay.window;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.interaction.CallbackRegistry;
@@ -109,7 +110,7 @@ class WindowManagerReloadTest {
     }
 
     @Test
-    void reloadOneShouldKeepTargetDefinitionWhileUpdatingBrokenGroupIds(@TempDir Path tempDir) throws Exception {
+    void reloadOneShouldOnlyReloadTargetWindow(@TempDir Path tempDir) throws Exception {
         DebugRecorder debugRecorder = new DebugRecorder(20);
         Path root = tempDir.resolve("interactivedisplay");
         Path windows = root.resolve("windows");
@@ -204,9 +205,8 @@ class WindowManagerReloadTest {
 
         ReloadWindowResult second = manager.reloadOne("gallery");
 
-        assertEquals(false, second.success());
-        assertEquals(DebugReason.SCHEMA_VALIDATION_FAILED, second.reasonCode());
+        assertTrue(second.success());
         assertTrue(manager.loadedWindowIds().contains("gallery"));
-        assertTrue(manager.brokenGroupIds().contains("menu_group"));
+        assertFalse(manager.brokenGroupIds().contains("menu_group"));
     }
 }

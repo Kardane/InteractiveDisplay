@@ -191,7 +191,29 @@ public final class DisplayEntityFactory {
                 button.opacity(),
                 "center"
         );
+        Vector3f targetScale = runtime.baseScale();
+        if (hovered && button.hoverScale() != 1.0f) {
+            targetScale.mul(button.hoverScale());
+        }
+        textElement.setInterpolationDuration(INTERPOLATION_DURATION);
+        textElement.setScale(targetScale);
+        textElement.startInterpolationIfDirty();
         runtime.setHovered(hovered);
+    }
+
+    public boolean refreshText(MinecraftServer server,
+                               UUID owner,
+                               WindowComponentRuntime runtime,
+                               TextComponentDefinition text) {
+        if (!(runtime.displayElement() instanceof TextDisplayElement textElement)) {
+            return false;
+        }
+        Component rendered = renderTextContent(text.content(), text.color(), ownerPlayer(server, owner));
+        if (rendered.equals(textElement.getText())) {
+            return false;
+        }
+        textElement.setText(rendered);
+        return true;
     }
 
     public void syncMapCanvas(PlayerCanvas canvas, ServerPlayer viewer) {
@@ -238,8 +260,6 @@ public final class DisplayEntityFactory {
             return;
         }
 
-        // Spawn at the correct world position, then let the ride relationship carry the entity with the player.
-        // Rendering displacement/orientation lives in Display transformation data so no entity move packet is needed.
         element.setOffset(worldPosition.subtract(holder.attachmentPosition()));
         Vec3 relative = worldPosition.subtract(holder.passengerRenderOrigin());
         element.setYaw(0.0f);

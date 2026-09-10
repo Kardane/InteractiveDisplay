@@ -7,6 +7,10 @@ offset:
   horizontal: 0.25
   vertical: 0.5
 layout: vertical
+transition:
+  duration: 6
+  enter: scale
+  exit: slide_down
 components:
   - id: title
     type: text
@@ -21,5 +25,6 @@ components:
       첫 번째 줄
       두 번째 줄
     fontSize: 0.6
+    refreshInterval: 20
     alignment: center
     color: "#FFFFFF"
