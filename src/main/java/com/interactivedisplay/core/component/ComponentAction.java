@@ -1,21 +1,6 @@
 package com.interactivedisplay.core.component;
 
-import java.util.Map;
-
-public record ComponentAction(
-        ComponentActionType type,
-        String target,
-        Integer permissionLevel,
-        Map<String, String> parameters
-) {
-    public ComponentAction(ComponentActionType type, String target, Integer permissionLevel) {
-        this(type, target, permissionLevel, Map.of());
-    }
-
-    public ComponentAction {
-        parameters = Map.copyOf(parameters == null ? Map.of() : parameters);
-    }
-
+public record ComponentAction(ComponentActionType type, String target, Integer permissionLevel) {
     public static ComponentAction closeWindow() {
         return new ComponentAction(ComponentActionType.CLOSE_WINDOW, null, null);
     }
@@ -46,9 +31,5 @@ public record ComponentAction(
 
     public static ComponentAction callback(String callbackId) {
         return new ComponentAction(ComponentActionType.CALLBACK, callbackId, null);
-    }
-
-    public static ComponentAction custom(String actionId, Map<String, String> parameters) {
-        return new ComponentAction(ComponentActionType.CUSTOM, actionId, null, parameters);
     }
 }
