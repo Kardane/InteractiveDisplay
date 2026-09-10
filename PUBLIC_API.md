@@ -1,6 +1,6 @@
 # InteractiveDisplay Public API v1
 
-InteractiveDisplay exposes a server-side API for other Fabric mods without exposing its Polymer, entity, schema, or runtime implementation classes.
+InteractiveDisplay 1.1.0 introduces a server-side API for other Fabric mods without exposing its Polymer, entity, schema, or runtime implementation classes. API v1 targets Minecraft 1.21.8.
 
 ## Consumer dependency
 
@@ -9,7 +9,7 @@ Declare InteractiveDisplay as a mod dependency so its API bootstrap runs before 
 ```json
 {
   "depends": {
-    "interactivedisplay": ">=1.0.0"
+    "interactivedisplay": ">=1.1.0"
   },
   "entrypoints": {
     "interactivedisplay": [
