@@ -3,6 +3,7 @@ package com.interactivedisplay.api;
 import com.interactivedisplay.api.action.ActionApi;
 import com.interactivedisplay.api.callback.CallbackApi;
 import com.interactivedisplay.api.event.EventApi;
+import com.interactivedisplay.api.group.GroupApi;
 import com.interactivedisplay.api.window.WindowApi;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -21,6 +22,8 @@ public interface InteractiveDisplayApi {
     }
 
     WindowApi windows();
+
+    GroupApi groups();
 
     CallbackApi callbacks();
 
