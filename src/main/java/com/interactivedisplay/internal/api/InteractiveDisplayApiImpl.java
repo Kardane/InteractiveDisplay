@@ -30,8 +30,6 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
     private final CallbackRegistry callbackRegistry;
     private final ConcurrentHashMap<ResourceLocation, WindowSpec> windowSpecs = new ConcurrentHashMap<>();
     private final Set<ResourceLocation> callbackIds = ConcurrentHashMap.newKeySet();
-    private final ConcurrentHashMap<ResourceLocation, ActionApi.ActionHandler> actionHandlers = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<ResourceLocation, BoundAction> boundActions = new ConcurrentHashMap<>();
     private final AtomicLong actionBindingSequence = new AtomicLong();
     private final WindowApi windowApi = new WindowApiImpl();
     private final CallbackApi callbackApi = new CallbackApiImpl();
@@ -211,7 +209,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
             if (id == null || handler == null) {
                 return RegistrationResult.failure(id, "action id and handler are required");
             }
-            if (actionHandlers.putIfAbsent(id, handler) != null) {
+            if (!PublicActionDispatcher.register(id, handler, windowApi)) {
                 return RegistrationResult.failure(id, "action id is already registered");
             }
             return RegistrationResult.success(id);
@@ -225,48 +223,17 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
             Map<String, String> safeParameters = Map.copyOf(parameters == null ? Map.of() : parameters);
             ResourceLocation callbackId = ResourceLocation.fromNamespaceAndPath(
                     InteractiveDisplay.MOD_ID,
-                    "bound_action/" + thisBindingId()
+                    "bound_action/" + actionBindingSequence.incrementAndGet()
             );
-            boundActions.put(callbackId, new BoundAction(id, safeParameters));
             callbackRegistry.register(callbackId.toString(), (player, windowId, componentId) ->
-                    executeBoundAction(callbackId, player, windowId, componentId));
+                    PublicActionDispatcher.execute(
+                            player,
+                            windowId,
+                            componentId,
+                            id.toString(),
+                            safeParameters
+                    ));
             return WindowSpec.Actions.callback(callbackId);
-        }
-
-        private long thisBindingId() {
-            return actionBindingSequence.incrementAndGet();
-        }
-    }
-
-    private void executeBoundAction(ResourceLocation callbackId, ServerPlayer player, String windowId, String componentId) {
-        BoundAction binding = this.boundActions.get(callbackId);
-        if (binding == null) {
-            InteractiveDisplay.LOGGER.warn("[{}] missing bound action callbackId={}", InteractiveDisplay.MOD_ID, callbackId);
-            return;
-        }
-        ActionApi.ActionHandler handler = this.actionHandlers.get(binding.actionId());
-        if (handler == null) {
-            InteractiveDisplay.LOGGER.warn("[{}] unregistered public action id={} componentId={}", InteractiveDisplay.MOD_ID, binding.actionId(), componentId);
-            return;
-        }
-        try {
-            handler.execute(new ActionApi.ActionContext(
-                    player,
-                    PublicIdCodec.toPublicWindowId(windowId),
-                    componentId,
-                    binding.actionId(),
-                    binding.parameters(),
-                    this.windowApi
-            ));
-        } catch (RuntimeException exception) {
-            InteractiveDisplay.LOGGER.error(
-                    "[{}] public action failed id={} windowId={} componentId={}",
-                    InteractiveDisplay.MOD_ID,
-                    binding.actionId(),
-                    windowId,
-                    componentId,
-                    exception
-            );
         }
     }
 
@@ -335,8 +302,5 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
 
     private static String reason(Object reason) {
         return reason == null ? "unknown" : reason.toString().toLowerCase(java.util.Locale.ROOT);
-    }
-
-    private record BoundAction(ResourceLocation actionId, Map<String, String> parameters) {
     }
 }
