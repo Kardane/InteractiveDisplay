@@ -18,6 +18,10 @@ public final class PublicActionDispatcher {
         return ACTIONS.putIfAbsent(id, new RegisteredAction(handler, windows)) == null;
     }
 
+    public static boolean isRegistered(ResourceLocation id) {
+        return id != null && ACTIONS.containsKey(id);
+    }
+
     public static ExecutionResult execute(
             ServerPlayer player,
             String internalWindowId,
