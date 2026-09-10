@@ -16,14 +16,17 @@ public final class InteractiveDisplayApiBootstrap implements DedicatedServerModI
     public void onInitializeServer() {
         FabricLoader loader = FabricLoader.getInstance();
         BundledDefinitionInstaller.log(BundledDefinitionInstaller.installAll(loader, loader.getConfigDir()));
-        loader.getObjectShare().put(InteractiveDisplayApi.OBJECT_SHARE_KEY, this.api);
+
+        PreRuntimeWindowCollisionIndex collisionIndex = new PreRuntimeWindowCollisionIndex(loader.getConfigDir());
+        CollisionAwareInteractiveDisplayApi publicApi = new CollisionAwareInteractiveDisplayApi(this.api, collisionIndex::contains);
+        loader.getObjectShare().put(InteractiveDisplayApi.OBJECT_SHARE_KEY, publicApi);
 
         for (InteractiveDisplayEntrypoint entrypoint : loader.getEntrypoints(
                 InteractiveDisplayApi.EXTENSION_ENTRYPOINT,
                 InteractiveDisplayEntrypoint.class
         )) {
             try {
-                entrypoint.register(this.api);
+                entrypoint.register(publicApi);
             } catch (RuntimeException exception) {
                 InteractiveDisplay.LOGGER.error(
                         "[{}] public API extension registration failed entrypoint={}",
