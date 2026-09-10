@@ -39,10 +39,7 @@ public final class InteractiveDisplayApiBootstrap implements DedicatedServerModI
                 tryAttach();
             }
         });
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            InteractiveDisplay instance = InteractiveDisplay.instance();
-            this.api.detach(instance == null ? null : instance.windowManager());
-        });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> this.api.detach());
     }
 
     private void tryAttach() {
