@@ -1,9 +1,11 @@
 package com.interactivedisplay.internal.api;
 
+import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.api.event.EventApi;
 import com.interactivedisplay.api.window.WindowPositionMode;
 import com.interactivedisplay.core.positioning.PositionMode;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -16,20 +18,23 @@ public final class PublicEventDispatcher {
     private static final EventApi API = new EventApi() {
         @Override
         public Subscription onWindowOpened(Consumer<WindowEvent> listener) {
-            WINDOW_OPENED.add(listener);
-            return () -> WINDOW_OPENED.remove(listener);
+            Consumer<WindowEvent> safeListener = Objects.requireNonNull(listener, "listener");
+            WINDOW_OPENED.add(safeListener);
+            return () -> WINDOW_OPENED.remove(safeListener);
         }
 
         @Override
         public Subscription onWindowClosed(Consumer<WindowEvent> listener) {
-            WINDOW_CLOSED.add(listener);
-            return () -> WINDOW_CLOSED.remove(listener);
+            Consumer<WindowEvent> safeListener = Objects.requireNonNull(listener, "listener");
+            WINDOW_CLOSED.add(safeListener);
+            return () -> WINDOW_CLOSED.remove(safeListener);
         }
 
         @Override
         public Subscription onButtonClicked(Consumer<ButtonClickEvent> listener) {
-            BUTTON_CLICKED.add(listener);
-            return () -> BUTTON_CLICKED.remove(listener);
+            Consumer<ButtonClickEvent> safeListener = Objects.requireNonNull(listener, "listener");
+            BUTTON_CLICKED.add(safeListener);
+            return () -> BUTTON_CLICKED.remove(safeListener);
         }
     };
 
@@ -42,22 +47,31 @@ public final class PublicEventDispatcher {
 
     public static void fireWindowOpened(UUID ownerId, String internalWindowId, PositionMode mode) {
         EventApi.WindowEvent event = new EventApi.WindowEvent(ownerId, toPublicWindowId(internalWindowId), toPublicMode(mode));
-        for (Consumer<EventApi.WindowEvent> listener : WINDOW_OPENED) {
-            listener.accept(event);
-        }
+        dispatch("window-opened", WINDOW_OPENED, event);
     }
 
     public static void fireWindowClosed(UUID ownerId, String internalWindowId, PositionMode mode) {
         EventApi.WindowEvent event = new EventApi.WindowEvent(ownerId, toPublicWindowId(internalWindowId), toPublicMode(mode));
-        for (Consumer<EventApi.WindowEvent> listener : WINDOW_CLOSED) {
-            listener.accept(event);
-        }
+        dispatch("window-closed", WINDOW_CLOSED, event);
     }
 
     public static void fireButtonClicked(UUID ownerId, String internalWindowId, String componentId) {
         EventApi.ButtonClickEvent event = new EventApi.ButtonClickEvent(ownerId, toPublicWindowId(internalWindowId), componentId);
-        for (Consumer<EventApi.ButtonClickEvent> listener : BUTTON_CLICKED) {
-            listener.accept(event);
+        dispatch("button-clicked", BUTTON_CLICKED, event);
+    }
+
+    private static <T> void dispatch(String eventName, List<Consumer<T>> listeners, T event) {
+        for (Consumer<T> listener : listeners) {
+            try {
+                listener.accept(event);
+            } catch (RuntimeException exception) {
+                InteractiveDisplay.LOGGER.error(
+                        "[{}] public API event listener failed event={}",
+                        InteractiveDisplay.MOD_ID,
+                        eventName,
+                        exception
+                );
+            }
         }
     }
 
