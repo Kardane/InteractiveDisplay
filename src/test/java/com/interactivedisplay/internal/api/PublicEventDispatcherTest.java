@@ -35,4 +35,20 @@ class PublicEventDispatcherTest {
         assertEquals(1, opened.size());
         assertEquals(1, clicked.size());
     }
+
+    @Test
+    void failingListenerShouldNotBlockLaterListeners() {
+        List<EventApi.WindowEvent> observed = new ArrayList<>();
+        EventApi.Subscription failing = PublicEventDispatcher.api().onWindowOpened(event -> {
+            throw new IllegalStateException("boom");
+        });
+        EventApi.Subscription succeeding = PublicEventDispatcher.api().onWindowOpened(observed::add);
+        UUID owner = UUID.randomUUID();
+
+        PublicEventDispatcher.fireWindowOpened(owner, "economy:isolated", PositionMode.PLAYER_FIXED);
+
+        assertEquals(1, observed.size());
+        failing.close();
+        succeeding.close();
+    }
 }
