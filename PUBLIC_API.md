@@ -142,35 +142,33 @@ API v1 supports:
 
 Programmatic registrations are kept separately by `WindowManager` and are restored after normal YAML reloads. Focused reload of a programmatic ID reapplies that programmatic definition without requiring a YAML file. A programmatic definition cannot replace a definition that was already loaded when it was registered.
 
-## Bundled YAML windows
+## Bundled YAML definitions
 
-A consumer mod can ship default UI definitions inside its own JAR:
+A consumer mod can ship default window and group definitions inside its own JAR:
 
 ```text
 data/<modid>/interactivedisplay/windows/*.yaml
+data/<modid>/interactivedisplay/groups/*.yaml
 ```
 
 Example for mod id `economy`:
 
 ```text
 data/economy/interactivedisplay/windows/shop.yaml
+data/economy/interactivedisplay/groups/shop_group.yaml
 ```
 
-The YAML `id` must already be namespaced with the owning mod id:
+Each bundled YAML `id` must already be namespaced with the owning mod id. A bundled group should reference namespaced window IDs as well:
 
 ```yaml
-id: economy:shop
-size:
-  width: 3.0
-  height: 2.0
-components:
-  - id: title
-    type: text
-    position: { x: 0.0, y: 0.0, z: 0.0 }
-    content: Economy Shop
+id: economy:shop_group
+initialWindowId: economy:shop
+defaultMode: player_view
+windows:
+  - windowId: economy:shop
 ```
 
-On startup InteractiveDisplay installs a missing bundled definition into `config/interactivedisplay/windows/` using a `<modid>__<filename>.yaml` name. It never overwrites an existing target file, and it also skips installation when any operator YAML already declares the same window ID. This makes server configuration authoritative even when the override uses a different filename. Bundled API v1 discovery covers window YAML files; bundled groups and MAP assets remain follow-up work.
+On startup InteractiveDisplay installs missing definitions into `config/interactivedisplay/windows/` or `config/interactivedisplay/groups/` using a `<modid>__<filename>.yaml` name. It never overwrites an existing target file, and it also skips installation when any operator YAML in the corresponding directory already declares the same ID. This makes server configuration authoritative even when the override uses a different filename. Bundled MAP assets remain follow-up work.
 
 ## Custom actions
 
@@ -230,4 +228,4 @@ The extension API is published through Fabric Loader ObjectShare under `interact
 
 ## Deliberately not exposed in API v1
 
-The first stable boundary does not yet expose programmatic group definitions, MAP-canvas construction, bundled groups/MAP assets, or a separate API-only Maven artifact. Those can be added as backward-compatible API extensions without exposing the current rendering implementation.
+The first stable boundary does not yet expose programmatic group definitions, MAP-canvas construction, bundled MAP assets, or a separate API-only Maven artifact. Those can be added as backward-compatible API extensions without exposing the current rendering implementation.
