@@ -5,6 +5,7 @@ import com.interactivedisplay.api.InteractiveDisplayApi;
 import com.interactivedisplay.api.InteractiveDisplayRegistrar;
 import com.interactivedisplay.api.callback.CallbackApi;
 import com.interactivedisplay.api.window.WindowApi;
+import com.interactivedisplay.api.window.WindowApi.OperationResult;
 import com.interactivedisplay.api.window.WindowOpenOptions;
 import com.interactivedisplay.api.window.WindowPositionMode;
 import com.interactivedisplay.api.window.WindowSpec;
