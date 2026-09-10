@@ -6,6 +6,8 @@ import com.interactivedisplay.api.InteractiveDisplayRegistrar;
 import com.interactivedisplay.api.action.ActionApi;
 import com.interactivedisplay.api.callback.CallbackApi;
 import com.interactivedisplay.api.event.EventApi;
+import com.interactivedisplay.api.group.GroupApi;
+import com.interactivedisplay.api.group.GroupOpenOptions;
 import com.interactivedisplay.api.window.WindowApi;
 import com.interactivedisplay.api.window.WindowApi.OperationResult;
 import com.interactivedisplay.api.window.WindowOpenOptions;
@@ -16,6 +18,7 @@ import com.interactivedisplay.core.interaction.CallbackRegistry.InteractiveDispl
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.CreateWindowResult;
 import com.interactivedisplay.core.window.RemoveWindowResult;
+import com.interactivedisplay.core.window.WindowGroupInstance;
 import com.interactivedisplay.core.window.WindowInstance;
 import com.interactivedisplay.core.window.WindowManager;
 import com.interactivedisplay.schema.CustomActionToken;
@@ -35,6 +38,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
     private final Set<ResourceLocation> callbackIds = ConcurrentHashMap.newKeySet();
     private final AtomicLong actionBindingSequence = new AtomicLong();
     private final WindowApi windowApi = new WindowApiImpl();
+    private final GroupApi groupApi = new GroupApiImpl();
     private final CallbackApi callbackApi = new CallbackApiImpl();
     private final ActionApi actionApi = new ActionApiImpl();
     private final EventApi eventApi = PublicEventDispatcher.api();
@@ -48,6 +52,11 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
     @Override
     public WindowApi windows() {
         return this.windowApi;
+    }
+
+    @Override
+    public GroupApi groups() {
+        return this.groupApi;
     }
 
     @Override
@@ -193,6 +202,86 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         @Override
         public Set<ResourceLocation> registeredIds() {
             return Set.copyOf(windowSpecs.keySet());
+        }
+    }
+
+    private final class GroupApiImpl implements GroupApi {
+        @Override
+        public GroupApi.OperationResult open(ServerPlayer player, ResourceLocation groupId, GroupOpenOptions options) {
+            if (player == null || groupId == null || options == null) {
+                return GroupApi.OperationResult.failure("invalid_argument", "player, groupId and options are required");
+            }
+            WindowManager current = manager;
+            if (current == null) {
+                return GroupApi.OperationResult.failure("runtime_not_ready", "InteractiveDisplay runtime is not ready");
+            }
+            String internalId = PublicIdCodec.toInternalGroupId(groupId);
+            if (!current.loadedGroupIds().contains(internalId)) {
+                return GroupApi.OperationResult.failure("group_not_found", "group definition not found: " + groupId);
+            }
+            PositionMode mode = toInternalMode(options.mode());
+            CreateWindowResult result = current.createGroup(
+                    player,
+                    internalId,
+                    mode,
+                    options.fixedAnchor(),
+                    options.fixedYaw(),
+                    options.fixedPitch()
+            );
+            if (!result.success()) {
+                return GroupApi.OperationResult.failure(reason(result.reasonCode()), result.message());
+            }
+            WindowGroupInstance group = current.findActiveGroup(player.getUUID(), internalId);
+            if (group != null && group.currentWindow() != null) {
+                PublicEventDispatcher.fireWindowOpened(
+                        player.getUUID(),
+                        group.currentWindowId(),
+                        group.currentMode()
+                );
+            }
+            return GroupApi.OperationResult.success(result.message());
+        }
+
+        @Override
+        public GroupApi.OperationResult close(ServerPlayer player, ResourceLocation groupId) {
+            if (player == null || groupId == null) {
+                return GroupApi.OperationResult.failure("invalid_argument", "player and groupId are required");
+            }
+            WindowManager current = manager;
+            if (current == null) {
+                return GroupApi.OperationResult.failure("runtime_not_ready", "InteractiveDisplay runtime is not ready");
+            }
+            String internalId = PublicIdCodec.toInternalGroupId(groupId);
+            WindowGroupInstance existing = current.findActiveGroup(player.getUUID(), internalId);
+            RemoveWindowResult result = current.removeGroup(player.getUUID(), internalId);
+            if (!result.success()) {
+                return GroupApi.OperationResult.failure(reason(result.reasonCode()), result.message());
+            }
+            if (existing != null && existing.currentWindow() != null) {
+                PublicEventDispatcher.fireWindowClosed(
+                        player.getUUID(),
+                        existing.currentWindowId(),
+                        existing.currentMode()
+                );
+            }
+            return GroupApi.OperationResult.success(result.message());
+        }
+
+        @Override
+        public boolean isOpen(ServerPlayer player, ResourceLocation groupId) {
+            WindowManager current = manager;
+            return current != null
+                    && player != null
+                    && groupId != null
+                    && current.findActiveGroup(player.getUUID(), PublicIdCodec.toInternalGroupId(groupId)) != null;
+        }
+
+        @Override
+        public Optional<GroupHandle> find(ServerPlayer player, ResourceLocation groupId) {
+            if (!isOpen(player, groupId)) {
+                return Optional.empty();
+            }
+            return Optional.of(new GroupHandleImpl(player.getUUID(), groupId));
         }
     }
 
@@ -352,6 +441,70 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
                 return OperationResult.success(result.message());
             }
             return OperationResult.failure(reason(result.reasonCode()), result.message());
+        }
+    }
+
+    private final class GroupHandleImpl implements GroupApi.GroupHandle {
+        private final UUID ownerId;
+        private final ResourceLocation id;
+
+        private GroupHandleImpl(UUID ownerId, ResourceLocation id) {
+            this.ownerId = ownerId;
+            this.id = id;
+        }
+
+        @Override
+        public ResourceLocation id() {
+            return this.id;
+        }
+
+        @Override
+        public UUID ownerId() {
+            return this.ownerId;
+        }
+
+        @Override
+        public Optional<WindowPositionMode> mode() {
+            WindowGroupInstance group = currentGroup();
+            return group == null ? Optional.empty() : Optional.of(toPublicMode(group.currentMode()));
+        }
+
+        @Override
+        public Optional<ResourceLocation> currentWindowId() {
+            WindowGroupInstance group = currentGroup();
+            return group == null || group.currentWindowId() == null
+                    ? Optional.empty()
+                    : Optional.of(PublicIdCodec.toPublicWindowId(group.currentWindowId()));
+        }
+
+        @Override
+        public boolean isOpen() {
+            return currentGroup() != null;
+        }
+
+        @Override
+        public GroupApi.OperationResult close() {
+            WindowManager current = manager;
+            if (current == null) {
+                return GroupApi.OperationResult.failure("runtime_not_ready", "InteractiveDisplay runtime is not ready");
+            }
+            String internalId = PublicIdCodec.toInternalGroupId(this.id);
+            WindowGroupInstance existing = current.findActiveGroup(this.ownerId, internalId);
+            RemoveWindowResult result = current.removeGroup(this.ownerId, internalId);
+            if (!result.success()) {
+                return GroupApi.OperationResult.failure(reason(result.reasonCode()), result.message());
+            }
+            if (existing != null && existing.currentWindow() != null) {
+                PublicEventDispatcher.fireWindowClosed(this.ownerId, existing.currentWindowId(), existing.currentMode());
+            }
+            return GroupApi.OperationResult.success(result.message());
+        }
+
+        private WindowGroupInstance currentGroup() {
+            WindowManager current = manager;
+            return current == null
+                    ? null
+                    : current.findActiveGroup(this.ownerId, PublicIdCodec.toInternalGroupId(this.id));
         }
     }
 
