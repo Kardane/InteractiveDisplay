@@ -90,7 +90,7 @@ public final class ExampleDisplayIntegration implements InteractiveDisplayEntryp
 }
 ```
 
-Public API window, callback, and action IDs are namespaced. `interactivedisplay:main_menu` is adapted to the legacy built-in `main_menu` YAML ID; IDs from other namespaces stay canonical, for example `example:status`.
+Public API window, group, callback, and action IDs are namespaced. `interactivedisplay:main_menu` and `interactivedisplay:main_group` adapt to legacy built-in IDs without changing existing YAML/command compatibility. IDs from other namespaces stay canonical, for example `example:status` or `economy:shop_group`.
 
 ## Open a window at runtime
 
@@ -111,6 +111,22 @@ WindowOpenOptions.fixed(anchor, yaw, pitch);
 ```
 
 `WindowApi.find(...)` returns a restricted `WindowHandle`; it never exposes `WindowInstance`, Polymer virtual elements, or other internal runtime types.
+
+## Open an existing YAML group
+
+API v1 also exposes runtime operations for existing group definitions while deliberately keeping programmatic group-definition builders out of the stable surface:
+
+```java
+import com.interactivedisplay.api.group.GroupOpenOptions;
+
+ResourceLocation SHOP_GROUP = ResourceLocation.fromNamespaceAndPath("economy", "shop_group");
+
+InteractiveDisplayApi.get()
+        .groups()
+        .open(player, SHOP_GROUP, GroupOpenOptions.playerView());
+```
+
+`GroupApi` supports open, close, `isOpen`, and `find`. A `GroupHandle` exposes the owner, current position mode, and current window ID without leaking `WindowGroupInstance` or other runtime classes. `GroupOpenOptions.fixed(...)` requires an explicit anchor just like fixed windows.
 
 ## Programmatic window components
 
@@ -154,7 +170,7 @@ components:
     content: Economy Shop
 ```
 
-On startup InteractiveDisplay installs a missing bundled definition into `config/interactivedisplay/windows/` using a `<modid>__<filename>.yaml` name. It never overwrites an existing target file, and it also skips installation when any operator YAML already declares the same window ID. This makes server configuration authoritative even when the override uses a different filename. Bundled API v1 discovery covers window YAML files; groups and bundled MAP assets remain follow-up work.
+On startup InteractiveDisplay installs a missing bundled definition into `config/interactivedisplay/windows/` using a `<modid>__<filename>.yaml` name. It never overwrites an existing target file, and it also skips installation when any operator YAML already declares the same window ID. This makes server configuration authoritative even when the override uses a different filename. Bundled API v1 discovery covers window YAML files; bundled groups and MAP assets remain follow-up work.
 
 ## Custom actions
 
@@ -204,7 +220,7 @@ opened.close();
 clicked.close();
 ```
 
-`WINDOW_OPENED` / `WINDOW_CLOSED` are emitted for successful public API opens/closes, `WindowHandle.close()`, `WindowApi.closeAll()`, and successful UI `open_window` / `close_window` navigation. `closeAll()` emits one closed event per active window removed. Button-click events are emitted when a valid UI hit reaches the click handler. Internal rebuild/reload maintenance does not emit lifecycle events. Listener exceptions are isolated so one consumer cannot prevent later listeners or the UI runtime from continuing.
+`WINDOW_OPENED` / `WINDOW_CLOSED` are emitted for successful public API window/group opens and closes, `WindowHandle.close()`, `GroupHandle.close()`, `WindowApi.closeAll()`, and successful UI `open_window` / `close_window` navigation. `closeAll()` emits one closed event per active window removed. Button-click events are emitted when a valid UI hit reaches the click handler. Internal rebuild/reload maintenance does not emit lifecycle events. Listener exceptions are isolated so one consumer cannot prevent later listeners or the UI runtime from continuing.
 
 ## Lifecycle
 
@@ -214,4 +230,4 @@ The extension API is published through Fabric Loader ObjectShare under `interact
 
 ## Deliberately not exposed in API v1
 
-The first stable boundary does not yet expose programmatic groups, MAP-canvas construction, bundled groups/MAP assets, or a separate API-only Maven artifact. Those can be added as backward-compatible API extensions without exposing the current rendering implementation.
+The first stable boundary does not yet expose programmatic group definitions, MAP-canvas construction, bundled groups/MAP assets, or a separate API-only Maven artifact. Those can be added as backward-compatible API extensions without exposing the current rendering implementation.
