@@ -26,6 +26,7 @@ import org.joml.Vector3f;
 public final class VirtualWindowHolder {
     private static final float MIN_TRANSITION_SCALE = 0.01f;
     private static final float TRANSITION_SLIDE_DISTANCE = 0.35f;
+    private static final double PASSENGER_RIDING_OFFSET_FACTOR = 0.75D;
     private static final List<VirtualWindowHolder> PENDING_DESTROYS = new ArrayList<>();
 
     private final OwnerOnlyElementHolder holder = new OwnerOnlyElementHolder();
@@ -190,7 +191,11 @@ public final class VirtualWindowHolder {
         if (!this.playerAttached || this.owner == null) {
             return this.anchor;
         }
-        return this.owner.position().add(0.0D, this.owner.getBbHeight(), 0.0D);
+        return this.owner.position().add(0.0D, passengerRidingOffset(this.owner.getBbHeight()), 0.0D);
+    }
+
+    static double passengerRidingOffset(double boundingBoxHeight) {
+        return boundingBoxHeight * PASSENGER_RIDING_OFFSET_FACTOR;
     }
 
     public boolean playerAttached() {
@@ -221,8 +226,8 @@ public final class VirtualWindowHolder {
             return;
         }
 
-        for (Map.Entry<DisplayElement, TransformSnapshot> entry : this.baseTransforms.entrySet()) {
-            applyTransition(entry.getKey(), entry.getValue(), this.transition.exit(), false, this.transition.duration());
+        for (DisplayElement display : this.baseTransforms.keySet()) {
+            applyTransition(display, TransformSnapshot.capture(display), this.transition.exit(), false, this.transition.duration());
         }
         this.holder.tick();
         this.pendingDestroy = true;
