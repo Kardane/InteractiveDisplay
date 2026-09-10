@@ -7,18 +7,24 @@ import org.junit.jupiter.api.Test;
 
 class PublicIdCodecTest {
     @Test
-    void builtInNamespaceShouldAdaptToLegacyWindowId() {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("interactivedisplay", "main_menu");
+    void builtInNamespaceShouldAdaptToLegacyIds() {
+        ResourceLocation windowId = ResourceLocation.fromNamespaceAndPath("interactivedisplay", "main_menu");
+        ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath("interactivedisplay", "main_group");
 
-        assertEquals("main_menu", PublicIdCodec.toInternalWindowId(id));
-        assertEquals(id, PublicIdCodec.toPublicWindowId("main_menu"));
+        assertEquals("main_menu", PublicIdCodec.toInternalWindowId(windowId));
+        assertEquals(windowId, PublicIdCodec.toPublicWindowId("main_menu"));
+        assertEquals("main_group", PublicIdCodec.toInternalGroupId(groupId));
+        assertEquals(groupId, PublicIdCodec.toPublicGroupId("main_group"));
     }
 
     @Test
     void foreignNamespaceShouldStayCanonical() {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("economy", "shop/main");
+        ResourceLocation windowId = ResourceLocation.fromNamespaceAndPath("economy", "shop/main");
+        ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath("economy", "shop/group");
 
-        assertEquals("economy:shop/main", PublicIdCodec.toInternalWindowId(id));
-        assertEquals(id, PublicIdCodec.toPublicWindowId("economy:shop/main"));
+        assertEquals("economy:shop/main", PublicIdCodec.toInternalWindowId(windowId));
+        assertEquals(windowId, PublicIdCodec.toPublicWindowId("economy:shop/main"));
+        assertEquals("economy:shop/group", PublicIdCodec.toInternalGroupId(groupId));
+        assertEquals(groupId, PublicIdCodec.toPublicGroupId("economy:shop/group"));
     }
 }
