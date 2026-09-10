@@ -124,7 +124,7 @@ API v1 supports:
 - close, open-window, callback, run-command, and bound custom-action button actions
 - enter/exit transitions
 
-Programmatic registrations are kept separately by `WindowManager` and are restored after normal YAML reloads. A programmatic definition cannot replace an already-loaded definition with the same internal ID.
+Programmatic registrations are kept separately by `WindowManager` and are restored after normal YAML reloads. Focused reload of a programmatic ID reapplies that programmatic definition without requiring a YAML file. A programmatic definition cannot replace a definition that was already loaded when it was registered.
 
 ## Bundled YAML windows
 
@@ -154,11 +154,11 @@ components:
     content: Economy Shop
 ```
 
-On first startup InteractiveDisplay copies bundled definitions into `config/interactivedisplay/windows/` using a `<modid>__<filename>.yaml` name. Existing target files are never overwritten, so server operators can edit the installed copy directly. Bundled API v1 discovery covers window YAML files; groups and bundled MAP assets remain follow-up work.
+On startup InteractiveDisplay installs a missing bundled definition into `config/interactivedisplay/windows/` using a `<modid>__<filename>.yaml` name. It never overwrites an existing target file, and it also skips installation when any operator YAML already declares the same window ID. This makes server configuration authoritative even when the override uses a different filename. Bundled API v1 discovery covers window YAML files; groups and bundled MAP assets remain follow-up work.
 
 ## Custom actions
 
-Custom actions are namespaced handlers registered by another mod. `ActionApi.bind(...)` binds immutable string parameters to a button while reusing InteractiveDisplay's existing callback/click pipeline.
+Custom actions are namespaced handlers registered by another mod. `ActionApi.bind(...)` binds immutable string parameters to a programmatic button while reusing InteractiveDisplay's existing callback/click pipeline.
 
 ```java
 ResourceLocation BUY = ResourceLocation.fromNamespaceAndPath("economy", "buy");
@@ -171,7 +171,16 @@ registrar.actions().register(BUY, context -> {
 button.action(registrar.actions().bind(BUY, Map.of("product", "diamond_sword")));
 ```
 
-Handlers can be registered before the Minecraft server runtime is ready. The bound action resolves the current handler when clicked, so registration and window declaration order do not need to match.
+The same registered action can be referenced directly from YAML by using its namespaced ID as `action.type`:
+
+```yaml
+action:
+  type: economy:buy
+  product: diamond_sword
+  amount: 2
+```
+
+All YAML custom-action parameters other than `type` must be scalar values; they are exposed to the handler as immutable strings. Nested objects and arrays are rejected during YAML loading. If an action is not registered, the click follows the normal action-failure path instead of silently succeeding. Handlers can be registered before the Minecraft server runtime is ready, so registration and window declaration order do not need to match.
 
 ## Lifecycle events
 
@@ -195,7 +204,7 @@ opened.close();
 clicked.close();
 ```
 
-`WINDOW_OPENED` / `WINDOW_CLOSED` are emitted for public API opens/closes and successful UI `open_window` / `close_window` navigation. Button-click events are emitted when a valid UI hit reaches the click handler. Internal rebuild/reload maintenance does not emit lifecycle events.
+`WINDOW_OPENED` / `WINDOW_CLOSED` are emitted for successful public API opens/closes, `WindowHandle.close()`, `WindowApi.closeAll()`, and successful UI `open_window` / `close_window` navigation. `closeAll()` emits one closed event per active window removed. Button-click events are emitted when a valid UI hit reaches the click handler. Internal rebuild/reload maintenance does not emit lifecycle events. Listener exceptions are isolated so one consumer cannot prevent later listeners or the UI runtime from continuing.
 
 ## Lifecycle
 
