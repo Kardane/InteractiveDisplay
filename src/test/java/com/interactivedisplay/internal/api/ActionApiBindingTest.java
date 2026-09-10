@@ -1,5 +1,6 @@
 package com.interactivedisplay.internal.api;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,8 +24,26 @@ class ActionApiBindingTest {
         WindowSpec.ButtonAction action = api.actions().bind(actionId, Map.of("product", "diamond_sword"));
         WindowSpec.CallbackAction callbackAction = assertInstanceOf(WindowSpec.CallbackAction.class, action);
 
-        assertTrue(callbackAction.callbackId().getNamespace().equals("interactivedisplay"));
+        assertEquals("interactivedisplay", callbackAction.callbackId().getNamespace());
         assertTrue(callbackAction.callbackId().getPath().startsWith("bound_action/"));
         assertTrue(callbacks.find(callbackAction.callbackId().toString()).isPresent());
+    }
+
+    @Test
+    void boundActionShouldNotOverwriteExistingCallbackId() {
+        CallbackRegistry callbacks = new CallbackRegistry();
+        callbacks.register("interactivedisplay:bound_action/1", (player, windowId, componentId) -> { });
+        InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(callbacks);
+        ResourceLocation actionId = ResourceLocation.fromNamespaceAndPath("economy", "purchase_collision");
+        assertTrue(api.actions().register(actionId, context -> { }).success());
+
+        WindowSpec.CallbackAction callbackAction = assertInstanceOf(
+                WindowSpec.CallbackAction.class,
+                api.actions().bind(actionId)
+        );
+
+        assertEquals("interactivedisplay:bound_action/2", callbackAction.callbackId().toString());
+        assertTrue(callbacks.find("interactivedisplay:bound_action/1").isPresent());
+        assertTrue(callbacks.find("interactivedisplay:bound_action/2").isPresent());
     }
 }
