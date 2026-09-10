@@ -4,8 +4,8 @@ import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.api.event.EventApi;
 import com.interactivedisplay.api.window.WindowPositionMode;
 import com.interactivedisplay.core.positioning.PositionMode;
-import com.interactivedisplay.core.window.WindowLifecycleObserver;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -15,34 +15,26 @@ public final class PublicEventDispatcher {
     private static final List<Consumer<EventApi.WindowEvent>> WINDOW_OPENED = new CopyOnWriteArrayList<>();
     private static final List<Consumer<EventApi.WindowEvent>> WINDOW_CLOSED = new CopyOnWriteArrayList<>();
     private static final List<Consumer<EventApi.ButtonClickEvent>> BUTTON_CLICKED = new CopyOnWriteArrayList<>();
-    private static final WindowLifecycleObserver WINDOW_LIFECYCLE_OBSERVER = new WindowLifecycleObserver() {
-        @Override
-        public void opened(UUID owner, String windowId, PositionMode mode) {
-            fireWindowOpened(owner, windowId, mode);
-        }
-
-        @Override
-        public void closed(UUID owner, String windowId, PositionMode mode) {
-            fireWindowClosed(owner, windowId, mode);
-        }
-    };
     private static final EventApi API = new EventApi() {
         @Override
         public Subscription onWindowOpened(Consumer<WindowEvent> listener) {
-            WINDOW_OPENED.add(java.util.Objects.requireNonNull(listener, "listener"));
-            return () -> WINDOW_OPENED.remove(listener);
+            Consumer<WindowEvent> safeListener = Objects.requireNonNull(listener, "listener");
+            WINDOW_OPENED.add(safeListener);
+            return () -> WINDOW_OPENED.remove(safeListener);
         }
 
         @Override
         public Subscription onWindowClosed(Consumer<WindowEvent> listener) {
-            WINDOW_CLOSED.add(java.util.Objects.requireNonNull(listener, "listener"));
-            return () -> WINDOW_CLOSED.remove(listener);
+            Consumer<WindowEvent> safeListener = Objects.requireNonNull(listener, "listener");
+            WINDOW_CLOSED.add(safeListener);
+            return () -> WINDOW_CLOSED.remove(safeListener);
         }
 
         @Override
         public Subscription onButtonClicked(Consumer<ButtonClickEvent> listener) {
-            BUTTON_CLICKED.add(java.util.Objects.requireNonNull(listener, "listener"));
-            return () -> BUTTON_CLICKED.remove(listener);
+            Consumer<ButtonClickEvent> safeListener = Objects.requireNonNull(listener, "listener");
+            BUTTON_CLICKED.add(safeListener);
+            return () -> BUTTON_CLICKED.remove(safeListener);
         }
     };
 
@@ -51,10 +43,6 @@ public final class PublicEventDispatcher {
 
     static EventApi api() {
         return API;
-    }
-
-    public static WindowLifecycleObserver lifecycleObserver() {
-        return WINDOW_LIFECYCLE_OBSERVER;
     }
 
     public static void fireWindowOpened(UUID ownerId, String internalWindowId, PositionMode mode) {
