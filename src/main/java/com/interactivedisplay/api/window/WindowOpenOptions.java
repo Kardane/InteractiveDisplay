@@ -11,6 +11,9 @@ public record WindowOpenOptions(
 ) {
     public WindowOpenOptions {
         Objects.requireNonNull(mode, "mode");
+        if (mode == WindowPositionMode.FIXED) {
+            Objects.requireNonNull(fixedAnchor, "fixedAnchor");
+        }
     }
 
     public static WindowOpenOptions playerView() {
@@ -22,6 +25,6 @@ public record WindowOpenOptions(
     }
 
     public static WindowOpenOptions fixed(Vec3 anchor, float yaw, float pitch) {
-        return new WindowOpenOptions(WindowPositionMode.FIXED, anchor, yaw, pitch);
+        return new WindowOpenOptions(WindowPositionMode.FIXED, Objects.requireNonNull(anchor, "anchor"), yaw, pitch);
     }
 }
