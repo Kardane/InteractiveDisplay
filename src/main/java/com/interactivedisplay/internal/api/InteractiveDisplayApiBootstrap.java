@@ -15,6 +15,7 @@ public final class InteractiveDisplayApiBootstrap implements DedicatedServerModI
     @Override
     public void onInitializeServer() {
         FabricLoader loader = FabricLoader.getInstance();
+        BundledWindowInstaller.log(BundledWindowInstaller.installAll(loader, loader.getConfigDir()));
         loader.getObjectShare().put(InteractiveDisplayApi.OBJECT_SHARE_KEY, this.api);
 
         for (InteractiveDisplayEntrypoint entrypoint : loader.getEntrypoints(
