@@ -15,7 +15,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayStaleRuntimeGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayCallbackExceptionGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayPlaceholderIsolationGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayBoundActionGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayBoundActionGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayGroupNavigationGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
