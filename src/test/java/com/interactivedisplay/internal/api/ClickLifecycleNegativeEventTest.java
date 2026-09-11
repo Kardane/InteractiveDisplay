@@ -123,7 +123,17 @@ class ClickLifecycleNegativeEventTest {
         public CreateWindowResult openWindow(UUID owner, WindowNavigationContext context, String windowId) {
             return openSuccess
                     ? CreateWindowResult.success(owner, "Steve", windowId, null, 0, 0, "opened")
-                    : CreateWindowResult.failure(DebugReason.WINDOW_NOT_FOUND, owner, "Steve", windowId, "missing");
+                    : CreateWindowResult.failure(
+                            DebugReason.WINDOW_NOT_FOUND,
+                            owner,
+                            "Steve",
+                            windowId,
+                            null,
+                            null,
+                            0,
+                            0,
+                            "missing"
+                    );
         }
 
         @Override
