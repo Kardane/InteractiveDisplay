@@ -36,7 +36,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
         InteractiveDisplayApi api = InteractiveDisplayApi.get();
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ResourceLocation main = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu");
+        ResourceLocation main = publicId("main_menu");
 
         List<EventApi.WindowEvent> opened = new ArrayList<>();
         List<EventApi.WindowEvent> closed = new ArrayList<>();
@@ -158,14 +158,20 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
             String source,
             String target
     ) {
+        ResourceLocation expectedSource = publicId(source);
+        ResourceLocation expectedTarget = publicId(target);
         helper.assertTrue(closed.size() == closedBefore + 1,
                 Component.literal("navigation did not emit exactly one CLOSED event: " + source + " -> " + target));
         helper.assertTrue(opened.size() == openedBefore + 1,
                 Component.literal("navigation did not emit exactly one OPENED event: " + source + " -> " + target));
-        helper.assertTrue(source.equals(closed.get(closed.size() - 1).windowId()),
-                Component.literal("navigation CLOSED wrong source: expected=" + source + " actual=" + closed.get(closed.size() - 1).windowId()));
-        helper.assertTrue(target.equals(opened.get(opened.size() - 1).windowId()),
-                Component.literal("navigation OPENED wrong target: expected=" + target + " actual=" + opened.get(opened.size() - 1).windowId()));
+        helper.assertTrue(expectedSource.equals(closed.get(closed.size() - 1).windowId()),
+                Component.literal("navigation CLOSED wrong source: expected=" + expectedSource + " actual=" + closed.get(closed.size() - 1).windowId()));
+        helper.assertTrue(expectedTarget.equals(opened.get(opened.size() - 1).windowId()),
+                Component.literal("navigation OPENED wrong target: expected=" + expectedTarget + " actual=" + opened.get(opened.size() - 1).windowId()));
+    }
+
+    private static ResourceLocation publicId(String path) {
+        return ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, path);
     }
 
     @Override
