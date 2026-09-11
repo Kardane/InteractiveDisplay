@@ -124,7 +124,7 @@ class ClickLifecycleNegativeEventTest {
             return openSuccess
                     ? CreateWindowResult.success(owner, "Steve", windowId, null, 0, 0, "opened")
                     : CreateWindowResult.failure(
-                            DebugReason.WINDOW_NOT_FOUND,
+                            DebugReason.WINDOW_DEFINITION_NOT_FOUND,
                             owner,
                             "Steve",
                             windowId,
