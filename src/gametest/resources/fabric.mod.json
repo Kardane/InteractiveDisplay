@@ -12,7 +12,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayPublicApiLifecycleGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayReloadDedupGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayTransactionalRebuildGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayStaleRuntimeGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayStaleRuntimeGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayCallbackExceptionGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
