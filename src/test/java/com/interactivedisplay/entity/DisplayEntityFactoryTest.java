@@ -7,12 +7,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
+import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
+import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.mojang.math.Transformation;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import java.util.List;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Display;
+import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -92,6 +96,45 @@ class DisplayEntityFactoryTest {
 
         assertEquals("resolved:안녕 {player:name}", content.getString());
         assertEquals("resolved:열기 {player:name}", label.getString());
+    }
+
+    @Test
+    void refreshTextShouldSkipUnchangedValueAndApplyChangedValue() {
+        DisplayEntityFactory factory = new DisplayEntityFactory(new DebugRecorder(10), (player, text) -> text);
+        TextDisplayElement element = new TextDisplayElement();
+        element.setText(Component.literal("same"));
+        TextComponentDefinition original = text("same", 1);
+        WindowComponentRuntime runtime = new WindowComponentRuntime(
+                Level.OVERWORLD,
+                original,
+                new Vector3f(),
+                element,
+                null
+        );
+
+        assertFalse(factory.refreshText(null, null, runtime, original));
+
+        TextComponentDefinition changed = text("changed", 1);
+        assertTrue(factory.refreshText(null, null, runtime, changed));
+        assertEquals("changed", element.getText().getString());
+    }
+
+    private static TextComponentDefinition text(String content, int refreshInterval) {
+        return new TextComponentDefinition(
+                "status",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(1.0f, 0.3f),
+                true,
+                1.0f,
+                content,
+                0.5f,
+                "#FFFFFF",
+                "left",
+                200,
+                true,
+                "#00000000",
+                refreshInterval
+        );
     }
 
     private static PanelComponentDefinition panel(float width, float height) {
