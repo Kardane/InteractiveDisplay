@@ -67,6 +67,21 @@ jobs:
           SERVER_PID=$!
           CLIENT_PID=""
 
+          dump_diagnostics() {
+            echo '===== QA client log =====' >&2
+            cat "$CLIENT_LOG" >&2 || true
+            echo '===== QA server log =====' >&2
+            cat "$SERVER_LOG" >&2 || true
+            echo '===== QA state markers =====' >&2
+            for state_file in "$PWD"/build/qa-state/*; do
+              if [[ -f "$state_file" ]]; then
+                echo "--- $(basename "$state_file")" >&2
+                cat "$state_file" >&2 || true
+                echo >&2
+              fi
+            done
+          }
+
           cleanup() {
             printf 'stop\n' >&3 2>/dev/null || true
             if [[ -n "${CLIENT_PID:-}" ]]; then
@@ -84,13 +99,13 @@ jobs:
               fi
               if ! kill -0 "$SERVER_PID" 2>/dev/null; then
                 echo 'QA dedicated server exited before startup' >&2
-                cat "$SERVER_LOG" >&2
+                dump_diagnostics
                 return 1
               fi
               sleep 1
             done
             echo 'Timed out waiting for QA dedicated server startup' >&2
-            cat "$SERVER_LOG" >&2
+            dump_diagnostics
             return 1
           }
 
@@ -103,14 +118,13 @@ jobs:
               fi
               if [[ -n "${CLIENT_PID:-}" ]] && ! kill -0 "$CLIENT_PID" 2>/dev/null; then
                 echo "Client exited while waiting for $label" >&2
-                cat "$CLIENT_LOG" >&2
+                dump_diagnostics
                 return 1
               fi
               sleep 1
             done
             echo "Timed out waiting for $label" >&2
-            cat "$CLIENT_LOG" >&2
-            cat "$SERVER_LOG" >&2
+            dump_diagnostics
             return 1
           }
 
@@ -133,8 +147,7 @@ jobs:
 
           if ! wait "$CLIENT_PID"; then
             echo 'QA client GameTest failed' >&2
-            cat "$CLIENT_LOG" >&2
-            cat "$SERVER_LOG" >&2
+            dump_diagnostics
             exit 1
           fi
           CLIENT_PID=""
