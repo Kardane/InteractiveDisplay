@@ -49,6 +49,7 @@ loom {
             configName = "QA External Client Game Test"
             runDir = "build/qa-client"
             ideConfigGenerated = false
+            vmArg "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
             vmArg "-Dinteractivedisplay.qa.externalServer=true"
             vmArg "-Dinteractivedisplay.qa.stateDir=${file('build/qa-state').absolutePath}"
             programArg "--quickPlayMultiplayer"
