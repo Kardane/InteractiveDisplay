@@ -1,6 +1,8 @@
 package com.interactivedisplay.gametest;
 
 import com.interactivedisplay.InteractiveDisplay;
+import com.interactivedisplay.api.InteractiveDisplayApi;
+import com.interactivedisplay.api.event.EventApi;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.entity.VirtualWindowHolder;
@@ -9,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
@@ -54,25 +57,44 @@ public final class InteractiveDisplayTransactionalRebuildGameTest implements Cus
             helper.assertTrue(originalBindings.stream().anyMatch(binding -> WINDOW_ID.equals(binding.windowId()) && "close".equals(binding.componentId())),
                     Component.literal("initial QA close-button binding missing"));
 
-            // The already-loaded definition still points at this path. Removing only the image makes
-            // replacement spawning fail after the interactive button runtime has started to build.
-            Files.delete(imageFile);
-            var failed = manager.rebuildWindow(player.getUUID(), WINDOW_ID);
-            helper.assertFalse(failed.success(), Component.literal("replacement rebuild unexpectedly succeeded without MAP source"));
-            helper.assertTrue(failed.reasonCode() == DebugReason.ENTITY_SPAWN_FAILED,
-                    Component.literal("replacement failure returned wrong reason: " + failed.reasonCode()));
+            List<String> lifecycleEvents = new ArrayList<>();
+            EventApi eventApi = InteractiveDisplayApi.get().events();
+            EventApi.Subscription openedSubscription = eventApi.onWindowOpened(event -> {
+                if (player.getUUID().equals(event.ownerId())) {
+                    lifecycleEvents.add("opened:" + event.windowId());
+                }
+            });
+            EventApi.Subscription closedSubscription = eventApi.onWindowClosed(event -> {
+                if (player.getUUID().equals(event.ownerId())) {
+                    lifecycleEvents.add("closed:" + event.windowId());
+                }
+            });
+            try {
+                Files.delete(imageFile);
+                var failed = manager.rebuildWindow(player.getUUID(), WINDOW_ID);
+                helper.assertFalse(failed.success(), Component.literal("replacement rebuild unexpectedly succeeded without MAP source"));
+                helper.assertTrue(failed.reasonCode() == DebugReason.ENTITY_SPAWN_FAILED,
+                        Component.literal("replacement failure returned wrong reason: " + failed.reasonCode()));
+                helper.assertTrue(lifecycleEvents.isEmpty(),
+                        Component.literal("failed internal rebuild emitted public lifecycle events: " + lifecycleEvents));
 
-            var afterFailure = manager.findActiveWindow(player.getUUID(), WINDOW_ID);
-            helper.assertTrue(afterFailure == original, Component.literal("failed replacement swapped out the original WindowInstance"));
-            helper.assertTrue(afterFailure.virtualHolder() == originalHolder, Component.literal("failed replacement swapped out the original holder"));
-            helper.assertTrue(originalHolder.entityCount() == originalEntityCount,
-                    Component.literal("failed replacement damaged original virtual entities"));
-            helper.assertTrue(manager.bindingSnapshots(player.getUUID()).equals(originalBindings),
-                    Component.literal("failed replacement changed original interaction bindings"));
+                var afterFailure = manager.findActiveWindow(player.getUUID(), WINDOW_ID);
+                helper.assertTrue(afterFailure == original, Component.literal("failed replacement swapped out the original WindowInstance"));
+                helper.assertTrue(afterFailure.virtualHolder() == originalHolder, Component.literal("failed replacement swapped out the original holder"));
+                helper.assertTrue(originalHolder.entityCount() == originalEntityCount,
+                        Component.literal("failed replacement damaged original virtual entities"));
+                helper.assertTrue(manager.bindingSnapshots(player.getUUID()).equals(originalBindings),
+                        Component.literal("failed replacement changed original interaction bindings"));
 
-            Files.copy(sourceImage, imageFile, StandardCopyOption.REPLACE_EXISTING);
-            var recovered = manager.rebuildWindow(player.getUUID(), WINDOW_ID);
-            helper.assertTrue(recovered.success(), Component.literal("replacement rebuild did not recover after MAP source restore: " + recovered.message()));
+                Files.copy(sourceImage, imageFile, StandardCopyOption.REPLACE_EXISTING);
+                var recovered = manager.rebuildWindow(player.getUUID(), WINDOW_ID);
+                helper.assertTrue(recovered.success(), Component.literal("replacement rebuild did not recover after MAP source restore: " + recovered.message()));
+                helper.assertTrue(lifecycleEvents.isEmpty(),
+                        Component.literal("successful internal rebuild emitted public lifecycle events: " + lifecycleEvents));
+            } finally {
+                openedSubscription.close();
+                closedSubscription.close();
+            }
 
             var replacement = manager.findActiveWindow(player.getUUID(), WINDOW_ID);
             helper.assertTrue(replacement != null && replacement != original,
