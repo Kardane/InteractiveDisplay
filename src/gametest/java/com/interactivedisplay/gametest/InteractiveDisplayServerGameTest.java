@@ -95,7 +95,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
                 1.0f,
                 content,
                 0.5f,
-                "#FFFFFF",
+                null,
                 "left",
                 200,
                 true,
