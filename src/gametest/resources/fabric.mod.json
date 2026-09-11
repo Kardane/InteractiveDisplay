@@ -11,7 +11,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplaySoakServerGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayPublicApiLifecycleGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayReloadDedupGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayTransactionalRebuildGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayTransactionalRebuildGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayStaleRuntimeGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
