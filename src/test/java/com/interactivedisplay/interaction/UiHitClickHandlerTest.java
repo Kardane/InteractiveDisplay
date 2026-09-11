@@ -95,6 +95,23 @@ class UiHitClickHandlerTest {
     }
 
     @Test
+    void runCommandShouldForwardEverySupportedPermissionLevel() {
+        TrackingExecutor executor = new TrackingExecutor();
+        ClickHandler handler = new ClickHandler(executor, new DebugRecorder(20));
+
+        for (int permissionLevel = 0; permissionLevel <= 4; permissionLevel++) {
+            ClickHandleResult result = handler.handle(
+                    UUID.randomUUID(),
+                    "Steve",
+                    buttonHit(ComponentAction.runCommand("say level" + permissionLevel, permissionLevel), "run_" + permissionLevel)
+            );
+            assertTrueConsumed(result);
+            assertEquals(permissionLevel, executor.lastPermissionLevel);
+        }
+        assertEquals(5, executor.commandCalls);
+    }
+
+    @Test
     void runCommandWithoutCommandShouldNotDispatch() {
         TrackingExecutor executor = new TrackingExecutor();
         ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.runCommand(null, 2), "run_invalid"));
@@ -127,6 +144,11 @@ class UiHitClickHandlerTest {
         ClickHandleResult result = new ClickHandler(executor, new DebugRecorder(20)).handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.togglePlacementTracking(), "track"));
         assertEquals(true, result.consumed());
         assertEquals(1, executor.placementCalls);
+    }
+
+    private static void assertTrueConsumed(ClickHandleResult result) {
+        assertEquals(true, result.consumed());
+        assertNull(result.reasonCode());
     }
 
     private static UiHitResult closeHit() {
