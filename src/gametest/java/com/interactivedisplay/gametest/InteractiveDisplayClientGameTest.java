@@ -13,6 +13,7 @@ import net.minecraft.world.entity.Display;
 public final class InteractiveDisplayClientGameTest implements FabricClientGameTest {
     private static final String EXTERNAL_SERVER_PROPERTY = "interactivedisplay.qa.externalServer";
     private static final String STATE_DIR_PROPERTY = "interactivedisplay.qa.stateDir";
+    private static final String PACK_CONFIRM_SCREEN = "net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl$PackConfirmScreen";
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -25,6 +26,7 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
     }
 
     private static void runExternalServerTest(ClientGameTestContext context) {
+        acceptServerPackPromptIfPresent(context);
         try {
             context.waitFor(client -> client.player != null && client.level != null, 1_200);
         } catch (AssertionError error) {
@@ -68,6 +70,26 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
                     + baselinePassengers + " remaining=" + remainingPassengers);
         }
         writeState("client-clean", Integer.toString(remainingPassengers));
+    }
+
+    private static void acceptServerPackPromptIfPresent(ClientGameTestContext context) {
+        context.waitFor(client -> client.player != null || isPackConfirmScreen(client), 1_200);
+        context.computeOnClient(client -> {
+            if (!isPackConfirmScreen(client)) {
+                return false;
+            }
+
+            // Mirror vanilla PackConfirmScreen's affirmative callback without depending on
+            // private screen fields or button coordinates. This accepts pending server packs
+            // for the current connection and lets the login flow continue headlessly.
+            client.getDownloadedPackSource().allowServerPacks();
+            client.setScreen(null);
+            return true;
+        });
+    }
+
+    private static boolean isPackConfirmScreen(Minecraft client) {
+        return client.screen != null && PACK_CONFIRM_SCREEN.equals(client.screen.getClass().getName());
     }
 
     private static void runInProcessServerTest(ClientGameTestContext context) {
