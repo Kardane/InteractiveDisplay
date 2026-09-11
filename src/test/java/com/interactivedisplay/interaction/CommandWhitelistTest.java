@@ -87,6 +87,7 @@ class CommandWhitelistTest {
 
         assertTrue(whitelist.isAllowed("say"));
         assertTrue(whitelist.isAllowed("say hello"));
+        assertFalse(whitelist.isAllowed("say_foo"));
         assertFalse(whitelist.isAllowed("saywhatever hello"));
     }
 
