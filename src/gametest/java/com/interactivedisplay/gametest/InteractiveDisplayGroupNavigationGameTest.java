@@ -3,12 +3,14 @@ package com.interactivedisplay.gametest;
 import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.api.InteractiveDisplayApi;
 import com.interactivedisplay.api.event.EventApi;
+import com.interactivedisplay.api.group.GroupOpenOptions;
 import com.interactivedisplay.api.window.WindowOpenOptions;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
+import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.ClickHandler;
 import com.interactivedisplay.core.interaction.UiHitResult;
 import com.interactivedisplay.core.positioning.PositionMode;
@@ -16,6 +18,7 @@ import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.core.window.WindowNavigationContext;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.VirtualWindowHolder;
+import com.interactivedisplay.internal.api.InteractiveDisplayApiImpl;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -111,6 +114,40 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
 
         helper.assertTrue(manager.ownerWindows(player.getUUID()).isEmpty(), Component.literal("navigation GameTest leaked active windows"));
         helper.assertTrue(manager.bindingSnapshots(player.getUUID()).isEmpty(), Component.literal("navigation GameTest leaked bindings"));
+        helper.succeed();
+    }
+
+    @SuppressWarnings("removal")
+    @GameTest
+    public void publicOperationsShouldReportRuntimeNotReadyBeforeAttachAndAfterDetach(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        var manager = InteractiveDisplay.instance().windowManager();
+        InteractiveDisplayApiImpl detachedApi = new InteractiveDisplayApiImpl(new CallbackRegistry());
+        ResourceLocation windowId = publicId("main_menu");
+        ResourceLocation groupId = publicId("menu_group");
+
+        var preAttachWindow = detachedApi.windows().open(player, windowId, WindowOpenOptions.playerFixed());
+        helper.assertFalse(preAttachWindow.success(), Component.literal("pre-attach window open unexpectedly succeeded"));
+        helper.assertTrue("runtime_not_ready".equals(preAttachWindow.reason()),
+                Component.literal("pre-attach window open returned wrong reason: " + preAttachWindow.reason()));
+
+        var preAttachGroup = detachedApi.groups().open(player, groupId, GroupOpenOptions.playerFixed());
+        helper.assertFalse(preAttachGroup.success(), Component.literal("pre-attach group open unexpectedly succeeded"));
+        helper.assertTrue("runtime_not_ready".equals(preAttachGroup.reason()),
+                Component.literal("pre-attach group open returned wrong reason: " + preAttachGroup.reason()));
+
+        detachedApi.attach(manager);
+        helper.assertTrue(detachedApi.attached(), Component.literal("test API did not report attached state"));
+        detachedApi.detach();
+        helper.assertFalse(detachedApi.attached(), Component.literal("test API remained attached after detach"));
+
+        var postDetachWindow = detachedApi.windows().open(player, windowId, WindowOpenOptions.playerFixed());
+        helper.assertFalse(postDetachWindow.success(), Component.literal("post-detach window open unexpectedly succeeded"));
+        helper.assertTrue("runtime_not_ready".equals(postDetachWindow.reason()),
+                Component.literal("post-detach window open returned wrong reason: " + postDetachWindow.reason()));
+
+        helper.assertTrue(manager.ownerWindows(player.getUUID()).isEmpty(),
+                Component.literal("runtime readiness GameTest created unexpected manager state"));
         helper.succeed();
     }
 
