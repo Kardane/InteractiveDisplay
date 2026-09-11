@@ -40,6 +40,7 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
         String playerName = context.computeOnClient(client -> client.player.getGameProfile().getName());
         Set<Integer> baselineDisplayIds = displayPassengerIds(context);
         int baselinePassengers = baselineDisplayIds.size();
+        int baselineWorldDisplays = worldDisplayCount(context);
         writeState("client-ready", playerName);
 
         context.waitFor(client -> displayPassengerCount(client) > baselinePassengers, 1_200);
@@ -53,9 +54,14 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
             throw new AssertionError("baseline display passengers changed while opening PLAYER_FIXED window: baseline="
                     + baselineDisplayIds + " opened=" + openedDisplayIds);
         }
+        int openedWorldDisplays = worldDisplayCount(context);
+        if (openedWorldDisplays <= baselineWorldDisplays) {
+            throw new AssertionError("PLAYER_FIXED window did not add Display entities to the client world: baseline="
+                    + baselineWorldDisplays + " opened=" + openedWorldDisplays);
+        }
         double openedPlayerX = context.computeOnClient(client -> client.player.getX());
         double openedDisplayX = newDisplayPassengerAverageX(context, baselineDisplayIds);
-        writeState("client-opened", Integer.toString(openedPassengers));
+        writeState("client-opened", openedPassengers + ",worldDisplays=" + openedWorldDisplays);
 
         context.waitFor(client -> Math.abs(client.player.getX() - openedPlayerX) >= 5.0, 1_200);
         context.waitTicks(10);
@@ -69,6 +75,11 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
             throw new AssertionError("PLAYER_FIXED virtual display passenger identity changed after movement: opened="
                     + openedDisplayIds + " moved=" + movedDisplayIds);
         }
+        int movedWorldDisplays = worldDisplayCount(context);
+        if (movedWorldDisplays != openedWorldDisplays) {
+            throw new AssertionError("client-world Display count changed during PLAYER_FIXED movement: opened="
+                    + openedWorldDisplays + " moved=" + movedWorldDisplays);
+        }
         double movedPlayerX = context.computeOnClient(client -> client.player.getX());
         double movedDisplayX = newDisplayPassengerAverageX(context, baselineDisplayIds);
         double playerDeltaX = movedPlayerX - openedPlayerX;
@@ -77,9 +88,10 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
             throw new AssertionError("PLAYER_FIXED virtual displays did not follow player movement: playerDeltaX="
                     + playerDeltaX + " displayDeltaX=" + displayDeltaX);
         }
-        writeState("client-moved", movedPassengers + ",deltaX=" + displayDeltaX);
+        writeState("client-moved", movedPassengers + ",deltaX=" + displayDeltaX + ",worldDisplays=" + movedWorldDisplays);
 
-        context.waitFor(client -> displayPassengerCount(client) == baselinePassengers, 1_200);
+        context.waitFor(client -> displayPassengerCount(client) == baselinePassengers
+                && worldDisplayCount(client) == baselineWorldDisplays, 1_200);
         context.waitTicks(10);
         int remainingPassengers = displayPassengerCount(context);
         if (remainingPassengers != baselinePassengers) {
@@ -91,7 +103,12 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
             throw new AssertionError("virtual display passenger identities did not return to baseline after remove: baseline="
                     + baselineDisplayIds + " remaining=" + remainingDisplayIds);
         }
-        writeState("client-clean", Integer.toString(remainingPassengers));
+        int remainingWorldDisplays = worldDisplayCount(context);
+        if (remainingWorldDisplays != baselineWorldDisplays) {
+            throw new AssertionError("ghost Display entities remained in the client world after remove: baseline="
+                    + baselineWorldDisplays + " remaining=" + remainingWorldDisplays);
+        }
+        writeState("client-clean", remainingPassengers + ",worldDisplays=" + remainingWorldDisplays);
 
         // Fabric Client GameTest requires each test to return in a disconnected state. Use the
         // normal Minecraft client teardown path so the world, connection, and server-pack state
@@ -247,6 +264,23 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
                 .filter(entity -> entity instanceof Display)
                 .forEach(entity -> ids.add(entity.getId()));
         return Set.copyOf(ids);
+    }
+
+    private static int worldDisplayCount(ClientGameTestContext context) {
+        return context.computeOnClient(InteractiveDisplayClientGameTest::worldDisplayCount);
+    }
+
+    private static int worldDisplayCount(Minecraft client) {
+        if (client.level == null) {
+            return 0;
+        }
+        int count = 0;
+        for (var entity : client.level.entitiesForRendering()) {
+            if (entity instanceof Display) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static double newDisplayPassengerAverageX(ClientGameTestContext context, Set<Integer> baselineIds) {
