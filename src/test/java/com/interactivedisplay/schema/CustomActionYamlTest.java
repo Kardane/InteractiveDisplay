@@ -31,6 +31,7 @@ class CustomActionYamlTest {
                       type: economy:yaml_purchase
                       product: diamond_sword
                       amount: 2
+                      silent: true
                 """, StandardCharsets.UTF_8);
 
         JsonNode root = new ConfigDocumentLoader().load(file);
@@ -43,6 +44,7 @@ class CustomActionYamlTest {
         assertEquals("economy:yaml_purchase", decoded.actionId().toString());
         assertEquals("diamond_sword", decoded.parameters().get("product"));
         assertEquals("2", decoded.parameters().get("amount"));
+        assertEquals("true", decoded.parameters().get("silent"));
         assertTrue(new SchemaValidator().validate(root, "shop.yaml").isEmpty());
 
         CallbackRegistry callbacks = new CallbackRegistry();
@@ -56,8 +58,24 @@ class CustomActionYamlTest {
     }
 
     @Test
-    void nonScalarCustomActionParametersShouldBeRejected(@TempDir Path tempDir) throws Exception {
-        Path file = tempDir.resolve("bad.yaml");
+    void nestedObjectCustomActionParameterShouldBeRejected(@TempDir Path tempDir) throws Exception {
+        assertNonScalarRejected(tempDir, """
+                product:
+                  id: diamond_sword
+                """);
+    }
+
+    @Test
+    void arrayCustomActionParameterShouldBeRejected(@TempDir Path tempDir) throws Exception {
+        assertNonScalarRejected(tempDir, """
+                products:
+                  - diamond_sword
+                  - shield
+                """);
+    }
+
+    private static void assertNonScalarRejected(Path tempDir, String parameterYaml) throws Exception {
+        Path file = tempDir.resolve("bad-" + System.nanoTime() + ".yaml");
         Files.writeString(file, """
                 id: economy:shop
                 size: { width: 3.0, height: 2.0 }
@@ -69,9 +87,7 @@ class CustomActionYamlTest {
                     label: Buy
                     action:
                       type: economy:yaml_nested
-                      product:
-                        id: diamond_sword
-                """, StandardCharsets.UTF_8);
+                """ + parameterYaml.indent(6), StandardCharsets.UTF_8);
 
         try {
             new ConfigDocumentLoader().load(file);
