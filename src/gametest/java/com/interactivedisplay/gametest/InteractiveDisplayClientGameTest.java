@@ -3,6 +3,8 @@ package com.interactivedisplay.gametest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -36,8 +38,8 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
         context.waitTicks(20);
 
         String playerName = context.computeOnClient(client -> client.player.getGameProfile().getName());
-        int baselinePassengers = displayPassengerCount(context);
-        double baselineX = context.computeOnClient(client -> client.player.getX());
+        Set<Integer> baselineDisplayIds = displayPassengerIds(context);
+        int baselinePassengers = baselineDisplayIds.size();
         writeState("client-ready", playerName);
 
         context.waitFor(client -> displayPassengerCount(client) > baselinePassengers, 1_200);
@@ -46,16 +48,36 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
             throw new AssertionError("PLAYER_FIXED window did not arrive as virtual display passengers: baseline="
                     + baselinePassengers + " opened=" + openedPassengers);
         }
+        Set<Integer> openedDisplayIds = displayPassengerIds(context);
+        if (!openedDisplayIds.containsAll(baselineDisplayIds)) {
+            throw new AssertionError("baseline display passengers changed while opening PLAYER_FIXED window: baseline="
+                    + baselineDisplayIds + " opened=" + openedDisplayIds);
+        }
+        double openedPlayerX = context.computeOnClient(client -> client.player.getX());
+        double openedDisplayX = newDisplayPassengerAverageX(context, baselineDisplayIds);
         writeState("client-opened", Integer.toString(openedPassengers));
 
-        context.waitFor(client -> Math.abs(client.player.getX() - baselineX) >= 5.0, 1_200);
+        context.waitFor(client -> Math.abs(client.player.getX() - openedPlayerX) >= 5.0, 1_200);
         context.waitTicks(10);
         int movedPassengers = displayPassengerCount(context);
         if (movedPassengers != openedPassengers) {
             throw new AssertionError("PLAYER_FIXED virtual display passenger count changed after player movement: opened="
                     + openedPassengers + " moved=" + movedPassengers);
         }
-        writeState("client-moved", Integer.toString(movedPassengers));
+        Set<Integer> movedDisplayIds = displayPassengerIds(context);
+        if (!movedDisplayIds.equals(openedDisplayIds)) {
+            throw new AssertionError("PLAYER_FIXED virtual display passenger identity changed after movement: opened="
+                    + openedDisplayIds + " moved=" + movedDisplayIds);
+        }
+        double movedPlayerX = context.computeOnClient(client -> client.player.getX());
+        double movedDisplayX = newDisplayPassengerAverageX(context, baselineDisplayIds);
+        double playerDeltaX = movedPlayerX - openedPlayerX;
+        double displayDeltaX = movedDisplayX - openedDisplayX;
+        if (Math.abs(playerDeltaX - displayDeltaX) > 0.25) {
+            throw new AssertionError("PLAYER_FIXED virtual displays did not follow player movement: playerDeltaX="
+                    + playerDeltaX + " displayDeltaX=" + displayDeltaX);
+        }
+        writeState("client-moved", movedPassengers + ",deltaX=" + displayDeltaX);
 
         context.waitFor(client -> displayPassengerCount(client) == baselinePassengers, 1_200);
         context.waitTicks(10);
@@ -63,6 +85,11 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
         if (remainingPassengers != baselinePassengers) {
             throw new AssertionError("virtual display passengers were not cleaned up after remove: baseline="
                     + baselinePassengers + " remaining=" + remainingPassengers);
+        }
+        Set<Integer> remainingDisplayIds = displayPassengerIds(context);
+        if (!remainingDisplayIds.equals(baselineDisplayIds)) {
+            throw new AssertionError("virtual display passenger identities did not return to baseline after remove: baseline="
+                    + baselineDisplayIds + " remaining=" + remainingDisplayIds);
         }
         writeState("client-clean", Integer.toString(remainingPassengers));
 
@@ -205,6 +232,43 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
         return (int) client.player.getPassengers().stream()
                 .filter(entity -> entity instanceof Display)
                 .count();
+    }
+
+    private static Set<Integer> displayPassengerIds(ClientGameTestContext context) {
+        return context.computeOnClient(InteractiveDisplayClientGameTest::displayPassengerIds);
+    }
+
+    private static Set<Integer> displayPassengerIds(Minecraft client) {
+        if (client.player == null) {
+            return Set.of();
+        }
+        Set<Integer> ids = new HashSet<>();
+        client.player.getPassengers().stream()
+                .filter(entity -> entity instanceof Display)
+                .forEach(entity -> ids.add(entity.getId()));
+        return Set.copyOf(ids);
+    }
+
+    private static double newDisplayPassengerAverageX(ClientGameTestContext context, Set<Integer> baselineIds) {
+        return context.computeOnClient(client -> newDisplayPassengerAverageX(client, baselineIds));
+    }
+
+    private static double newDisplayPassengerAverageX(Minecraft client, Set<Integer> baselineIds) {
+        if (client.player == null) {
+            throw new AssertionError("client player missing while measuring PLAYER_FIXED display positions");
+        }
+        double sum = 0.0;
+        int count = 0;
+        for (var entity : client.player.getPassengers()) {
+            if (entity instanceof Display && !baselineIds.contains(entity.getId())) {
+                sum += entity.getX();
+                count++;
+            }
+        }
+        if (count == 0) {
+            throw new AssertionError("no new PLAYER_FIXED display passengers available for position measurement");
+        }
+        return sum / count;
     }
 
     private static void writeState(String fileName, String content) {
