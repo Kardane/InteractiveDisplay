@@ -36,4 +36,6 @@ jobs:
         run: ./gradlew build --stacktrace
 
       - name: Run headless client game tests
+        env:
+          JAVA_TOOL_OPTIONS: -Dfabric.client.gametest.disableNetworkSynchronizer=true
         run: ./gradlew runClientGameTest --stacktrace
