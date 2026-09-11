@@ -26,12 +26,17 @@ class FocusedReloadRecoveryTest {
         Path windows = tempDir.resolve("interactivedisplay/windows");
         Files.createDirectories(windows);
         Path target = windows.resolve("qa.yaml");
-        Files.writeString(target, validYaml("before"), StandardCharsets.UTF_8);
+        Path unrelated = windows.resolve("other.yaml");
+        Files.writeString(target, validYaml("qa_focus", "before"), StandardCharsets.UTF_8);
+        Files.writeString(unrelated, validYaml("qa_other", "other"), StandardCharsets.UTF_8);
 
         WindowManager manager = manager(tempDir);
         assertTrue(manager.reloadAll().success());
         assertTrue(manager.loadedWindowIds().contains("qa_focus"));
+        assertTrue(manager.loadedWindowIds().contains("qa_other"));
 
+        // Break both files after the initial load. Focused reload of qa_focus must not parse or evict qa_other.
+        Files.writeString(unrelated, "id: qa_other\ncomponents: broken\n", StandardCharsets.UTF_8);
         Files.writeString(target, """
                 id: qa_focus
                 size: { width: 3.0, height: 2.0 }
@@ -46,25 +51,29 @@ class FocusedReloadRecoveryTest {
         assertFalse(failed.success());
         assertTrue(manager.loadedWindowIds().contains("qa_focus"));
         assertTrue(manager.brokenWindowIds().contains("qa_focus"));
+        assertTrue(manager.loadedWindowIds().contains("qa_other"));
+        assertFalse(manager.brokenWindowIds().contains("qa_other"));
 
-        Files.writeString(target, validYaml("after"), StandardCharsets.UTF_8);
+        Files.writeString(target, validYaml("qa_focus", "after"), StandardCharsets.UTF_8);
         ReloadWindowResult recovered = manager.reloadOne("qa_focus");
 
         assertTrue(recovered.success());
         assertTrue(manager.loadedWindowIds().contains("qa_focus"));
         assertFalse(manager.brokenWindowIds().contains("qa_focus"));
+        assertTrue(manager.loadedWindowIds().contains("qa_other"));
+        assertFalse(manager.brokenWindowIds().contains("qa_other"));
     }
 
-    private static String validYaml(String content) {
+    private static String validYaml(String id, String content) {
         return """
-                id: qa_focus
+                id: %s
                 size: { width: 3.0, height: 2.0 }
                 components:
                   - id: title
                     type: text
                     position: { x: 0.0, y: 0.0, z: 0.0 }
                     content: %s
-                """.formatted(content);
+                """.formatted(id, content);
     }
 
     private static WindowManager manager(Path tempDir) {
