@@ -35,7 +35,5 @@ jobs:
       - name: Build and test
         run: ./gradlew build --stacktrace
 
-      - name: Run headless client game tests
-        env:
-          JAVA_TOOL_OPTIONS: -Dfabric.client.gametest.disableNetworkSynchronizer=true
-        run: ./gradlew runClientGameTest --stacktrace
+      - name: Run production headless client game tests
+        run: ./gradlew runProductionClientGameTest --stacktrace
