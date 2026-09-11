@@ -15,10 +15,12 @@ public final class InteractiveDisplayCommandServerGameTest implements CustomTest
     public void createRemoveListDebugReloadAndGroupCommandsExecuteOnLiveServer(GameTestHelper helper) throws Exception {
         var server = helper.getLevel().getServer();
         var dispatcher = server.getCommands().getDispatcher();
-        var source = server.createCommandSourceStack();
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        String playerName = player.getGameProfile().getName();
+        var source = server.createCommandSourceStack()
+                .withLevel(player.serverLevel())
+                .withPosition(player.position());
+        String target = "@p";
 
         assertCommand(helper, dispatcher.execute("interactivedisplay list", source), "list");
         assertCommand(helper, dispatcher.execute("interactivedisplay debug status", source), "debug status");
@@ -29,20 +31,20 @@ public final class InteractiveDisplayCommandServerGameTest implements CustomTest
                 Component.literal("main_menu was not loaded after live focused reload command"));
 
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay create main_menu " + playerName + " player_fixed", source),
-                "create main_menu " + playerName + " player_fixed");
+                dispatcher.execute("interactivedisplay create main_menu " + target + " player_fixed", source),
+                "create main_menu " + target + " player_fixed");
         helper.assertTrue(manager.findActiveWindow(player.getUUID(), "main_menu") != null,
-                Component.literal("live create command did not create main_menu"));
+                Component.literal("live create command did not create main_menu for nearest QA player"));
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay debug window main_menu " + playerName, source),
-                "debug window main_menu " + playerName);
+                dispatcher.execute("interactivedisplay debug window main_menu " + target, source),
+                "debug window main_menu " + target);
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay debug bindings " + playerName, source),
-                "debug bindings " + playerName);
+                dispatcher.execute("interactivedisplay debug bindings " + target, source),
+                "debug bindings " + target);
 
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay remove main_menu " + playerName, source),
-                "remove main_menu " + playerName);
+                dispatcher.execute("interactivedisplay remove main_menu " + target, source),
+                "remove main_menu " + target);
         VirtualWindowHolder.destroyAllPending(server);
         helper.assertTrue(manager.findActiveWindow(player.getUUID(), "main_menu") == null,
                 Component.literal("live remove command left main_menu active"));
@@ -50,20 +52,20 @@ public final class InteractiveDisplayCommandServerGameTest implements CustomTest
                 Component.literal("live remove command left window bindings"));
 
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay group create menu_group " + playerName + " player_fixed", source),
-                "group create menu_group " + playerName + " player_fixed");
+                dispatcher.execute("interactivedisplay group create menu_group " + target + " player_fixed", source),
+                "group create menu_group " + target + " player_fixed");
         helper.assertTrue(manager.findActiveGroup(player.getUUID(), "menu_group") != null,
                 Component.literal("live group create command did not create menu_group"));
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay debug window main_menu " + playerName, source),
-                "debug window main_menu " + playerName + " while grouped");
+                dispatcher.execute("interactivedisplay debug window main_menu " + target, source),
+                "debug window main_menu " + target + " while grouped");
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay debug bindings " + playerName, source),
-                "debug bindings " + playerName + " while grouped");
+                dispatcher.execute("interactivedisplay debug bindings " + target, source),
+                "debug bindings " + target + " while grouped");
 
         assertCommand(helper,
-                dispatcher.execute("interactivedisplay group remove menu_group " + playerName, source),
-                "group remove menu_group " + playerName);
+                dispatcher.execute("interactivedisplay group remove menu_group " + target, source),
+                "group remove menu_group " + target);
         VirtualWindowHolder.destroyAllPending(server);
         helper.assertTrue(manager.findActiveGroup(player.getUUID(), "menu_group") == null,
                 Component.literal("live group remove command left menu_group active"));
