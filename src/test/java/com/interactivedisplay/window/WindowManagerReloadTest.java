@@ -20,6 +20,7 @@ import com.interactivedisplay.schema.SchemaValidator;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -238,11 +239,19 @@ class WindowManagerReloadTest {
                 new CallbackRegistry()
         );
 
+        Set<String> expectedWindowIds = null;
+        Set<String> expectedGroupIds = null;
         for (int i = 0; i < 100; i++) {
             ReloadWindowResult result = manager.reloadAll();
             assertTrue(result.success(), "reload iteration " + i + " failed: " + result.message());
-            assertEquals(1, manager.loadedWindowIds().size(), "definition count changed at iteration " + i);
             assertTrue(manager.loadedWindowIds().contains("qa_soak"));
+            if (expectedWindowIds == null) {
+                expectedWindowIds = Set.copyOf(manager.loadedWindowIds());
+                expectedGroupIds = Set.copyOf(manager.loadedGroupIds());
+            } else {
+                assertEquals(expectedWindowIds, manager.loadedWindowIds(), "window definition set changed at iteration " + i);
+                assertEquals(expectedGroupIds, manager.loadedGroupIds(), "group definition set changed at iteration " + i);
+            }
             assertTrue(manager.brokenWindowIds().isEmpty());
             assertTrue(manager.brokenGroupIds().isEmpty());
         }
