@@ -25,7 +25,17 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
     }
 
     private static void runExternalServerTest(ClientGameTestContext context) {
-        context.waitFor(client -> client.player != null && client.level != null, 1_200);
+        try {
+            context.waitFor(client -> client.player != null && client.level != null, 1_200);
+        } catch (AssertionError error) {
+            String diagnostic = context.computeOnClient(client -> "screen="
+                    + (client.screen == null ? "null" : client.screen.getClass().getName())
+                    + ", player=" + (client.player != null)
+                    + ", level=" + (client.level != null)
+                    + ", connection=" + (client.getConnection() != null));
+            writeState("client-join-diagnostic", diagnostic);
+            throw new AssertionError("external client did not finish world join: " + diagnostic, error);
+        }
         context.waitTicks(20);
 
         String playerName = context.computeOnClient(client -> client.player.getGameProfile().getName());
