@@ -16,7 +16,7 @@ class RunCommandPermissionLevelValidationTest {
     void permissionLevelsZeroThroughFourShouldBeAccepted() throws Exception {
         for (int permissionLevel = 0; permissionLevel <= 4; permissionLevel++) {
             List<String> errors = validator.validate(parse(permissionLevel), "permission-" + permissionLevel + ".yaml");
-            assertTrue(errors.isEmpty(), () -> "permissionLevel " + permissionLevel + " should be accepted: " + errors);
+            assertTrue(errors.isEmpty(), "permissionLevel " + permissionLevel + " should be accepted: " + errors);
         }
     }
 
