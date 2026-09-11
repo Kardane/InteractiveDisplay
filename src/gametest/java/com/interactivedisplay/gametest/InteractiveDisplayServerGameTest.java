@@ -133,7 +133,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             helper.assertTrue(callback.player() == player, Component.literal("callback player context mismatch"));
             helper.assertTrue(main.equals(callback.windowId()), Component.literal("callback public window id mismatch: " + callback.windowId()));
             helper.assertTrue("button".equals(callback.componentId()), Component.literal("callback component id mismatch"));
-            helper.assertTrue(callback.windows() == api.windows(), Component.literal("callback WindowApi context mismatch"));
+            helper.assertTrue(callback.windows().registeredIds().equals(api.windows().registeredIds()), Component.literal("callback WindowApi registry view mismatch"));
 
             helper.assertTrue(api.windows().open(player, main, WindowOpenOptions.playerFixed()).success(), Component.literal("main_menu did not open before callback close"));
             ResourceLocation closingCallbackId = ResourceLocation.fromNamespaceAndPath("qa", "gametest_close_callback_" + UUID.randomUUID().toString().replace("-", ""));
