@@ -37,6 +37,16 @@ class AttachedPublicWindowRegistrationTest {
     }
 
     @Test
+    void customActionRegistrationShouldWorkAfterManagerAttach(@TempDir Path tempDir) {
+        InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(new CallbackRegistry());
+        api.attach(manager(tempDir));
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("qa", "post_attach_action");
+
+        assertTrue(api.actions().register(id, context -> { }).success());
+        assertFalse(api.actions().register(id, context -> { }).success());
+    }
+
+    @Test
     void newRuntimeInstanceShouldAllowConsumerToRegisterAgainAfterRestart(@TempDir Path tempDir) {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "restart_registration");
 
