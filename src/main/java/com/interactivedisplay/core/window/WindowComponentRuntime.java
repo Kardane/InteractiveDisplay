@@ -1,10 +1,17 @@
 package com.interactivedisplay.core.window;
 
+import com.interactivedisplay.core.animation.AnimationDefinition;
+import com.interactivedisplay.core.animation.AnimationRegistry;
+import com.interactivedisplay.core.animation.AnimationRuntime;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
+import com.interactivedisplay.core.component.TextComponentDefinition;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
@@ -25,6 +32,9 @@ public final class WindowComponentRuntime {
     private PlayerCanvas mapCanvas;
     private boolean hovered;
     private long lastTextRefreshTick = Long.MIN_VALUE;
+    private final List<ScheduledAnimation> activeAnimations = new ArrayList<>();
+    private long animationStartTick = Long.MIN_VALUE;
+    private long animationGeneration;
 
     public WindowComponentRuntime(ResourceKey<Level> worldKey,
                                   ComponentDefinition definition,
@@ -49,10 +59,14 @@ public final class WindowComponentRuntime {
     }
 
     public void redefine(ComponentDefinition definition, Vector3f localPosition) {
+        cancelAnimations();
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
         this.hovered = false;
         this.lastTextRefreshTick = Long.MIN_VALUE;
+        if (definition instanceof TextComponentDefinition text && !text.animations().isEmpty()) {
+            configureAnimations(text.animations());
+        }
     }
 
     public Vector3f localPosition() {
@@ -72,6 +86,10 @@ public final class WindowComponentRuntime {
     }
 
     public boolean shouldRefreshText(long tick, int refreshInterval) {
+        tickAnimations(tick);
+        if (hasActiveTextAnimation()) {
+            return false;
+        }
         if (refreshInterval <= 0) {
             return false;
         }
@@ -80,6 +98,61 @@ public final class WindowComponentRuntime {
             return true;
         }
         return false;
+    }
+
+    public void configureAnimations(List<AnimationDefinition> definitions) {
+        cancelAnimations();
+        this.animationStartTick = Long.MIN_VALUE;
+        long generation = this.animationGeneration;
+        for (AnimationDefinition animationDefinition : definitions) {
+            AnimationRegistry.create(this, animationDefinition).ifPresent(animation -> {
+                animation.prepare();
+                this.activeAnimations.add(new ScheduledAnimation(generation, animation));
+            });
+        }
+    }
+
+    public void tickAnimations(long tick) {
+        if (this.activeAnimations.isEmpty()) {
+            return;
+        }
+        if (this.animationStartTick == Long.MIN_VALUE) {
+            this.animationStartTick = tick;
+        }
+        long elapsedTick = Math.max(0L, tick - this.animationStartTick);
+        Iterator<ScheduledAnimation> iterator = this.activeAnimations.iterator();
+        while (iterator.hasNext()) {
+            ScheduledAnimation scheduled = iterator.next();
+            if (scheduled.generation() != this.animationGeneration || scheduled.animation().tick(elapsedTick)) {
+                iterator.remove();
+            }
+        }
+    }
+
+    public boolean hasActiveTextAnimation() {
+        for (ScheduledAnimation scheduled : this.activeAnimations) {
+            if (scheduled.generation() == this.animationGeneration && scheduled.animation().affectsTextContent()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public int activeAnimationCount() {
+        return this.activeAnimations.size();
+    }
+
+    public long animationGeneration() {
+        return this.animationGeneration;
+    }
+
+    public void cancelAnimations() {
+        this.animationGeneration++;
+        for (ScheduledAnimation scheduled : this.activeAnimations) {
+            scheduled.animation().cancel();
+        }
+        this.activeAnimations.clear();
+        this.animationStartTick = Long.MIN_VALUE;
     }
 
     public int entityCount() {
@@ -195,5 +268,8 @@ public final class WindowComponentRuntime {
                 || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
                 || block == Character.UnicodeBlock.ENCLOSED_CJK_LETTERS_AND_MONTHS
                 || Character.getType(codePoint) == Character.OTHER_SYMBOL;
+    }
+
+    private record ScheduledAnimation(long generation, AnimationRuntime animation) {
     }
 }
