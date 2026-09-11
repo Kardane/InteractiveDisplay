@@ -9,7 +9,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayServerGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayCommandServerGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplaySoakServerGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayPublicApiLifecycleGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayPublicApiLifecycleGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayReloadDedupGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
