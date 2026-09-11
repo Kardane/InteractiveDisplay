@@ -3,10 +3,13 @@
   "id": "interactivedisplay-gametest",
   "version": "1.0.0",
   "name": "InteractiveDisplay Game Tests",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayServerGameTest"
+    ],
+    "fabric-client-gametest": [
+      "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
     ]
   },
   "depends": {
