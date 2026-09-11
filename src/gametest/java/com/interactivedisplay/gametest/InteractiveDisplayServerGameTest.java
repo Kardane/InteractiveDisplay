@@ -10,8 +10,12 @@ import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.interactivedisplay.entity.DisplayEntityFactory;
 import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
+import java.util.zip.ZipFile;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -81,9 +85,30 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         helper.succeed();
     }
 
+    @GameTest
+    public void generatedResourcePackContainsInteractiveDisplayAssets(GameTestHelper helper) {
+        Path pack = Path.of("polymer", "resource_pack.zip");
+        helper.assertTrue(Files.isRegularFile(pack), Component.literal("Polymer resource pack was not generated"));
+
+        try (ZipFile zip = new ZipFile(pack.toFile())) {
+            assertZipEntry(helper, zip, "assets/interactivedisplay/items/pointer.json");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/models/item/pointer.json");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/textures/item/pointer.png");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/lang/ko_kr.json");
+        } catch (IOException exception) {
+            throw new AssertionError("Failed to inspect generated Polymer resource pack", exception);
+        }
+
+        helper.succeed();
+    }
+
     @Override
     public void invokeTestMethod(GameTestHelper helper, Method method) throws ReflectiveOperationException {
         method.invoke(this, helper);
+    }
+
+    private static void assertZipEntry(GameTestHelper helper, ZipFile zip, String name) {
+        helper.assertTrue(zip.getEntry(name) != null, Component.literal("Missing resource-pack entry: " + name));
     }
 
     private static TextComponentDefinition text(String content) {
