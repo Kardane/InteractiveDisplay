@@ -39,7 +39,7 @@ class WindowSpecAdapterTest {
                         .opacity(0.8f)
                         .refreshInterval(10))
                 .panel("frame", panel -> panel
-                        .position(0.0f, 0.0f, 0.0f)
+                        .position(0.2f, -0.1f, 0.03f)
                         .size(2.8f, 1.2f)
                         .background("#99000000")
                         .padding(0.15f)
@@ -77,6 +77,11 @@ class WindowSpecAdapterTest {
 
         TextComponentDefinition text = assertInstanceOf(TextComponentDefinition.class, definition.components().get(0));
         assertEquals("Balance: %economy:balance%", text.content());
+        assertEquals(0.1f, text.position().x());
+        assertEquals(0.35f, text.position().y());
+        assertEquals(0.01f, text.position().z());
+        assertEquals(2.2f, text.size().width());
+        assertEquals(0.4f, text.size().height());
         assertEquals(0.45f, text.fontSize());
         assertEquals("right", text.alignment());
         assertEquals(180, text.lineWidth());
@@ -84,6 +89,10 @@ class WindowSpecAdapterTest {
         assertEquals(10, text.refreshInterval());
 
         PanelComponentDefinition panel = assertInstanceOf(PanelComponentDefinition.class, definition.components().get(1));
+        assertEquals(0.2f, panel.position().x());
+        assertEquals(-0.1f, panel.position().y());
+        assertEquals(2.8f, panel.size().width());
+        assertEquals(1.2f, panel.size().height());
         assertEquals("#99000000", panel.backgroundColor());
         assertEquals(0.15f, panel.padding());
         assertEquals(LayoutMode.HORIZONTAL, panel.layoutMode());
@@ -92,15 +101,23 @@ class WindowSpecAdapterTest {
         ImageComponentDefinition item = assertInstanceOf(ImageComponentDefinition.class, definition.components().get(2));
         assertEquals(ImageType.ITEM, item.imageType());
         assertEquals("minecraft:diamond", item.value());
+        assertEquals(-0.8f, item.position().x());
+        assertEquals(0.5f, item.size().width());
         assertEquals(0.75f, item.scale());
 
         ImageComponentDefinition block = assertInstanceOf(ImageComponentDefinition.class, definition.components().get(3));
         assertEquals(ImageType.BLOCK, block.imageType());
         assertEquals("minecraft:stone", block.value());
+        assertEquals(0.8f, block.position().x());
+        assertEquals(0.6f, block.size().width());
         assertEquals(0.8f, block.scale());
 
         ButtonComponentDefinition button = assertInstanceOf(ButtonComponentDefinition.class, definition.components().get(4));
         assertEquals("Buy", button.label());
+        assertEquals(0.0f, button.position().x());
+        assertEquals(-0.35f, button.position().y());
+        assertEquals(1.2f, button.size().width());
+        assertEquals(0.35f, button.size().height());
         assertEquals(ClickType.BOTH, button.clickType());
         assertEquals(ComponentActionType.CALLBACK, button.action().type());
         assertEquals("economy:buy", button.action().target());
@@ -131,6 +148,28 @@ class WindowSpecAdapterTest {
         assertEquals(ComponentActionType.RUN_COMMAND, command.action().type());
         assertEquals("say hello", command.action().target());
         assertEquals(3, command.action().permissionLevel());
+    }
+
+    @Test
+    void shouldAdaptLeftRightAndBothClickModes() {
+        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "clicks"))
+                .button("left", b -> b.click(WindowSpec.Click.LEFT).action(WindowSpec.Actions.close()))
+                .button("right", b -> b.click(WindowSpec.Click.RIGHT).action(WindowSpec.Actions.close()))
+                .button("both", b -> b.click(WindowSpec.Click.BOTH).action(WindowSpec.Actions.close()))
+                .build();
+
+        WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);
+        assertEquals(ClickType.LEFT, ((ButtonComponentDefinition) definition.components().get(0)).clickType());
+        assertEquals(ClickType.RIGHT, ((ButtonComponentDefinition) definition.components().get(1)).clickType());
+        assertEquals(ClickType.BOTH, ((ButtonComponentDefinition) definition.components().get(2)).clickType());
+    }
+
+    @Test
+    void shouldAdaptAllProgrammaticTransitionTypes() {
+        assertTransition(WindowSpec.TransitionType.NONE, WindowTransitionType.NONE);
+        assertTransition(WindowSpec.TransitionType.SCALE, WindowTransitionType.SCALE);
+        assertTransition(WindowSpec.TransitionType.SLIDE_UP, WindowTransitionType.SLIDE_UP);
+        assertTransition(WindowSpec.TransitionType.SLIDE_DOWN, WindowTransitionType.SLIDE_DOWN);
     }
 
     @Test
@@ -165,5 +204,15 @@ class WindowSpecAdapterTest {
         assertThrows(IllegalStateException.class, () -> WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "missing-action"))
                 .button("button", button -> { }));
         assertThrows(IllegalArgumentException.class, () -> WindowSpec.Actions.runCommand(" "));
+    }
+
+    private static void assertTransition(WindowSpec.TransitionType publicType, WindowTransitionType internalType) {
+        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "transition_" + publicType.name().toLowerCase()))
+                .transition(5, publicType, publicType)
+                .build();
+        WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);
+        assertEquals(5, definition.transition().duration());
+        assertEquals(internalType, definition.transition().enter());
+        assertEquals(internalType, definition.transition().exit());
     }
 }
