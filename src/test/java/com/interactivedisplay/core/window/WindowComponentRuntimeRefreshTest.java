@@ -13,8 +13,46 @@ import org.junit.jupiter.api.Test;
 class WindowComponentRuntimeRefreshTest {
     @Test
     void refreshCadenceShouldWaitForConfiguredInterval() {
-        TextComponentDefinition definition = new TextComponentDefinition(
-                "status",
+        TextComponentDefinition definition = definition("status", 20);
+        WindowComponentRuntime runtime = runtime(definition);
+
+        assertTrue(runtime.shouldRefreshText(100L, 20));
+        assertFalse(runtime.shouldRefreshText(119L, 20));
+        assertTrue(runtime.shouldRefreshText(120L, 20));
+    }
+
+    @Test
+    void intervalOneShouldRefreshOnEveryFollowingTickButNotTwiceInSameTick() {
+        TextComponentDefinition definition = definition("fast", 1);
+        WindowComponentRuntime runtime = runtime(definition);
+
+        assertTrue(runtime.shouldRefreshText(50L, 1));
+        assertFalse(runtime.shouldRefreshText(50L, 1));
+        assertTrue(runtime.shouldRefreshText(51L, 1));
+        assertTrue(runtime.shouldRefreshText(52L, 1));
+    }
+
+    @Test
+    void zeroIntervalShouldDisablePeriodicRefresh() {
+        TextComponentDefinition definition = definition("static", 0);
+        WindowComponentRuntime runtime = runtime(definition);
+
+        assertFalse(runtime.shouldRefreshText(100L, definition.refreshInterval()));
+    }
+
+    private static WindowComponentRuntime runtime(TextComponentDefinition definition) {
+        return new WindowComponentRuntime(
+                Level.OVERWORLD,
+                definition,
+                new Vector3f(),
+                null,
+                null
+        );
+    }
+
+    private static TextComponentDefinition definition(String id, int refreshInterval) {
+        return new TextComponentDefinition(
+                id,
                 new ComponentPosition(0.0f, 0.0f, 0.0f),
                 new ComponentSize(1.0f, 0.3f),
                 true,
@@ -26,45 +64,7 @@ class WindowComponentRuntimeRefreshTest {
                 200,
                 true,
                 "#00000000",
-                20
+                refreshInterval
         );
-        WindowComponentRuntime runtime = new WindowComponentRuntime(
-                Level.OVERWORLD,
-                definition,
-                new Vector3f(),
-                null,
-                null
-        );
-
-        assertTrue(runtime.shouldRefreshText(100L, 20));
-        assertFalse(runtime.shouldRefreshText(119L, 20));
-        assertTrue(runtime.shouldRefreshText(120L, 20));
-    }
-
-    @Test
-    void zeroIntervalShouldDisablePeriodicRefresh() {
-        TextComponentDefinition definition = new TextComponentDefinition(
-                "static",
-                new ComponentPosition(0.0f, 0.0f, 0.0f),
-                new ComponentSize(1.0f, 0.3f),
-                true,
-                1.0f,
-                "static",
-                0.5f,
-                "#FFFFFF",
-                "left",
-                200,
-                true,
-                "#00000000"
-        );
-        WindowComponentRuntime runtime = new WindowComponentRuntime(
-                Level.OVERWORLD,
-                definition,
-                new Vector3f(),
-                null,
-                null
-        );
-
-        assertFalse(runtime.shouldRefreshText(100L, definition.refreshInterval()));
     }
 }
