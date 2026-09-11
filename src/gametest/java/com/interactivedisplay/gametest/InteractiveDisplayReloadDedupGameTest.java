@@ -1,11 +1,14 @@
 package com.interactivedisplay.gametest;
 
 import com.interactivedisplay.InteractiveDisplay;
+import com.interactivedisplay.api.InteractiveDisplayApi;
+import com.interactivedisplay.api.event.EventApi;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.WindowGroupInstance;
 import com.interactivedisplay.core.window.WindowInstance;
 import com.interactivedisplay.entity.VirtualWindowHolder;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -46,8 +49,27 @@ public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMe
         var galleryOldHolder = galleryBefore.virtualHolder();
         var groupOldHolder = groupBefore.currentWindow().virtualHolder();
 
-        var reload = manager.reloadAll();
-        helper.assertTrue(reload.success(), Component.literal("reloadAll failed with active windows/groups: " + reload.message()));
+        List<String> lifecycleEvents = new ArrayList<>();
+        EventApi eventApi = InteractiveDisplayApi.get().events();
+        EventApi.Subscription openedSubscription = eventApi.onWindowOpened(event -> {
+            if (owner.equals(event.ownerId())) {
+                lifecycleEvents.add("opened:" + event.windowId());
+            }
+        });
+        EventApi.Subscription closedSubscription = eventApi.onWindowClosed(event -> {
+            if (owner.equals(event.ownerId())) {
+                lifecycleEvents.add("closed:" + event.windowId());
+            }
+        });
+        try {
+            var reload = manager.reloadAll();
+            helper.assertTrue(reload.success(), Component.literal("reloadAll failed with active windows/groups: " + reload.message()));
+            helper.assertTrue(lifecycleEvents.isEmpty(),
+                    Component.literal("internal reload emitted public lifecycle events: " + lifecycleEvents));
+        } finally {
+            openedSubscription.close();
+            closedSubscription.close();
+        }
 
         WindowInstance mainAfter = manager.findActiveWindow(owner, "main_menu");
         WindowInstance galleryAfter = manager.findActiveWindow(owner, "gallery");
@@ -70,8 +92,6 @@ public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMe
         helper.assertTrue(galleryAfter.virtualHolder() != galleryOldHolder, Component.literal("gallery holder was reused across reload"));
         helper.assertTrue(groupAfter.currentWindow().virtualHolder() != groupOldHolder, Component.literal("group holder was reused across reload"));
 
-        // Exit transitions may defer destruction. Flush the server-owned pending queue and verify
-        // every superseded holder becomes empty rather than being retained indefinitely.
         VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
         helper.assertTrue(mainOldHolder.entityCount() == 0, Component.literal("old main_menu holder retained entities after reload cleanup"));
         helper.assertTrue(galleryOldHolder.entityCount() == 0, Component.literal("old gallery holder retained entities after reload cleanup"));
