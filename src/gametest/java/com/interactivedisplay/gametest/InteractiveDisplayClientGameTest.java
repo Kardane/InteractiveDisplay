@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.world.entity.Display;
 
@@ -64,6 +65,16 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
                     + baselinePassengers + " remaining=" + remainingPassengers);
         }
         writeState("client-clean", Integer.toString(remainingPassengers));
+
+        // Fabric Client GameTest requires each test to return in a disconnected state. Use the
+        // normal Minecraft client teardown path so the world, connection, and server-pack state
+        // are released exactly as they are when a player leaves a multiplayer server.
+        context.computeOnClient(client -> {
+            client.disconnect(new TitleScreen(), false);
+            return true;
+        });
+        context.waitFor(client -> client.getConnection() == null && client.player == null && client.level == null, 200);
+        writeState("client-disconnected", "true");
     }
 
     private static void waitForExternalWorldOrReportDisconnect(ClientGameTestContext context) {
