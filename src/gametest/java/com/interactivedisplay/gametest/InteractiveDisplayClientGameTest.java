@@ -3,11 +3,14 @@ package com.interactivedisplay.gametest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicReference;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.world.entity.Display;
 
 public final class InteractiveDisplayClientGameTest implements FabricClientGameTest {
@@ -27,17 +30,7 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
 
     private static void runExternalServerTest(ClientGameTestContext context) {
         acceptServerPackPromptIfPresent(context);
-        try {
-            context.waitFor(client -> client.player != null && client.level != null, 1_200);
-        } catch (AssertionError error) {
-            String diagnostic = context.computeOnClient(client -> "screen="
-                    + (client.screen == null ? "null" : client.screen.getClass().getName())
-                    + ", player=" + (client.player != null)
-                    + ", level=" + (client.level != null)
-                    + ", connection=" + (client.getConnection() != null));
-            writeState("client-join-diagnostic", diagnostic);
-            throw new AssertionError("external client did not finish world join: " + diagnostic, error);
-        }
+        waitForExternalWorldOrReportDisconnect(context);
         context.waitTicks(20);
 
         String playerName = context.computeOnClient(client -> client.player.getGameProfile().getName());
@@ -72,20 +65,85 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
         writeState("client-clean", Integer.toString(remainingPassengers));
     }
 
+    private static void waitForExternalWorldOrReportDisconnect(ClientGameTestContext context) {
+        AtomicReference<String> lastScreen = new AtomicReference<>("");
+        AtomicReference<String> screenTrace = new AtomicReference<>("");
+        AtomicReference<String> disconnectReason = new AtomicReference<>();
+
+        try {
+            context.waitFor(client -> {
+                recordScreenTransition(client, lastScreen, screenTrace);
+                if (client.screen instanceof DisconnectedScreen disconnected) {
+                    disconnectReason.compareAndSet(null, disconnected.getNarrationMessage().getString());
+                    return true;
+                }
+                return client.player != null && client.level != null;
+            }, 1_200);
+        } catch (AssertionError error) {
+            String diagnostic = externalJoinDiagnostic(context, screenTrace.get(), disconnectReason.get());
+            writeState("client-join-diagnostic", diagnostic);
+            throw new AssertionError("external client did not finish world join: " + diagnostic, error);
+        }
+
+        if (disconnectReason.get() != null) {
+            String diagnostic = externalJoinDiagnostic(context, screenTrace.get(), disconnectReason.get());
+            writeState("client-disconnect", diagnostic);
+            throw new AssertionError("external client disconnected before world join: " + diagnostic);
+        }
+    }
+
+    private static String externalJoinDiagnostic(
+            ClientGameTestContext context,
+            String screenTrace,
+            String disconnectReason
+    ) {
+        return context.computeOnClient(client -> "screen="
+                + screenName(client)
+                + ", player=" + (client.player != null)
+                + ", level=" + (client.level != null)
+                + ", connection=" + (client.getConnection() != null)
+                + ", serverData=" + (client.getCurrentServer() != null)
+                + ", trace=" + screenTrace
+                + ", disconnect=" + (disconnectReason == null ? "-" : disconnectReason));
+    }
+
+    private static void recordScreenTransition(
+            Minecraft client,
+            AtomicReference<String> lastScreen,
+            AtomicReference<String> screenTrace
+    ) {
+        String current = screenName(client);
+        String previous = lastScreen.getAndSet(current);
+        if (current.equals(previous)) {
+            return;
+        }
+        screenTrace.updateAndGet(existing -> existing == null || existing.isEmpty() ? current : existing + " -> " + current);
+    }
+
+    private static String screenName(Minecraft client) {
+        return client.screen == null ? "null" : client.screen.getClass().getName();
+    }
+
     private static void acceptServerPackPromptIfPresent(ClientGameTestContext context) {
         context.waitFor(client -> client.player != null || isPackConfirmScreen(client), 1_200);
-        context.computeOnClient(client -> {
+        boolean accepted = context.computeOnClient(client -> {
             if (!isPackConfirmScreen(client)) {
                 return false;
             }
 
-            // Mirror vanilla PackConfirmScreen's affirmative callback without depending on
-            // private screen fields or button coordinates. This accepts pending server packs
-            // for the current connection and lets the login flow continue headlessly.
+            // Mirror the affirmative path used by vanilla PackConfirmScreen. Persist the current
+            // server preference when available, then accept all queued server packs. Do not force
+            // the screen to null; vanilla owns the surrounding connection-screen transition.
+            ServerData serverData = client.getCurrentServer();
+            if (serverData != null) {
+                serverData.setResourcePackStatus(ServerData.ServerPackStatus.ENABLED);
+            }
             client.getDownloadedPackSource().allowServerPacks();
-            client.setScreen(null);
             return true;
         });
+        if (accepted) {
+            writeState("client-pack-accepted", "true");
+        }
     }
 
     private static boolean isPackConfirmScreen(Minecraft client) {
