@@ -9,8 +9,9 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
-import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.world.entity.Display;
 
 public final class InteractiveDisplayClientGameTest implements FabricClientGameTest {
@@ -131,14 +132,17 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
                 return false;
             }
 
-            // Mirror the affirmative path used by vanilla PackConfirmScreen. Persist the current
-            // server preference when available, then accept all queued server packs. Do not force
-            // the screen to null; vanilla owns the surrounding connection-screen transition.
-            ServerData serverData = client.getCurrentServer();
-            if (serverData != null) {
-                serverData.setResourcePackStatus(ServerData.ServerPackStatus.ENABLED);
-            }
-            client.getDownloadedPackSource().allowServerPacks();
+            // Invoke the actual affirmative widget rather than duplicating part of its callback.
+            // Vanilla's PackConfirmScreen callback restores its parent screen, allows queued server
+            // packs, pushes each pending pack, persists ServerData when present, and continues login.
+            Button affirmative = client.screen.children().stream()
+                    .filter(Button.class::isInstance)
+                    .map(Button.class::cast)
+                    .filter(button -> CommonComponents.GUI_PROCEED.equals(button.getMessage())
+                            || CommonComponents.GUI_YES.equals(button.getMessage()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("PackConfirmScreen affirmative button not found"));
+            affirmative.onPress();
             return true;
         });
         if (accepted) {
