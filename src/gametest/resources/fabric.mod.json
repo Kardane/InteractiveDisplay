@@ -7,7 +7,8 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayServerGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayCommandServerGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayCommandServerGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplaySoakServerGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
