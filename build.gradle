@@ -81,6 +81,8 @@ dependencies {
 }
 
 tasks.register("runProductionClientSmoke", net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    jvmArgs.add("-Dfabric.client.gametest")
+    jvmArgs.add("-Dfabric.client.gametest.disableNetworkSynchronizer=true")
     useXVFB = true
 }
 
