@@ -209,4 +209,42 @@ class WindowManagerReloadTest {
         assertTrue(manager.loadedWindowIds().contains("gallery"));
         assertFalse(manager.brokenGroupIds().contains("menu_group"));
     }
+
+    @Test
+    void reloadAllOneHundredTimesShouldRemainStable(@TempDir Path tempDir) throws Exception {
+        DebugRecorder debugRecorder = new DebugRecorder(20);
+        Path windows = tempDir.resolve("interactivedisplay").resolve("windows");
+        Files.createDirectories(windows);
+        Files.writeString(windows.resolve("soak.yaml"), """
+                id: qa_soak
+                size: { width: 3.0, height: 2.0 }
+                components:
+                  - id: status
+                    type: text
+                    position: { x: 0.0, y: 0.0, z: 0.0 }
+                    content: stable
+                """, StandardCharsets.UTF_8);
+
+        CoordinateTransformer transformer = new CoordinateTransformer();
+        WindowManager manager = new WindowManager(
+                null,
+                new SchemaLoader(tempDir, new SchemaValidator(), debugRecorder),
+                new MeditateLayoutEngine(),
+                transformer,
+                new WindowPositionTracker(transformer),
+                new DisplayEntityFactory(debugRecorder),
+                debugRecorder,
+                new CommandWhitelist(tempDir),
+                new CallbackRegistry()
+        );
+
+        for (int i = 0; i < 100; i++) {
+            ReloadWindowResult result = manager.reloadAll();
+            assertTrue(result.success(), "reload iteration " + i + " failed: " + result.message());
+            assertEquals(1, manager.loadedWindowIds().size(), "definition count changed at iteration " + i);
+            assertTrue(manager.loadedWindowIds().contains("qa_soak"));
+            assertTrue(manager.brokenWindowIds().isEmpty());
+            assertTrue(manager.brokenGroupIds().isEmpty());
+        }
+    }
 }
