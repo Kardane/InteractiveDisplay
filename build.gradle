@@ -36,6 +36,27 @@ fabricApi {
     }
 }
 
+loom {
+    runs {
+        qaServer {
+            inherit server
+            configName = "QA Dedicated Server"
+            runDir = "build/qa-server"
+            ideConfigGenerated = false
+        }
+        qaClientGameTest {
+            inherit clientGameTest
+            configName = "QA External Client Game Test"
+            runDir = "build/qa-client"
+            ideConfigGenerated = false
+            vmArg "-Dinteractivedisplay.qa.externalServer=true"
+            vmArg "-Dinteractivedisplay.qa.stateDir=${file('build/qa-state').absolutePath}"
+            programArg "--quickPlayMultiplayer"
+            programArg "localhost:25565"
+        }
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
@@ -59,9 +80,7 @@ dependencies {
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
-tasks.register("runProductionClientGameTest", net.fabricmc.loom.task.prod.ClientProductionRunTask) {
-    jvmArgs.add("-Dfabric.client.gametest")
-    jvmArgs.add("-Dfabric.client.gametest.disableNetworkSynchronizer=true")
+tasks.register("runProductionClientSmoke", net.fabricmc.loom.task.prod.ClientProductionRunTask) {
     useXVFB = true
 }
 
