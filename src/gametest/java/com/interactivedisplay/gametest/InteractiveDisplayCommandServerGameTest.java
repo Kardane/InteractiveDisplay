@@ -26,6 +26,9 @@ public final class InteractiveDisplayCommandServerGameTest implements CustomTest
         assertCommand(helper, dispatcher.execute("interactivedisplay debug status", source), "debug status");
         assertCommand(helper, dispatcher.execute("interactivedisplay debug recent", source), "debug recent");
         assertCommand(helper, dispatcher.execute("interactivedisplay group list", source), "group list");
+        assertCommand(helper, dispatcher.execute("interactivedisplay reload", source), "reload");
+        helper.assertTrue(manager.loadedWindowIds().contains("main_menu"),
+                Component.literal("main_menu was not loaded after live full reload command"));
         assertCommand(helper, dispatcher.execute("interactivedisplay reload main_menu", source), "reload main_menu");
         helper.assertTrue(manager.loadedWindowIds().contains("main_menu"),
                 Component.literal("main_menu was not loaded after live focused reload command"));
