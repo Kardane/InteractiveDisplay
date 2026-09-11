@@ -6,7 +6,8 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
-      "com.interactivedisplay.gametest.InteractiveDisplayServerGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayServerGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayCommandServerGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
