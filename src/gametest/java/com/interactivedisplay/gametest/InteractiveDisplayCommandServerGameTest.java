@@ -18,7 +18,7 @@ public final class InteractiveDisplayCommandServerGameTest implements CustomTest
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         var source = server.createCommandSourceStack()
-                .withLevel(player.serverLevel())
+                .withLevel(helper.getLevel())
                 .withPosition(player.position());
         String target = "@p";
 
