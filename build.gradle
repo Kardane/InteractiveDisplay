@@ -23,7 +23,6 @@ loom {
         server {
             ideConfigGenerated = true
         }
-        remove client
     }
 }
 
