@@ -108,12 +108,24 @@ class InteractiveDisplayCommandTreeTest {
         );
 
         var group = dispatcher.getRoot().getChild("interactivedisplay").getChild("group");
+        TestSource createOnly = new TestSource(Set.of("create"));
         TestSource removeOnly = new TestSource(Set.of("remove"));
+        TestSource listOnly = new TestSource(Set.of("list"));
+
+        assertTrue(group.canUse(createOnly));
+        assertTrue(group.getChild("create").canUse(createOnly));
+        assertFalse(group.getChild("remove").canUse(createOnly));
+        assertFalse(group.getChild("list").canUse(createOnly));
 
         assertTrue(group.canUse(removeOnly));
         assertFalse(group.getChild("create").canUse(removeOnly));
         assertTrue(group.getChild("remove").canUse(removeOnly));
         assertFalse(group.getChild("list").canUse(removeOnly));
+
+        assertTrue(group.canUse(listOnly));
+        assertFalse(group.getChild("create").canUse(listOnly));
+        assertFalse(group.getChild("remove").canUse(listOnly));
+        assertTrue(group.getChild("list").canUse(listOnly));
     }
 
     @Test
