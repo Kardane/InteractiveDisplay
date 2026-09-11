@@ -24,16 +24,16 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
     @GameTest
     public void runtimeBootsAndLoadsDefaultDefinitions(GameTestHelper helper) {
         InteractiveDisplay mod = InteractiveDisplay.instance();
-        helper.assertTrue(mod != null, "InteractiveDisplay initializer did not run");
-        helper.assertTrue(mod.windowManager() != null, "WindowManager was not attached after server start");
+        helper.assertTrue(mod != null, Component.literal("InteractiveDisplay initializer did not run"));
+        helper.assertTrue(mod.windowManager() != null, Component.literal("WindowManager was not attached after server start"));
 
         Set<String> windows = mod.windowManager().loadedWindowIds();
-        helper.assertTrue(windows.contains("main_menu"), "default main_menu window was not loaded");
-        helper.assertTrue(windows.contains("main_menu2"), "default main_menu2 window was not loaded");
-        helper.assertTrue(windows.contains("gallery"), "default gallery window was not loaded");
-        helper.assertTrue(mod.windowManager().loadedGroupIds().contains("menu_group"), "default menu_group was not loaded");
-        helper.assertTrue(mod.windowManager().brokenWindowIds().isEmpty(), "default windows contain broken definitions: " + mod.windowManager().brokenWindowIds());
-        helper.assertTrue(mod.windowManager().brokenGroupIds().isEmpty(), "default groups contain broken definitions: " + mod.windowManager().brokenGroupIds());
+        helper.assertTrue(windows.contains("main_menu"), Component.literal("default main_menu window was not loaded"));
+        helper.assertTrue(windows.contains("main_menu2"), Component.literal("default main_menu2 window was not loaded"));
+        helper.assertTrue(windows.contains("gallery"), Component.literal("default gallery window was not loaded"));
+        helper.assertTrue(mod.windowManager().loadedGroupIds().contains("menu_group"), Component.literal("default menu_group was not loaded"));
+        helper.assertTrue(mod.windowManager().brokenWindowIds().isEmpty(), Component.literal("default windows contain broken definitions: " + mod.windowManager().brokenWindowIds()));
+        helper.assertTrue(mod.windowManager().brokenGroupIds().isEmpty(), Component.literal("default groups contain broken definitions: " + mod.windowManager().brokenGroupIds()));
         helper.succeed();
     }
 
@@ -48,9 +48,9 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
 
         var result = api.windows().register(spec);
 
-        helper.assertTrue(result.success(), "live public API window registration failed: " + result.message());
-        helper.assertTrue(api.windows().registeredIds().contains(id), "registeredIds did not contain live registration");
-        helper.assertTrue(InteractiveDisplay.instance().windowManager().hasDefinition("qa:gametest_runtime"), "WindowManager did not receive public API registration");
+        helper.assertTrue(result.success(), Component.literal("live public API window registration failed: " + result.message()));
+        helper.assertTrue(api.windows().registeredIds().contains(id), Component.literal("registeredIds did not contain live registration"));
+        helper.assertTrue(InteractiveDisplay.instance().windowManager().hasDefinition("qa:gametest_runtime"), Component.literal("WindowManager did not receive public API registration"));
         helper.succeed();
     }
 
@@ -59,7 +59,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         var server = helper.getLevel().getServer();
         helper.assertTrue(
                 server.getCommands().getDispatcher().getRoot().getChild("interactivedisplay") != null,
-                "interactivedisplay command root was not registered"
+                Component.literal("interactivedisplay command root was not registered")
         );
 
         TextDisplayElement element = new TextDisplayElement();
@@ -74,10 +74,10 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         );
         DisplayEntityFactory factory = new DisplayEntityFactory(new DebugRecorder(20));
 
-        helper.assertFalse(factory.refreshText(server, null, runtime, original), "unchanged rendered text should not mark an update");
+        helper.assertFalse(factory.refreshText(server, null, runtime, original), Component.literal("unchanged rendered text should not mark an update"));
         TextComponentDefinition changed = text("changed");
-        helper.assertTrue(factory.refreshText(server, null, runtime, changed), "changed rendered text should update the element");
-        helper.assertTrue("changed".equals(element.getText().getString()), "TextDisplayElement did not receive refreshed text");
+        helper.assertTrue(factory.refreshText(server, null, runtime, changed), Component.literal("changed rendered text should update the element"));
+        helper.assertTrue("changed".equals(element.getText().getString()), Component.literal("TextDisplayElement did not receive refreshed text"));
         helper.succeed();
     }
 
