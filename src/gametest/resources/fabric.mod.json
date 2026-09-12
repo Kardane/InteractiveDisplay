@@ -17,7 +17,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayPlaceholderIsolationGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayBoundActionGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayGroupNavigationGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayInvalidResourceGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayInvalidResourceGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayDimensionLifecycleGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
