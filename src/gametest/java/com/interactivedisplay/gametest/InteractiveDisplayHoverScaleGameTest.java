@@ -114,13 +114,8 @@ public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMet
                 "#CC444444",
                 null,
                 ClickType.BOTH,
-                ComponentAction.closeWindow()
-        );
-        // ButtonComponentDefinition's fifth parameter is the hover scale in the public/core runtime model.
-        button = new ButtonComponentDefinition(
-                button.id(), button.position(), button.size(), button.visible(), hoverScale,
-                button.label(), button.fontSize(), button.backgroundColor(), button.hoverColor(),
-                button.clickSound(), button.clickType(), button.action()
+                ComponentAction.closeWindow(),
+                hoverScale
         );
         return new WindowDefinition(
                 id,
