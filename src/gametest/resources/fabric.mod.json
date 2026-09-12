@@ -22,7 +22,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayDisconnectCleanupGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayClickDedupGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayRemoteMapFailureGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayHoverScaleGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayHoverScaleGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayOwnerWatchGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
