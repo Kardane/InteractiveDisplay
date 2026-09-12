@@ -20,7 +20,7 @@
       "com.interactivedisplay.gametest.InteractiveDisplayInvalidResourceGameTest"
     ],
     "fabric-client-gametest": [
-      "com.interactivedisplay.gametest.InteractiveDisplayClientGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
     ]
   },
   "depends": {
