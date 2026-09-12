@@ -143,7 +143,19 @@ jobs:
           wait_for_file "$PWD/build/qa-state/client-moved" 'PLAYER_FIXED movement retention'
           printf 'interactivedisplay remove main_menu %s\n' "$PLAYER_NAME" >&3
 
-          wait_for_file "$PWD/build/qa-state/client-clean" 'virtual display cleanup'
+          wait_for_file "$PWD/build/qa-state/client-clean" 'PLAYER_FIXED virtual display cleanup'
+
+          wait_for_file "$PWD/build/qa-state/client-view-ready" 'PLAYER_VIEW setup'
+          printf 'execute as %s at @s run tp @s ~ ~ ~ 0 0\n' "$PLAYER_NAME" >&3
+          printf 'interactivedisplay create main_menu %s player_view\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-view-opened" 'PLAYER_VIEW virtual display creation'
+          printf 'execute as %s at @s run tp @s ~ ~ ~ 90 30\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-view-rotated" 'PLAYER_VIEW yaw/pitch transform update'
+          printf 'interactivedisplay remove main_menu %s\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-view-clean" 'PLAYER_VIEW virtual display cleanup'
 
           if ! wait "$CLIENT_PID"; then
             echo 'QA client GameTest failed' >&2
