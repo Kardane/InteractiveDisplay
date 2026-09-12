@@ -25,6 +25,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
 public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMethodInvoker {
     @SuppressWarnings("removal")
@@ -126,11 +127,11 @@ public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMet
         );
     }
 
-    private static void assertVector(GameTestHelper helper, Vector3f actual, Vector3f expected, String label) {
+    private static void assertVector(GameTestHelper helper, Vector3fc actual, Vector3fc expected, String label) {
         float epsilon = 0.0001f;
-        helper.assertTrue(Math.abs(actual.x - expected.x) <= epsilon
-                        && Math.abs(actual.y - expected.y) <= epsilon
-                        && Math.abs(actual.z - expected.z) <= epsilon,
+        helper.assertTrue(Math.abs(actual.x() - expected.x()) <= epsilon
+                        && Math.abs(actual.y() - expected.y()) <= epsilon
+                        && Math.abs(actual.z() - expected.z()) <= epsilon,
                 Component.literal(label + " expected=" + expected + " actual=" + actual));
     }
 
