@@ -20,7 +20,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayInvalidResourceGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayDimensionLifecycleGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayDisconnectCleanupGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayClickDedupGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayClickDedupGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayRemoteMapFailureGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
