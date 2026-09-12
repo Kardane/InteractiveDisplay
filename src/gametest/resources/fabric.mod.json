@@ -24,7 +24,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayRemoteMapFailureGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayHoverScaleGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayOwnerWatchGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayTransitionGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayTransitionGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayMapCanvasGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
