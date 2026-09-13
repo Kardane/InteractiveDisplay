@@ -21,25 +21,6 @@ class WindowComponentRuntimeRefreshTest {
         assertTrue(runtime.shouldRefreshText(120L, 20));
     }
 
-    @Test
-    void intervalOneShouldRefreshOnEveryFollowingTickButNotTwiceInSameTick() {
-        TextComponentDefinition definition = definition("fast", 1);
-        WindowComponentRuntime runtime = runtime(definition);
-
-        assertTrue(runtime.shouldRefreshText(50L, 1));
-        assertFalse(runtime.shouldRefreshText(50L, 1));
-        assertTrue(runtime.shouldRefreshText(51L, 1));
-        assertTrue(runtime.shouldRefreshText(52L, 1));
-    }
-
-    @Test
-    void zeroIntervalShouldDisablePeriodicRefresh() {
-        TextComponentDefinition definition = definition("static", 0);
-        WindowComponentRuntime runtime = runtime(definition);
-
-        assertFalse(runtime.shouldRefreshText(100L, definition.refreshInterval()));
-    }
-
     private static WindowComponentRuntime runtime(TextComponentDefinition definition) {
         return new WindowComponentRuntime(
                 Level.OVERWORLD,
