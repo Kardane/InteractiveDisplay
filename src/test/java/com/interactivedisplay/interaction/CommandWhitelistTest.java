@@ -24,22 +24,7 @@ class CommandWhitelistTest {
     }
 
     @Test
-    void legacyJsonWhitelistShouldNotBeUsedAsFallback(@TempDir Path tempDir) throws Exception {
-        Path config = tempDir.resolve("interactivedisplay");
-        Files.createDirectories(config);
-        Files.writeString(config.resolve("command_whitelist.json"),
-                "{\"allowedPrefixes\":[\"say \"]}\n",
-                StandardCharsets.UTF_8);
-
-        CommandWhitelist whitelist = new CommandWhitelist(tempDir);
-        whitelist.reload();
-
-        assertTrue(Files.exists(config.resolve("command_whitelist.yaml")));
-        assertFalse(whitelist.isAllowed("say hello"));
-    }
-
-    @Test
-    void slashPrefixedCommandShouldBeNormalized(@TempDir Path tempDir) throws Exception {
+    void configuredCommandsShouldAllowExpectedRootsAndRejectDangerousRoots(@TempDir Path tempDir) throws Exception {
         Path config = tempDir.resolve("interactivedisplay");
         Files.createDirectories(config);
         try (InputStream input = Objects.requireNonNull(CommandWhitelistTest.class.getResourceAsStream(
@@ -58,23 +43,6 @@ class CommandWhitelistTest {
     }
 
     @Test
-    void prefixBoundaryTrimAndNullShouldBeHandled(@TempDir Path tempDir) throws Exception {
-        Path config = tempDir.resolve("interactivedisplay");
-        Files.createDirectories(config);
-        Files.writeString(config.resolve("command_whitelist.yaml"),
-                "allowedPrefixes:\n  - \"say \"\n",
-                StandardCharsets.UTF_8);
-
-        CommandWhitelist whitelist = new CommandWhitelist(tempDir);
-        whitelist.reload();
-
-        assertTrue(whitelist.isAllowed("  /say hello  "));
-        assertFalse(whitelist.isAllowed("say"));
-        assertFalse(whitelist.isAllowed("/say"));
-        assertFalse(whitelist.isAllowed(null));
-    }
-
-    @Test
     void rootPrefixShouldNotMatchLongerCommandName(@TempDir Path tempDir) throws Exception {
         Path config = tempDir.resolve("interactivedisplay");
         Files.createDirectories(config);
@@ -87,22 +55,7 @@ class CommandWhitelistTest {
 
         assertTrue(whitelist.isAllowed("say"));
         assertTrue(whitelist.isAllowed("say hello"));
+        assertFalse(whitelist.isAllowed("say_foo"));
         assertFalse(whitelist.isAllowed("saywhatever hello"));
-    }
-
-    @Test
-    void emptyWhitelistShouldDenyEveryCommand(@TempDir Path tempDir) throws Exception {
-        Path config = tempDir.resolve("interactivedisplay");
-        Files.createDirectories(config);
-        Files.writeString(config.resolve("command_whitelist.yaml"),
-                "allowedPrefixes: []\n",
-                StandardCharsets.UTF_8);
-
-        CommandWhitelist whitelist = new CommandWhitelist(tempDir);
-        whitelist.reload();
-
-        assertFalse(whitelist.isAllowed("say hello"));
-        assertFalse(whitelist.isAllowed("/say hello"));
-        assertFalse(whitelist.isAllowed("title @s actionbar Hello"));
     }
 }

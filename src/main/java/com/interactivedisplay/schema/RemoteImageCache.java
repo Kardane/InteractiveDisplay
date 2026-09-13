@@ -50,8 +50,12 @@ public final class RemoteImageCache {
         Files.createDirectories(this.cacheDir);
 
         Path target = this.cacheDir.resolve(sha256(url) + ".png");
-        if (isFresh(target)) {
-            return target;
+        if (Files.isRegularFile(target)) {
+            if (!isValidCachedImage(target)) {
+                Files.deleteIfExists(target);
+            } else if (isFresh(target)) {
+                return target;
+            }
         }
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
@@ -117,6 +121,19 @@ public final class RemoteImageCache {
             Instant modified = Files.getLastModifiedTime(target).toInstant();
             Duration age = Duration.between(modified, Instant.now());
             return !age.isNegative() && age.compareTo(CACHE_TTL) < 0;
+        } catch (IOException exception) {
+            return false;
+        }
+    }
+
+    private static boolean isValidCachedImage(Path target) {
+        try {
+            BufferedImage image = ImageIO.read(target.toFile());
+            if (image == null) {
+                return false;
+            }
+            validateDimensions(image);
+            return true;
         } catch (IOException exception) {
             return false;
         }
