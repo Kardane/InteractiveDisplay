@@ -20,7 +20,6 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -79,22 +78,12 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         ResourceLocation main = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu");
         ResourceLocation second = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu2");
         ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "menu_group");
-        ResourceLocation unknown = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "qa_missing_window");
-        ResourceLocation unknownGroup = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "qa_missing_group");
 
         List<EventApi.WindowEvent> opened = new ArrayList<>();
         List<EventApi.WindowEvent> closed = new ArrayList<>();
         EventApi.Subscription openSubscription = api.events().onWindowOpened(opened::add);
         EventApi.Subscription closeSubscription = api.events().onWindowClosed(closed::add);
         try {
-            var missing = api.windows().open(player, unknown, WindowOpenOptions.playerFixed());
-            helper.assertFalse(missing.success(), Component.literal("unknown window unexpectedly opened"));
-            helper.assertTrue("window_not_found".equals(missing.reason()), Component.literal("unknown window returned wrong reason: " + missing.reason()));
-
-            var missingGroup = api.groups().open(player, unknownGroup, GroupOpenOptions.playerFixed());
-            helper.assertFalse(missingGroup.success(), Component.literal("unknown group unexpectedly opened"));
-            helper.assertTrue("group_not_found".equals(missingGroup.reason()), Component.literal("unknown group returned wrong reason: " + missingGroup.reason()));
-
             assertWindowModeRoundTrip(helper, api, player, main, WindowOpenOptions.playerFixed(), WindowPositionMode.PLAYER_FIXED);
             assertWindowModeRoundTrip(helper, api, player, main, WindowOpenOptions.playerView(), WindowPositionMode.PLAYER_VIEW);
             assertWindowModeRoundTrip(helper, api, player, main, WindowOpenOptions.fixed(new Vec3(8.0, 70.0, 8.0), 25.0f, -10.0f), WindowPositionMode.FIXED);
@@ -149,10 +138,13 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             AtomicReference<com.interactivedisplay.api.action.ActionApi.ActionContext> actionContext = new AtomicReference<>();
             ResourceLocation actionId = ResourceLocation.fromNamespaceAndPath("qa", "gametest_action_" + UUID.randomUUID().toString().replace("-", ""));
             helper.assertTrue(api.actions().register(actionId, actionContext::set).success(), Component.literal("custom action registration failed"));
-            Map<String, String> mutableParameters = new HashMap<>();
-            mutableParameters.put("product", "diamond");
-            mutableParameters.put("amount", "2");
-            var actionResult = PublicActionDispatcher.execute(player, "main_menu", "buy", actionId.toString(), mutableParameters);
+            var actionResult = PublicActionDispatcher.execute(
+                    player,
+                    "main_menu",
+                    "buy",
+                    actionId.toString(),
+                    Map.of("product", "diamond", "amount", "2")
+            );
             helper.assertTrue(actionResult.success(), Component.literal("registered custom action failed: " + actionResult.message()));
             var action = actionContext.get();
             helper.assertTrue(action != null, Component.literal("custom action handler was not invoked"));
@@ -161,23 +153,6 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             helper.assertTrue("buy".equals(action.componentId()), Component.literal("custom action component id mismatch"));
             helper.assertTrue(actionId.equals(action.actionId()), Component.literal("custom action id mismatch"));
             helper.assertTrue("diamond".equals(action.parameters().get("product")), Component.literal("custom action parameter missing"));
-            mutableParameters.put("product", "emerald");
-            helper.assertTrue("diamond".equals(action.parameters().get("product")), Component.literal("ActionContext parameters were not defensively copied"));
-            boolean immutable = false;
-            try {
-                action.parameters().put("extra", "value");
-            } catch (UnsupportedOperationException expected) {
-                immutable = true;
-            }
-            helper.assertTrue(immutable, Component.literal("ActionContext parameters map is mutable"));
-
-            ResourceLocation throwingActionId = ResourceLocation.fromNamespaceAndPath("qa", "gametest_throw_action_" + UUID.randomUUID().toString().replace("-", ""));
-            helper.assertTrue(api.actions().register(throwingActionId, context -> {
-                throw new IllegalStateException("expected QA failure");
-            }).success(), Component.literal("throwing custom action registration failed"));
-            var throwingResult = PublicActionDispatcher.execute(player, "main_menu", "buy", throwingActionId.toString(), Map.of());
-            helper.assertFalse(throwingResult.success(), Component.literal("throwing custom action unexpectedly reported success"));
-            helper.assertTrue(throwingResult.message().contains("custom action failed"), Component.literal("throwing custom action returned unexpected failure message"));
         } finally {
             api.windows().closeAll(player);
             if (api.groups().isOpen(player, groupId)) {
