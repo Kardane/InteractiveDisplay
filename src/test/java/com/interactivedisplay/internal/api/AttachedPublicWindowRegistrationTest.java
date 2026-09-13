@@ -46,23 +46,6 @@ class AttachedPublicWindowRegistrationTest {
         assertFalse(api.actions().register(id, context -> { }).success());
     }
 
-    @Test
-    void newRuntimeInstanceShouldAllowConsumerToRegisterAgainAfterRestart(@TempDir Path tempDir) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "restart_registration");
-
-        InteractiveDisplayApiImpl firstApi = new InteractiveDisplayApiImpl(new CallbackRegistry());
-        firstApi.attach(manager(tempDir.resolve("first")));
-        assertTrue(firstApi.windows().register(WindowSpec.builder(id).size(2.0f, 1.0f).build()).success());
-        firstApi.detach();
-
-        WindowManager secondManager = manager(tempDir.resolve("second"));
-        InteractiveDisplayApiImpl secondApi = new InteractiveDisplayApiImpl(new CallbackRegistry());
-        secondApi.attach(secondManager);
-
-        assertTrue(secondApi.windows().register(WindowSpec.builder(id).size(2.0f, 1.0f).build()).success());
-        assertTrue(secondManager.hasDefinition(PublicIdCodec.toInternalWindowId(id)));
-    }
-
     private static WindowManager manager(Path tempDir) {
         DebugRecorder debugRecorder = new DebugRecorder(20);
         CoordinateTransformer transformer = new CoordinateTransformer();

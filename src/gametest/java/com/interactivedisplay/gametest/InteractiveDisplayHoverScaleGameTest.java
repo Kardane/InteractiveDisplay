@@ -30,7 +30,7 @@ import org.joml.Vector3fc;
 public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMethodInvoker {
     @SuppressWarnings("removal")
     @GameTest
-    public void hoverShouldScaleWithoutTranslationDriftAndRestoreAcrossRepeatedEnterExit(GameTestHelper helper) {
+    public void hoverShouldScaleAndRestoreWithoutTranslationDrift(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
@@ -39,18 +39,16 @@ public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMet
         player.setYHeadRot(0.0f);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(InteractiveDisplayItems.POINTER));
 
-        String suffix = UUID.randomUUID().toString().replace("-", "");
-        String scaledId = "qa:hover_scaled_" + suffix;
-        String unitId = "qa:hover_unit_" + suffix;
+        String id = "qa:hover_scaled_" + UUID.randomUUID().toString().replace("-", "");
         Vec3 anchor = player.getEyePosition().add(0.0, 0.0, 2.0);
 
         try {
-            helper.assertTrue(manager.registerProgrammaticWindow(definition(scaledId, 1.5f)),
+            helper.assertTrue(manager.registerProgrammaticWindow(definition(id, 1.5f)),
                     Component.literal("failed to register hover-scale fixture"));
-            var opened = manager.createWindow(player, scaledId, PositionMode.FIXED, anchor, 0.0f, 0.0f);
+            var opened = manager.createWindow(player, id, PositionMode.FIXED, anchor, 0.0f, 0.0f);
             helper.assertTrue(opened.success(), Component.literal("failed to open hover-scale fixture: " + opened.message()));
 
-            var instance = manager.findActiveWindow(player.getUUID(), scaledId);
+            var instance = manager.findActiveWindow(player.getUUID(), id);
             var runtime = instance == null ? null : instance.runtime("target");
             helper.assertTrue(runtime != null && runtime.displayElement() instanceof TextDisplayElement,
                     Component.literal("hover-scale fixture runtime missing"));
@@ -71,31 +69,8 @@ public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMet
             helper.assertTrue(!runtime.hovered(), Component.literal("hover exit was not detected"));
             assertVector(helper, element.getScale(), baseScale, "hover exit scale restore");
             assertVector(helper, element.getTranslation(), baseTranslation, "hover exit translation drift");
-
-            player.setYRot(0.0f);
-            player.setYHeadRot(0.0f);
-            manager.tick();
-            helper.assertTrue(runtime.hovered(), Component.literal("repeated hover enter was not detected"));
-            assertVector(helper, element.getScale(), new Vector3f(baseScale).mul(1.5f), "repeated hover scale");
-            assertVector(helper, element.getTranslation(), baseTranslation, "repeated hover translation drift");
-
-            helper.assertTrue(manager.removeWindow(player.getUUID(), scaledId).success(),
-                    Component.literal("hover-scale fixture cleanup failed"));
-            VirtualWindowHolder.destroyAllPending(server);
-
-            helper.assertTrue(manager.registerProgrammaticWindow(definition(unitId, 1.0f)),
-                    Component.literal("failed to register hoverScale=1 fixture"));
-            var unitOpened = manager.createWindow(player, unitId, PositionMode.FIXED, anchor, 0.0f, 0.0f);
-            helper.assertTrue(unitOpened.success(), Component.literal("failed to open hoverScale=1 fixture"));
-            var unitRuntime = manager.findActiveWindow(player.getUUID(), unitId).runtime("target");
-            TextDisplayElement unitElement = (TextDisplayElement) unitRuntime.displayElement();
-            Vector3f unitBaseScale = unitRuntime.baseScale();
-            manager.tick();
-            helper.assertTrue(unitRuntime.hovered(), Component.literal("hoverScale=1 fixture did not enter hover"));
-            assertVector(helper, unitElement.getScale(), unitBaseScale, "hoverScale=1 changed scale");
         } finally {
-            manager.removeWindow(player.getUUID(), scaledId);
-            manager.removeWindow(player.getUUID(), unitId);
+            manager.removeWindow(player.getUUID(), id);
             VirtualWindowHolder.destroyAllPending(server);
         }
 

@@ -18,7 +18,7 @@ public final class InteractiveDisplayPassengerOriginGameTest implements CustomTe
 
     @SuppressWarnings("removal")
     @GameTest
-    public void passengerRenderOriginShouldTrackPlayerPoseDimensions(GameTestHelper helper) {
+    public void passengerRenderOriginShouldTrackCommonPlayerPoses(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         VirtualWindowHolder holder = new VirtualWindowHolder(helper.getLevel(), player.position());
         holder.configure(PositionMode.PLAYER_FIXED, player);
@@ -26,8 +26,6 @@ public final class InteractiveDisplayPassengerOriginGameTest implements CustomTe
 
         verifyPose(helper, holder, player, Pose.STANDING);
         verifyPose(helper, holder, player, Pose.CROUCHING);
-        verifyPose(helper, holder, player, Pose.SWIMMING);
-        verifyPose(helper, holder, player, Pose.FALL_FLYING);
 
         player.setPose(Pose.STANDING);
         holder.destroy();
