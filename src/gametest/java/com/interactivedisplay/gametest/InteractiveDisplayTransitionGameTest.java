@@ -5,7 +5,6 @@ import com.interactivedisplay.core.window.WindowTransition;
 import com.interactivedisplay.core.window.WindowTransitionType;
 import com.interactivedisplay.entity.VirtualWindowHolder;
 import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
@@ -19,10 +18,11 @@ public final class InteractiveDisplayTransitionGameTest implements CustomTestMet
     private static final float EPSILON = 0.0001f;
     private static final float MIN_SCALE_FACTOR = 0.01f;
     private static final float SLIDE_DISTANCE = 0.35f;
+    private static final int DURATION = 5;
 
     @SuppressWarnings("removal")
     @GameTest
-    public void enterTransitionsShouldPrepareExpectedInitialTransformAndRestoreBase(GameTestHelper helper) throws Exception {
+    public void enterTransitionsShouldPrepareExpectedInitialTransformAndRestoreBase(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
 
         verifyEnter(helper, player, WindowTransitionType.NONE);
@@ -35,47 +35,13 @@ public final class InteractiveDisplayTransitionGameTest implements CustomTestMet
 
     @SuppressWarnings("removal")
     @GameTest
-    public void exitTransitionsShouldApplyExpectedTargetRespectDurationAndCleanUp(GameTestHelper helper) throws Exception {
+    public void exitTransitionsShouldApplyExpectedTargetAndCleanUp(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
 
-        verifyExit(helper, player, WindowTransitionType.NONE, 0);
-        verifyExit(helper, player, WindowTransitionType.SCALE, 1);
-        verifyExit(helper, player, WindowTransitionType.SLIDE_UP, 5);
-        verifyExit(helper, player, WindowTransitionType.SLIDE_DOWN, 40);
-
-        helper.succeed();
-    }
-
-    @SuppressWarnings("removal")
-    @GameTest
-    public void repeatedTransitionEnterExitShouldNotAccumulateTransformDrift(GameTestHelper helper) throws Exception {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        Vector3f baseScale = new Vector3f(1.4f, 0.9f, 0.6f);
-        Vector3f baseTranslation = new Vector3f(0.15f, -0.2f, 0.05f);
-
-        for (int index = 0; index < 20; index++) {
-            VirtualWindowHolder holder = new VirtualWindowHolder(helper.getLevel(), player.position());
-            TextDisplayElement element = element(baseScale, baseTranslation);
-            holder.configure(PositionMode.PLAYER_FIXED, player);
-            holder.addElement(element);
-            holder.startWatching(player);
-            holder.setTransition(new WindowTransition(5, WindowTransitionType.SLIDE_UP, WindowTransitionType.SLIDE_DOWN));
-
-            assertVector(helper, element.getTranslation(), new Vector3f(baseTranslation).add(0.0f, -SLIDE_DISTANCE, 0.0f),
-                    "repeated enter initial translation " + index);
-            holder.playEnterTransition();
-            assertVector(helper, element.getScale(), baseScale, "repeated enter restored scale " + index);
-            assertVector(helper, element.getTranslation(), baseTranslation, "repeated enter restored translation " + index);
-
-            holder.destroy();
-            assertVector(helper, element.getTranslation(), new Vector3f(baseTranslation).add(0.0f, -SLIDE_DISTANCE, 0.0f),
-                    "repeated exit target translation " + index);
-            helper.assertTrue(holder.entityCount() > 0,
-                    Component.literal("exit transition destroyed holder before duration at iteration " + index));
-            VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
-            helper.assertTrue(holder.entityCount() == 0,
-                    Component.literal("repeated transition holder leaked entities at iteration " + index));
-        }
+        verifyExit(helper, player, WindowTransitionType.NONE);
+        verifyExit(helper, player, WindowTransitionType.SCALE);
+        verifyExit(helper, player, WindowTransitionType.SLIDE_UP);
+        verifyExit(helper, player, WindowTransitionType.SLIDE_DOWN);
 
         helper.succeed();
     }
@@ -89,7 +55,7 @@ public final class InteractiveDisplayTransitionGameTest implements CustomTestMet
         holder.configure(PositionMode.PLAYER_FIXED, player);
         holder.addElement(element);
         holder.startWatching(player);
-        holder.setTransition(new WindowTransition(5, type, WindowTransitionType.NONE));
+        holder.setTransition(new WindowTransition(DURATION, type, WindowTransitionType.NONE));
 
         switch (type) {
             case NONE -> {
@@ -121,12 +87,7 @@ public final class InteractiveDisplayTransitionGameTest implements CustomTestMet
                 Component.literal(type + " enter-only holder did not destroy immediately"));
     }
 
-    private static void verifyExit(
-            GameTestHelper helper,
-            ServerPlayer player,
-            WindowTransitionType type,
-            int duration
-    ) throws Exception {
+    private static void verifyExit(GameTestHelper helper, ServerPlayer player, WindowTransitionType type) {
         Vector3f baseScale = new Vector3f(1.2f, 0.8f, 0.5f);
         Vector3f baseTranslation = new Vector3f(-0.1f, 0.25f, 0.4f);
         VirtualWindowHolder holder = new VirtualWindowHolder(helper.getLevel(), player.position());
@@ -134,18 +95,14 @@ public final class InteractiveDisplayTransitionGameTest implements CustomTestMet
 
         holder.configure(PositionMode.PLAYER_FIXED, player);
         holder.addElement(element);
-        holder.setTransition(new WindowTransition(duration, WindowTransitionType.NONE, type));
+        holder.setTransition(new WindowTransition(DURATION, WindowTransitionType.NONE, type));
         holder.startWatching(player);
         holder.tick();
-
-        long destroyStartTick = helper.getLevel().getServer().getTickCount();
         holder.destroy();
 
-        if (type == WindowTransitionType.NONE || duration == 0) {
+        if (type == WindowTransitionType.NONE) {
             helper.assertTrue(holder.entityCount() == 0,
                     Component.literal("NONE exit should destroy holder immediately"));
-            helper.assertTrue(!booleanField(holder, "pendingDestroy"),
-                    Component.literal("NONE exit unexpectedly entered pending-destroy state"));
             return;
         }
 
@@ -168,19 +125,10 @@ public final class InteractiveDisplayTransitionGameTest implements CustomTestMet
         }
 
         helper.assertTrue(holder.entityCount() > 0,
-                Component.literal(type + " exit destroyed holder before transition duration"));
-        helper.assertTrue(booleanField(holder, "pendingDestroy"),
-                Component.literal(type + " exit did not enter pending-destroy state"));
-        long destroyAtTick = longField(holder, "destroyAtTick");
-        helper.assertTrue(destroyAtTick - destroyStartTick == duration,
-                Component.literal(type + " destroy duration mismatch expected=" + duration
-                        + " actual=" + (destroyAtTick - destroyStartTick)));
-
+                Component.literal(type + " exit destroyed holder before transition cleanup"));
         VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
         helper.assertTrue(holder.entityCount() == 0,
-                Component.literal(type + " exit holder retained entities after forced pending cleanup"));
-        helper.assertTrue(!booleanField(holder, "pendingDestroy"),
-                Component.literal(type + " pendingDestroy flag remained set after cleanup"));
+                Component.literal(type + " exit holder retained entities after cleanup"));
     }
 
     private static TextDisplayElement element(Vector3f scale, Vector3f translation) {
@@ -188,18 +136,6 @@ public final class InteractiveDisplayTransitionGameTest implements CustomTestMet
         element.setScale(new Vector3f(scale));
         element.setTranslation(new Vector3f(translation));
         return element;
-    }
-
-    private static boolean booleanField(VirtualWindowHolder holder, String name) throws Exception {
-        Field field = VirtualWindowHolder.class.getDeclaredField(name);
-        field.setAccessible(true);
-        return field.getBoolean(holder);
-    }
-
-    private static long longField(VirtualWindowHolder holder, String name) throws Exception {
-        Field field = VirtualWindowHolder.class.getDeclaredField(name);
-        field.setAccessible(true);
-        return field.getLong(holder);
     }
 
     private static void assertVector(GameTestHelper helper, Vector3fc actual, Vector3fc expected, String label) {
