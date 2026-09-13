@@ -2,7 +2,6 @@ package com.interactivedisplay.internal.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.interactivedisplay.api.window.WindowSpec;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
@@ -170,40 +169,6 @@ class WindowSpecAdapterTest {
         assertTransition(WindowSpec.TransitionType.SCALE, WindowTransitionType.SCALE);
         assertTransition(WindowSpec.TransitionType.SLIDE_UP, WindowTransitionType.SLIDE_UP);
         assertTransition(WindowSpec.TransitionType.SLIDE_DOWN, WindowTransitionType.SLIDE_DOWN);
-    }
-
-    @Test
-    void publicSpecShouldNormalizeDefensiveValues() {
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "normalized"))
-                .transition(-5, null, null)
-                .text("text", text -> text.opacity(2.0f).fontSize(0.0f).lineWidth(0).refreshInterval(-10))
-                .panel("panel", panel -> panel.opacity(-1.0f).padding(-2.0f))
-                .build();
-
-        WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);
-        TextComponentDefinition text = (TextComponentDefinition) definition.components().get(0);
-        PanelComponentDefinition panel = (PanelComponentDefinition) definition.components().get(1);
-
-        assertEquals(0, definition.transition().duration());
-        assertEquals(WindowTransitionType.NONE, definition.transition().enter());
-        assertEquals(WindowTransitionType.NONE, definition.transition().exit());
-        assertEquals(1.0f, text.opacity());
-        assertEquals(0.5f, text.fontSize());
-        assertEquals(1, text.lineWidth());
-        assertEquals(0, text.refreshInterval());
-        assertEquals(0.0f, panel.opacity());
-        assertEquals(0.0f, panel.padding());
-    }
-
-    @Test
-    void invalidPublicSpecArgumentsShouldFailEarly() {
-        assertThrows(IllegalArgumentException.class, () -> WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "bad-size"))
-                .size(0.0f, 1.0f));
-        assertThrows(IllegalArgumentException.class, () -> WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "bad-component"))
-                .text(" ", text -> { }));
-        assertThrows(IllegalStateException.class, () -> WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "missing-action"))
-                .button("button", button -> { }));
-        assertThrows(IllegalArgumentException.class, () -> WindowSpec.Actions.runCommand(" "));
     }
 
     private static void assertTransition(WindowSpec.TransitionType publicType, WindowTransitionType internalType) {

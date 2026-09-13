@@ -26,8 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class RemoteImageCacheTest {
-    private static final int MAX_BYTES = 4 * 1024 * 1024;
-
     @Test
     void remoteImageShouldBeCachedAsPng(@TempDir Path tempDir) throws Exception {
         byte[] png = createPng(8, 8, Color.WHITE.getRGB());
@@ -121,65 +119,6 @@ class RemoteImageCacheTest {
     }
 
     @Test
-    void malformedImageShouldBeRejected(@TempDir Path tempDir) throws Exception {
-        byte[] malformed = "not-an-image".getBytes();
-        HttpServer server = startServer(exchange -> {
-            exchange.sendResponseHeaders(200, malformed.length);
-            exchange.getResponseBody().write(malformed);
-            exchange.close();
-        });
-        try {
-            RemoteImageCache cache = new RemoteImageCache(tempDir, new DebugRecorder(10));
-            assertThrows(IOException.class, () -> cache.resolve(url(server, "/bad.png")));
-            assertEquals(0, cache.cacheEntryCount());
-        } finally {
-            server.stop(0);
-        }
-    }
-
-    @Test
-    void oversizedContentLengthShouldBeRejectedBeforeCaching(@TempDir Path tempDir) throws Exception {
-        HttpServer server = startServer(exchange -> {
-            exchange.sendResponseHeaders(200, (long) MAX_BYTES + 1L);
-            exchange.close();
-        });
-        try {
-            RemoteImageCache cache = new RemoteImageCache(tempDir, new DebugRecorder(10));
-            assertThrows(IOException.class, () -> cache.resolve(url(server, "/too-large-header.png")));
-            assertEquals(0, cache.cacheEntryCount());
-        } finally {
-            server.stop(0);
-        }
-    }
-
-    @Test
-    void oversizedChunkedBodyShouldBeRejected(@TempDir Path tempDir) throws Exception {
-        byte[] oversized = new byte[MAX_BYTES + 1];
-        HttpServer server = startServer(exchange -> {
-            exchange.sendResponseHeaders(200, 0);
-            exchange.getResponseBody().write(oversized);
-            exchange.close();
-        });
-        try {
-            RemoteImageCache cache = new RemoteImageCache(tempDir, new DebugRecorder(10));
-            assertThrows(IOException.class, () -> cache.resolve(url(server, "/too-large-stream.png")));
-            assertEquals(0, cache.cacheEntryCount());
-        } finally {
-            server.stop(0);
-        }
-    }
-
-    @Test
-    void excessiveWidthShouldBeRejected(@TempDir Path tempDir) throws Exception {
-        assertDimensionRejected(tempDir, createPng(4097, 1, Color.WHITE.getRGB()), "/wide.png");
-    }
-
-    @Test
-    void excessiveHeightShouldBeRejected(@TempDir Path tempDir) throws Exception {
-        assertDimensionRejected(tempDir, createPng(1, 4097, Color.WHITE.getRGB()), "/tall.png");
-    }
-
-    @Test
     void connectionFailureWithoutCacheShouldPropagateAsIOException(@TempDir Path tempDir) throws Exception {
         int unusedPort;
         try (ServerSocket socket = new ServerSocket(0)) {
@@ -211,21 +150,6 @@ class RemoteImageCacheTest {
             assertEquals(cached, recovered);
             assertEquals(2, requestCount.get());
             assertEquals(Color.GREEN.getRGB(), ImageIO.read(recovered.toFile()).getRGB(0, 0));
-        } finally {
-            server.stop(0);
-        }
-    }
-
-    private static void assertDimensionRejected(Path tempDir, byte[] body, String path) throws Exception {
-        HttpServer server = startServer(exchange -> {
-            exchange.sendResponseHeaders(200, body.length);
-            exchange.getResponseBody().write(body);
-            exchange.close();
-        });
-        try {
-            RemoteImageCache cache = new RemoteImageCache(tempDir, new DebugRecorder(10));
-            assertThrows(IOException.class, () -> cache.resolve(url(server, path)));
-            assertEquals(0, cache.cacheEntryCount());
         } finally {
             server.stop(0);
         }

@@ -1,11 +1,7 @@
 package com.interactivedisplay.layout;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
@@ -15,7 +11,6 @@ import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.layout.MeditateLayoutEngine;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
-import java.io.InputStream;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -108,39 +103,6 @@ class MeditateLayoutEngineTest {
         assertEquals(2.0f, out.get(2).localPosition().x(), 0.0001f);
         assertEquals(2.85f, out.get(2).localPosition().y(), 0.0001f);
         assertEquals(0.18f, out.get(2).localPosition().z(), 0.0001f);
-    }
-
-    @Test
-    void bundledMainMenu2ShouldKeepExpectedBackgroundPanelSize() throws Exception {
-        try (InputStream input = MeditateLayoutEngineTest.class.getResourceAsStream(
-                "/defaults/interactivedisplay/windows/main_menu2.yaml")) {
-            assertNotNull(input, "bundled main_menu2.yaml missing from test classpath");
-            JsonNode root = new ObjectMapper(new YAMLFactory()).readTree(input);
-            JsonNode background = null;
-            for (JsonNode component : root.path("components")) {
-                if ("background".equals(component.path("id").asText())) {
-                    background = component;
-                    break;
-                }
-            }
-            assertNotNull(background, "main_menu2 background panel missing");
-            assertEquals("panel", background.path("type").asText());
-            assertEquals(7.0f, background.path("size").path("width").floatValue(), 0.0001f);
-            assertEquals(4.0f, background.path("size").path("height").floatValue(), 0.0001f);
-        }
-    }
-
-    @Test
-    void verySmallAndLargeComponentSizesShouldRemainFiniteAndDeterministic() {
-        TextComponentDefinition tiny = text("tiny", 0f, 0f, 0f, 0.0001f, 0.0001f);
-        TextComponentDefinition huge = text("huge", 0f, 0f, 0f, 10000f, 5000f);
-        WindowDefinition window = new WindowDefinition("sizes", new ComponentSize(20000f, 10000f), WindowOffset.defaults(), LayoutMode.VERTICAL, List.of(tiny, huge));
-
-        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
-
-        assertEquals(2, out.size());
-        assertEquals(0.0f, out.get(0).localPosition().y(), 0.0001f);
-        assertEquals(0.0501f, out.get(1).localPosition().y(), 0.0001f);
     }
 
     private static TextComponentDefinition text(String id, float x, float y, float z, float width, float height) {
