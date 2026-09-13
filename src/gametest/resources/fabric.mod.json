@@ -26,7 +26,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayOwnerWatchGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayTransitionGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayMapCanvasGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayPassengerOriginGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayPassengerOriginGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayVehicleLifecycleGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
