@@ -13,6 +13,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayDimensionLifecycleGameTest implements CustomTestMethodInvoker {
+    private static final double EPSILON = 1.0E-6D;
+    private static final float ROTATION_EPSILON = 0.001f;
+
     @SuppressWarnings("removal")
     @GameTest
     public void playerBoundWindowsMigrateAndFixedWindowClosesAcrossDimensionChange(GameTestHelper helper) throws Exception {
@@ -25,6 +28,8 @@ public final class InteractiveDisplayDimensionLifecycleGameTest implements Custo
                 Component.literal("dimension fixture did not start in overworld"));
         helper.assertTrue(server.getLevel(Level.NETHER) != null,
                 Component.literal("nether level unavailable in GameTest server"));
+        helper.assertTrue(server.getLevel(Level.END) != null,
+                Component.literal("end level unavailable in GameTest server"));
 
         verifyPlayerBoundMigration(helper, dispatcher, manager, player, PositionMode.PLAYER_FIXED);
         verifyPlayerBoundMigration(helper, dispatcher, manager, player, PositionMode.PLAYER_VIEW);
@@ -86,6 +91,44 @@ public final class InteractiveDisplayDimensionLifecycleGameTest implements Custo
         helper.assertTrue(manager.bindingSnapshots(player.getUUID()).size() == initialBindings,
                 Component.literal(mode + " bindings changed after nether -> overworld"));
 
+        var beforeEndHolder = returnedInstance.virtualHolder();
+        teleport(helper, dispatcher, player, "minecraft:the_end", 0, 80, 0);
+        helper.assertTrue(player.level().dimension().equals(Level.END),
+                Component.literal(mode + " player did not enter end"));
+        manager.tick();
+
+        var endInstance = manager.findActiveWindow(player.getUUID(), "main_menu");
+        helper.assertTrue(endInstance != null && endInstance != returnedInstance,
+                Component.literal(mode + " runtime was not rebuilt after overworld -> end"));
+        helper.assertTrue(endInstance.worldKey().equals(Level.END),
+                Component.literal(mode + " rebuilt runtime is not in end"));
+        helper.assertTrue(endInstance.positionMode() == mode,
+                Component.literal(mode + " end migration changed position mode"));
+        helper.assertTrue(endInstance.virtualHolder() != beforeEndHolder,
+                Component.literal(mode + " end migration reused old holder"));
+        helper.assertTrue(beforeEndHolder.entityCount() == 0,
+                Component.literal(mode + " overworld holder retained entities after end migration"));
+        helper.assertTrue(manager.bindingSnapshots(player.getUUID()).size() == initialBindings,
+                Component.literal(mode + " bindings changed after overworld -> end"));
+
+        var endHolder = endInstance.virtualHolder();
+        teleport(helper, dispatcher, player, "minecraft:overworld", 0, 80, 0);
+        helper.assertTrue(player.level().dimension().equals(Level.OVERWORLD),
+                Component.literal(mode + " player did not return from end"));
+        manager.tick();
+
+        var endReturnedInstance = manager.findActiveWindow(player.getUUID(), "main_menu");
+        helper.assertTrue(endReturnedInstance != null && endReturnedInstance != endInstance,
+                Component.literal(mode + " runtime was not rebuilt after end -> overworld"));
+        helper.assertTrue(endReturnedInstance.worldKey().equals(Level.OVERWORLD),
+                Component.literal(mode + " end return runtime is not in overworld"));
+        helper.assertTrue(endReturnedInstance.positionMode() == mode,
+                Component.literal(mode + " end return migration changed position mode"));
+        helper.assertTrue(endHolder.entityCount() == 0,
+                Component.literal(mode + " end holder retained entities after return migration"));
+        helper.assertTrue(manager.bindingSnapshots(player.getUUID()).size() == initialBindings,
+                Component.literal(mode + " bindings changed after end -> overworld"));
+
         var removed = manager.removeWindow(player.getUUID(), "main_menu");
         helper.assertTrue(removed.success(), Component.literal(mode + " cleanup remove failed"));
         VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
@@ -109,6 +152,31 @@ public final class InteractiveDisplayDimensionLifecycleGameTest implements Custo
                 Component.literal("FIXED fixture did not open in overworld"));
         var fixedHolder = fixed.virtualHolder();
 
+        assertVec(helper, fixed.fixedAnchor(), anchor, "FIXED fixedAnchor mismatch");
+        assertVec(helper, fixed.currentAnchor(), anchor, "FIXED currentAnchor mismatch");
+        assertVec(helper, fixedHolder.worldAnchor(), anchor, "FIXED holder worldAnchor mismatch");
+        helper.assertTrue(!fixedHolder.playerAttached(),
+                Component.literal("FIXED holder unexpectedly attached to player"));
+        helper.assertTrue(Math.abs(fixed.currentYaw() - 35.0f) <= ROTATION_EPSILON,
+                Component.literal("FIXED yaw mismatch expected=35 actual=" + fixed.currentYaw()));
+        helper.assertTrue(Math.abs(fixed.currentPitch()) <= ROTATION_EPSILON,
+                Component.literal("FIXED pitch policy mismatch expected=0 actual=" + fixed.currentPitch()));
+
+        Vec3 playerBeforeMove = player.position();
+        int moveResult = dispatcher.execute("tp @s ~10 ~ ~", player.createCommandSourceStack().withPermission(4));
+        helper.assertTrue(moveResult > 0, Component.literal("FIXED same-dimension owner movement command failed"));
+        helper.assertTrue(player.position().distanceToSqr(playerBeforeMove) > 50.0D,
+                Component.literal("FIXED owner did not move enough for independence check"));
+        manager.tick();
+
+        var afterMove = manager.findActiveWindow(player.getUUID(), "main_menu");
+        helper.assertTrue(afterMove == fixed,
+                Component.literal("FIXED runtime was rebuilt after same-dimension owner movement"));
+        assertVec(helper, afterMove.currentAnchor(), anchor, "FIXED currentAnchor followed owner movement");
+        assertVec(helper, fixedHolder.worldAnchor(), anchor, "FIXED holder worldAnchor followed owner movement");
+        helper.assertTrue(Math.abs(afterMove.currentYaw() - 35.0f) <= ROTATION_EPSILON,
+                Component.literal("FIXED yaw changed after owner movement"));
+
         teleport(helper, dispatcher, player, "minecraft:the_nether", 0, 80, 0);
         manager.tick();
         helper.assertTrue(manager.findActiveWindow(player.getUUID(), "main_menu") == null,
@@ -120,6 +188,11 @@ public final class InteractiveDisplayDimensionLifecycleGameTest implements Custo
                 Component.literal("FIXED old-world holder retained entities after exit cleanup"));
 
         teleport(helper, dispatcher, player, "minecraft:overworld", 0, 80, 0);
+    }
+
+    private static void assertVec(GameTestHelper helper, Vec3 actual, Vec3 expected, String label) {
+        helper.assertTrue(actual != null && actual.distanceToSqr(expected) <= EPSILON,
+                Component.literal(label + " expected=" + expected + " actual=" + actual));
     }
 
     private static void teleport(
