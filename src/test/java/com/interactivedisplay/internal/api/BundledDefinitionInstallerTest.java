@@ -98,6 +98,7 @@ class BundledDefinitionInstallerTest {
         assertEquals(0, result.skipped());
         assertTrue(result.errors().isEmpty());
         assertTrue(Files.exists(targetDir.resolve("economy__shop_group.yaml")));
+        assertTrue(Files.readString(targetDir.resolve("economy__shop_group.yaml")).contains("windowId: economy:shop"));
     }
 
     @Test

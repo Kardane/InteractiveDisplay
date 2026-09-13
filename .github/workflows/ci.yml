@@ -34,3 +34,134 @@ jobs:
 
       - name: Build and test
         run: ./gradlew build --stacktrace
+
+      - name: Run production headless client smoke
+        run: ./gradlew runProductionClientSmoke --stacktrace
+
+      - name: Run external dedicated-server client E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf build/qa-server build/qa-client build/qa-state
+          mkdir -p build/qa-server build/qa-state
+          printf 'eula=true\n' > build/qa-server/eula.txt
+          cat > build/qa-server/server.properties <<'EOF'
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          view-distance=4
+          simulation-distance=4
+          level-type=minecraft:flat
+          server-port=25565
+          EOF
+
+          SERVER_LOG="$PWD/build/qa-server.log"
+          CLIENT_LOG="$PWD/build/qa-client.log"
+          FIFO="$RUNNER_TEMP/interactivedisplay-qa-server-input"
+          rm -f "$FIFO"
+          mkfifo "$FIFO"
+          exec 3<>"$FIFO"
+
+          ./gradlew --no-daemon runQaServer --stacktrace <&3 >"$SERVER_LOG" 2>&1 &
+          SERVER_PID=$!
+          CLIENT_PID=""
+
+          dump_diagnostics() {
+            echo '===== QA client log =====' >&2
+            cat "$CLIENT_LOG" >&2 || true
+            echo '===== QA server log =====' >&2
+            cat "$SERVER_LOG" >&2 || true
+            echo '===== QA state markers =====' >&2
+            for state_file in "$PWD"/build/qa-state/*; do
+              if [[ -f "$state_file" ]]; then
+                echo "--- $(basename "$state_file")" >&2
+                cat "$state_file" >&2 || true
+                echo >&2
+              fi
+            done
+          }
+
+          cleanup() {
+            printf 'stop\n' >&3 2>/dev/null || true
+            if [[ -n "${CLIENT_PID:-}" ]]; then
+              kill "$CLIENT_PID" 2>/dev/null || true
+            fi
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          wait_for_server() {
+            for _ in $(seq 1 120); do
+              if grep -q 'Done (' "$SERVER_LOG" 2>/dev/null; then
+                return 0
+              fi
+              if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+                echo 'QA dedicated server exited before startup' >&2
+                dump_diagnostics
+                return 1
+              fi
+              sleep 1
+            done
+            echo 'Timed out waiting for QA dedicated server startup' >&2
+            dump_diagnostics
+            return 1
+          }
+
+          wait_for_file() {
+            local file="$1"
+            local label="$2"
+            for _ in $(seq 1 120); do
+              if [[ -f "$file" ]]; then
+                return 0
+              fi
+              if [[ -n "${CLIENT_PID:-}" ]] && ! kill -0 "$CLIENT_PID" 2>/dev/null; then
+                echo "Client exited while waiting for $label" >&2
+                dump_diagnostics
+                return 1
+              fi
+              sleep 1
+            done
+            echo "Timed out waiting for $label" >&2
+            dump_diagnostics
+            return 1
+          }
+
+          wait_for_server
+
+          ./gradlew --no-daemon runQaClientGameTest --stacktrace >"$CLIENT_LOG" 2>&1 &
+          CLIENT_PID=$!
+
+          wait_for_file "$PWD/build/qa-state/client-ready" 'client world connection'
+          PLAYER_NAME="$(cat "$PWD/build/qa-state/client-ready")"
+          printf 'interactivedisplay create main_menu %s player_fixed\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-opened" 'PLAYER_FIXED virtual display creation'
+          printf 'execute as %s at @s run tp @s ~10 ~ ~\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-moved" 'PLAYER_FIXED movement retention'
+          printf 'interactivedisplay remove main_menu %s\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-clean" 'PLAYER_FIXED virtual display cleanup'
+
+          wait_for_file "$PWD/build/qa-state/client-view-ready" 'PLAYER_VIEW setup'
+          printf 'execute as %s at @s run tp @s ~ ~ ~ 0 0\n' "$PLAYER_NAME" >&3
+          printf 'interactivedisplay create main_menu %s player_view\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-view-opened" 'PLAYER_VIEW virtual display creation'
+          printf 'execute as %s at @s run tp @s ~ ~ ~ 90 30\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-view-rotated" 'PLAYER_VIEW yaw/pitch transform update'
+          printf 'interactivedisplay remove main_menu %s\n' "$PLAYER_NAME" >&3
+
+          wait_for_file "$PWD/build/qa-state/client-view-clean" 'PLAYER_VIEW virtual display cleanup'
+
+          if ! wait "$CLIENT_PID"; then
+            echo 'QA client GameTest failed' >&2
+            dump_diagnostics
+            exit 1
+          fi
+          CLIENT_PID=""
+
+          echo "External client E2E passed for $PLAYER_NAME"

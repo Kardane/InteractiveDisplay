@@ -23,7 +23,38 @@ loom {
         server {
             ideConfigGenerated = true
         }
-        remove client
+    }
+}
+
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "interactivedisplay-gametest"
+        enableGameTests = true
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
+loom {
+    runs {
+        qaServer {
+            inherit server
+            configName = "QA Dedicated Server"
+            runDir = "build/qa-server"
+            ideConfigGenerated = false
+        }
+        qaClientGameTest {
+            inherit clientGameTest
+            configName = "QA External Client Game Test"
+            runDir = "build/qa-client"
+            ideConfigGenerated = false
+            vmArg "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
+            vmArg "-Dinteractivedisplay.qa.externalServer=true"
+            vmArg "-Dinteractivedisplay.qa.stateDir=${file('build/qa-state').absolutePath}"
+            programArg "--quickPlayMultiplayer"
+            programArg "localhost:25565"
+        }
     }
 }
 
@@ -33,6 +64,7 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    productionRuntimeMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
     modImplementation include("eu.pb4:polymer-core:${project.polymer_version}")
     modImplementation include("eu.pb4:polymer-resource-pack:${project.polymer_version}")
@@ -47,6 +79,12 @@ dependencies {
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.register("runProductionClientSmoke", net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    jvmArgs.add("-Dfabric.client.gametest")
+    jvmArgs.add("-Dfabric.client.gametest.disableNetworkSynchronizer=true")
+    useXVFB = true
 }
 
 processResources {

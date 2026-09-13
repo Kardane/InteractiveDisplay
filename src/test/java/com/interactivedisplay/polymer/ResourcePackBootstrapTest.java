@@ -1,9 +1,11 @@
 package com.interactivedisplay.polymer;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -34,6 +36,23 @@ class ResourcePackBootstrapTest {
 
         assertFalse(ready);
         assertFalse(bootstrap.ready());
+    }
+
+    @Test
+    void bootstrapShouldNotModifyOperatorImageDirectory(@TempDir Path tempDir) throws Exception {
+        Path images = tempDir.resolve("interactivedisplay/images");
+        Files.createDirectories(images);
+        Path sentinel = images.resolve("operator-map.png");
+        byte[] original = new byte[]{1, 2, 3, 4, 5};
+        Files.write(sentinel, original);
+
+        FakePolymerBridge bridge = new FakePolymerBridge();
+        ResourcePackBootstrap bootstrap = new ResourcePackBootstrap(new PolymerConfigEnsurer(tempDir), bridge);
+        bootstrap.prepareFiles();
+        assertTrue(bootstrap.bootstrap("interactivedisplay"));
+
+        assertTrue(Files.exists(sentinel));
+        assertArrayEquals(original, Files.readAllBytes(sentinel));
     }
 
     private static final class FakePolymerBridge extends PolymerBridge {
