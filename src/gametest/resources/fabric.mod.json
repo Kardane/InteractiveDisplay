@@ -25,7 +25,8 @@
       "com.interactivedisplay.gametest.InteractiveDisplayHoverScaleGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayOwnerWatchGameTest",
       "com.interactivedisplay.gametest.InteractiveDisplayTransitionGameTest",
-      "com.interactivedisplay.gametest.InteractiveDisplayMapCanvasGameTest"
+      "com.interactivedisplay.gametest.InteractiveDisplayMapCanvasGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayPassengerOriginGameTest"
     ],
     "fabric-client-gametest": [
       "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
