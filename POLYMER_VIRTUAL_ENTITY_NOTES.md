@@ -23,7 +23,7 @@ Player-bound modes are rebuilt in the player's new `ServerLevel` when the owner 
 ## Rendering
 
 - text/button/panel: `TextDisplayElement`
-- item/map: `ItemDisplayElement`
+- item: `ItemDisplayElement`; map: invisible `ITEM_FRAME` carrying the `PlayerCanvas` map stack. MAP is supported only in `FIXED`; player-bound modes reject the window before a map canvas is allocated.
 - block: `BlockDisplayElement`
 - real root/display entities and UUID lookup/discard lifecycle: removed
 

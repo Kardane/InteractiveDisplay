@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "interactivedisplay-gametest",
+  "version": "1.0.0",
+  "name": "InteractiveDisplay Game Tests",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": [
+      "com.interactivedisplay.gametest.InteractiveDisplayServerGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayCommandServerGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayPublicApiLifecycleGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayReloadDedupGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayTransactionalRebuildGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayStaleRuntimeGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayPlaceholderIsolationGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayBoundActionGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayGroupNavigationGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayDimensionLifecycleGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayDisconnectCleanupGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayClickDedupGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayRemoteMapFailureGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayHoverScaleGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayOwnerWatchGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayTransitionGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayMapCanvasGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayPassengerOriginGameTest",
+      "com.interactivedisplay.gametest.InteractiveDisplayVehicleLifecycleGameTest"
+    ],
+    "fabric-client-gametest": [
+      "com.interactivedisplay.gametest.InteractiveDisplayClientModesGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "fabric-api": "*",
+    "minecraft": "*",
+    "interactivedisplay": "*"
+  }
+}

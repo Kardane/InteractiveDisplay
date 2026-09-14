@@ -1,16 +1,17 @@
 package com.interactivedisplay.polymer;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ResourcePackBootstrapTest {
     @Test
-    void bootstrapShouldBeReadyOnlyWhenAssetsAndBuildSucceed(@TempDir Path tempDir) {
+    void bootstrapShouldEnableRequiredHostedPack(@TempDir Path tempDir) {
         FakePolymerBridge bridge = new FakePolymerBridge();
         ResourcePackBootstrap bootstrap = new ResourcePackBootstrap(new PolymerConfigEnsurer(tempDir), bridge);
 
@@ -25,21 +26,25 @@ class ResourcePackBootstrapTest {
     }
 
     @Test
-    void bootstrapShouldFallbackToNotReadyOnFailure(@TempDir Path tempDir) {
+    void bootstrapShouldNotModifyOperatorImageDirectory(@TempDir Path tempDir) throws Exception {
+        Path images = tempDir.resolve("interactivedisplay/images");
+        Files.createDirectories(images);
+        Path sentinel = images.resolve("operator-map.png");
+        byte[] original = new byte[]{1, 2, 3, 4, 5};
+        Files.write(sentinel, original);
+
         FakePolymerBridge bridge = new FakePolymerBridge();
-        bridge.buildResult = false;
         ResourcePackBootstrap bootstrap = new ResourcePackBootstrap(new PolymerConfigEnsurer(tempDir), bridge);
+        bootstrap.prepareFiles();
+        assertTrue(bootstrap.bootstrap("interactivedisplay"));
 
-        boolean ready = bootstrap.bootstrap("interactivedisplay");
-
-        assertFalse(ready);
-        assertFalse(bootstrap.ready());
+        assertTrue(Files.exists(sentinel));
+        assertArrayEquals(original, Files.readAllBytes(sentinel));
     }
 
     private static final class FakePolymerBridge extends PolymerBridge {
         boolean autoHostEnabled;
         boolean packRequired;
-        boolean buildResult = true;
         String lastModId;
 
         @Override
@@ -60,7 +65,7 @@ class ResourcePackBootstrapTest {
 
         @Override
         public boolean buildMain() {
-            return this.buildResult;
+            return true;
         }
     }
 }

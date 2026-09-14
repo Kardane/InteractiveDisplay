@@ -409,7 +409,21 @@ final class WindowLifecycleCoordinator {
         WindowComponentRuntime hoveredRuntime = hovered == null ? null : hovered.runtime();
         if (hovered != null) {
             Vec3 hit = hovered.hitPosition();
-            player.level().sendParticles(BUTTON_HOVER_PARTICLE, hit.x, hit.y, hit.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            ServerLevel level = (ServerLevel) player.level();
+            level.sendParticles(
+                    player,
+                    BUTTON_HOVER_PARTICLE,
+                    false,
+                    false,
+                    hit.x,
+                    hit.y,
+                    hit.z,
+                    1,
+                    0.0D,
+                    0.0D,
+                    0.0D,
+                    0.0D
+            );
         }
         for (WindowInstance instance : windows) {
             for (WindowComponentRuntime runtime : instance.runtimes()) {

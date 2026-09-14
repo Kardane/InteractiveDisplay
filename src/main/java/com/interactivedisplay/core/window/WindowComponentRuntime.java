@@ -9,6 +9,7 @@ import com.interactivedisplay.core.component.ComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -27,6 +28,7 @@ public final class WindowComponentRuntime {
     private ComponentDefinition definition;
     private Vector3f localPosition;
     private final DisplayElement displayElement;
+    private final VirtualElement virtualElement;
     private final Vector3f baseScale;
     private final Vector3f baseTranslation;
     private PlayerCanvas mapCanvas;
@@ -41,10 +43,20 @@ public final class WindowComponentRuntime {
                                   Vector3f localPosition,
                                   DisplayElement displayElement,
                                   PlayerCanvas mapCanvas) {
+        this(worldKey, definition, localPosition, displayElement, mapCanvas, displayElement);
+    }
+
+    public WindowComponentRuntime(ResourceKey<Level> worldKey,
+                                  ComponentDefinition definition,
+                                  Vector3f localPosition,
+                                  DisplayElement displayElement,
+                                  PlayerCanvas mapCanvas,
+                                  VirtualElement virtualElement) {
         this.worldKey = worldKey;
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
         this.displayElement = displayElement;
+        this.virtualElement = virtualElement;
         this.mapCanvas = mapCanvas;
         this.baseScale = displayElement == null ? new Vector3f(1.0f) : new Vector3f(displayElement.getScale());
         this.baseTranslation = displayElement == null ? new Vector3f() : new Vector3f(displayElement.getTranslation());
@@ -75,6 +87,10 @@ public final class WindowComponentRuntime {
 
     public DisplayElement displayElement() {
         return this.displayElement;
+    }
+
+    public VirtualElement virtualElement() {
+        return this.virtualElement;
     }
 
     public Vector3f baseScale() {
@@ -156,7 +172,7 @@ public final class WindowComponentRuntime {
     }
 
     public int entityCount() {
-        return this.displayElement == null ? 0 : this.displayElement.getEntityIds().size();
+        return this.virtualElement == null ? 0 : this.virtualElement.getEntityIds().size();
     }
 
     public PlayerCanvas mapCanvas() {
@@ -191,6 +207,19 @@ public final class WindowComponentRuntime {
             return buttonHitHeight(button) / 2.0f;
         }
         return 0.0f;
+    }
+
+    /**
+     * TextDisplay renders its text quad above the display origin. Keep the
+     * server-side button hitbox above that same origin instead of centering it
+     * across the origin, which would make the visible upper part missable.
+     */
+    public Vector3f hitCenterLocalPosition() {
+        Vector3f center = new Vector3f(this.localPosition);
+        if (this.definition instanceof ButtonComponentDefinition) {
+            center.y += this.hitHalfHeight();
+        }
+        return center;
     }
 
     public double maxDistance() {

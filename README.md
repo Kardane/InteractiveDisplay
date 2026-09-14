@@ -242,7 +242,11 @@ YAML treats `#` as a comment marker, so color values must be quoted.
 | `block` | Minecraft block ID such as `minecraft:stone` |
 | `map` | local file in `config/interactivedisplay/images/` or supported remote URL |
 
-MAP images are decoded server-side, drawn to Map Canvas, and shown through an `ItemDisplayElement`. Config images are **not** copied into Polymer's resource-pack texture tree; the old full-directory image export step has been removed.
+MAP images are decoded server-side, drawn to Map Canvas, and shown through an invisible `ITEM_FRAME` virtual entity carrying the filled-map stack. This follows the map-canvas item-frame path, so the client uses the map renderer rather than an inventory-style item model. Config images are **not** copied into Polymer's resource-pack texture tree; the old full-directory image export step has been removed.
+
+MAP components are supported only in `FIXED` windows. A `PLAYER_FIXED` or `PLAYER_VIEW` window containing a MAP component fails as one atomic server-side create operation instead of falling back to an item texture.
+
+`ITEM`, `BLOCK`, and `MAP` image displays use a very thin Z scale. This keeps them as planar UI surfaces while preserving their configured X/Y size.
 
 Remote map images use a bounded cache. Fresh cache entries are used before HTTP, and stale entries can be used as fallback if refresh fails.
 
@@ -327,7 +331,7 @@ Keep this list minimal, especially when an action uses a permission-level overri
 
 ### `FIXED`
 
-The window is bound to the world/dimension. It uses `ManualAttachment` and does not follow the player. If its owner changes dimension, that active fixed window is removed.
+The window is bound to the world/dimension. It uses `ManualAttachment` and does not follow the player. If its owner changes dimension, that active fixed window is removed. MAP components are available only in this mode.
 
 ### `PLAYER_FIXED`
 
@@ -365,6 +369,6 @@ Recommended runtime smoke checks:
 - enter/exit transition and hover scale;
 - multiple simultaneous player-attached windows;
 - vehicle/passenger state;
-- MAP images and click alignment while moving.
+- `FIXED` MAP images and click alignment; player-bound modes must reject MAP components.
 
 Additional Polymer architecture notes are in `POLYMER_VIRTUAL_ENTITY_NOTES.md`.

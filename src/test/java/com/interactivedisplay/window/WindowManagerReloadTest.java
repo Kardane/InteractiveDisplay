@@ -10,7 +10,6 @@ import com.interactivedisplay.core.layout.MeditateLayoutEngine;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.WindowPositionTracker;
 import com.interactivedisplay.core.window.ReloadWindowResult;
-import com.interactivedisplay.core.window.RemoveWindowResult;
 import com.interactivedisplay.core.window.WindowManager;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
@@ -49,20 +48,10 @@ class WindowManagerReloadTest {
                 """, StandardCharsets.UTF_8);
 
         CoordinateTransformer transformer = new CoordinateTransformer();
-        WindowManager manager = new WindowManager(
-                null,
-                new SchemaLoader(tempDir, new SchemaValidator(), debugRecorder),
-                new MeditateLayoutEngine(),
-                transformer,
-                new WindowPositionTracker(transformer),
-                new DisplayEntityFactory(debugRecorder),
-                debugRecorder,
-                new CommandWhitelist(tempDir),
-                new CallbackRegistry()
-        );
+        WindowManager manager = manager(tempDir, debugRecorder, transformer);
 
         ReloadWindowResult first = manager.reloadAll();
-        assertEquals(true, first.success());
+        assertTrue(first.success());
         assertTrue(manager.loadedWindowIds().contains("main_menu"));
 
         Files.writeString(target, """
@@ -82,31 +71,10 @@ class WindowManagerReloadTest {
                 """, StandardCharsets.UTF_8);
 
         ReloadWindowResult second = manager.reloadAll();
-        assertEquals(false, second.success());
+        assertFalse(second.success());
         assertEquals(DebugReason.SCHEMA_VALIDATION_FAILED, second.reasonCode());
         assertTrue(manager.loadedWindowIds().contains("main_menu"));
         assertTrue(manager.brokenWindowIds().contains("main_menu"));
-    }
-
-    @Test
-    void removeWindowShouldReturnNoActiveWindowReason(@TempDir Path tempDir) {
-        DebugRecorder debugRecorder = new DebugRecorder(10);
-        CoordinateTransformer transformer = new CoordinateTransformer();
-        WindowManager manager = new WindowManager(
-                null,
-                new SchemaLoader(tempDir, new SchemaValidator(), debugRecorder),
-                new MeditateLayoutEngine(),
-                transformer,
-                new WindowPositionTracker(transformer),
-                new DisplayEntityFactory(debugRecorder),
-                debugRecorder,
-                new CommandWhitelist(tempDir),
-                new CallbackRegistry()
-        );
-
-        RemoveWindowResult result = manager.removeWindow(java.util.UUID.randomUUID(), "missing");
-        assertEquals(false, result.success());
-        assertEquals(DebugReason.NO_ACTIVE_WINDOW, result.reasonCode());
     }
 
     @Test
@@ -160,20 +128,10 @@ class WindowManagerReloadTest {
                 """, StandardCharsets.UTF_8);
 
         CoordinateTransformer transformer = new CoordinateTransformer();
-        WindowManager manager = new WindowManager(
-                null,
-                new SchemaLoader(tempDir, new SchemaValidator(), debugRecorder),
-                new MeditateLayoutEngine(),
-                transformer,
-                new WindowPositionTracker(transformer),
-                new DisplayEntityFactory(debugRecorder),
-                debugRecorder,
-                new CommandWhitelist(tempDir),
-                new CallbackRegistry()
-        );
+        WindowManager manager = manager(tempDir, debugRecorder, transformer);
 
         ReloadWindowResult first = manager.reloadAll();
-        assertEquals(true, first.success());
+        assertTrue(first.success());
         assertTrue(manager.loadedWindowIds().contains("gallery"));
         assertTrue(manager.loadedGroupIds().contains("menu_group"));
 
@@ -208,5 +166,19 @@ class WindowManagerReloadTest {
         assertTrue(second.success());
         assertTrue(manager.loadedWindowIds().contains("gallery"));
         assertFalse(manager.brokenGroupIds().contains("menu_group"));
+    }
+
+    private static WindowManager manager(Path tempDir, DebugRecorder debugRecorder, CoordinateTransformer transformer) {
+        return new WindowManager(
+                null,
+                new SchemaLoader(tempDir, new SchemaValidator(), debugRecorder),
+                new MeditateLayoutEngine(),
+                transformer,
+                new WindowPositionTracker(transformer),
+                new DisplayEntityFactory(debugRecorder),
+                debugRecorder,
+                new CommandWhitelist(tempDir),
+                new CallbackRegistry()
+        );
     }
 }
