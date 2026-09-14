@@ -1,6 +1,9 @@
 package com.interactivedisplay.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.interactivedisplay.core.animation.AnimationDefinition;
+import com.interactivedisplay.core.animation.AnimationInterpolation;
+import com.interactivedisplay.core.animation.AnimationRegistry;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
@@ -20,9 +23,14 @@ import com.interactivedisplay.core.window.WindowTransitionType;
 import com.interactivedisplay.debug.DebugRecorder;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public final class WindowDefinitionParser {
+    private static final Set<String> ANIMATION_INTERPOLATIONS = Set.of("linear", "smooth", "cut");
+
     private final MapImageResolver mapImageResolver;
     @SuppressWarnings("unused")
     private final DebugRecorder debugRecorder;
@@ -72,7 +80,8 @@ public final class WindowDefinitionParser {
                     getInt(component, "lineWidth", 200),
                     getBoolean(component, "shadow", true),
                     getString(component, "background", "#00000000"),
-                    getInt(component, "refreshInterval", 0)
+                    getInt(component, "refreshInterval", 0),
+                    parseAnimations(component.get("animations"), sourceName)
             );
         }
 
@@ -126,6 +135,102 @@ public final class WindowDefinitionParser {
         }
 
         throw new SchemaValidationException("지원하지 않는 component type: " + type);
+    }
+
+    private static List<AnimationDefinition> parseAnimations(JsonNode animations, String sourceName) {
+        if (animations == null) {
+            return List.of();
+        }
+        String animationSource = sourceName + ".animations";
+        if (!animations.isArray()) {
+            throw new SchemaValidationException(animationSource + " must be array");
+        }
+
+        List<AnimationDefinition> definitions = new ArrayList<>();
+        Set<String> seenTypes = new HashSet<>();
+        for (int index = 0; index < animations.size(); index++) {
+            JsonNode animation = animations.get(index);
+            String entrySource = animationSource + "[" + index + "]";
+            if (!animation.isObject()) {
+                throw new SchemaValidationException(entrySource + " must be object");
+            }
+            JsonNode typeNode = animation.get("type");
+            if (typeNode == null || !typeNode.isTextual() || typeNode.textValue().isBlank()) {
+                throw new SchemaValidationException(entrySource + ".type must be a non-blank string");
+            }
+            String type = typeNode.textValue();
+            String normalizedType;
+            try {
+                normalizedType = AnimationRegistry.normalize(type);
+            } catch (IllegalArgumentException exception) {
+                throw new SchemaValidationException(entrySource + ".type: " + exception.getMessage());
+            }
+            if (!AnimationRegistry.isRegistered(normalizedType)) {
+                throw new SchemaValidationException(entrySource + ": unsupported animation type " + type);
+            }
+            if (!seenTypes.add(normalizedType)) {
+                throw new SchemaValidationException(entrySource + ": duplicate animation type " + type);
+            }
+            if (animation.has("delay") && animation.has("start")) {
+                throw new SchemaValidationException(entrySource + ": use either delay or start, not both");
+            }
+
+            int delay = animation.has("delay")
+                    ? readNonNegativeInt(animation, "delay", 0, entrySource)
+                    : readNonNegativeInt(animation, "start", 0, entrySource);
+            int defaultDuration = normalizedType.endsWith(":fade") ? 5 : 0;
+            int duration = readNonNegativeInt(animation, "duration", defaultDuration, entrySource);
+            int interval = readPositiveInt(animation, "interval", 1, entrySource);
+            int charsPerStep = readPositiveInt(animation, "charsPerStep", 1, entrySource);
+            if (normalizedType.endsWith(":fade") && duration == 0) {
+                throw new SchemaValidationException(entrySource + ".duration must be > 0 for fade");
+            }
+
+            String interpolationValue = readInterpolation(animation, entrySource);
+            definitions.add(new AnimationDefinition(
+                    type,
+                    delay,
+                    duration,
+                    interval,
+                    charsPerStep,
+                    AnimationInterpolation.fromString(interpolationValue)
+            ));
+        }
+        return List.copyOf(definitions);
+    }
+
+    private static String readInterpolation(JsonNode animation, String sourceName) {
+        JsonNode value = animation.get("interpolation");
+        if (value == null) {
+            return "linear";
+        }
+        if (!value.isTextual()) {
+            throw new SchemaValidationException(sourceName + ".interpolation must be string");
+        }
+        String normalized = value.textValue().toLowerCase(Locale.ROOT);
+        if (!ANIMATION_INTERPOLATIONS.contains(normalized)) {
+            throw new SchemaValidationException(sourceName + ".interpolation must be linear, smooth, or cut");
+        }
+        return normalized;
+    }
+
+    private static int readNonNegativeInt(JsonNode object, String key, int defaultValue, String sourceName) {
+        JsonNode value = object.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (!value.isIntegralNumber() || value.longValue() < 0L || value.longValue() > Integer.MAX_VALUE) {
+            throw new SchemaValidationException(sourceName + "." + key + " must be a non-negative integer");
+        }
+        return value.intValue();
+    }
+
+    private static int readPositiveInt(JsonNode object, String key, int defaultValue, String sourceName) {
+        int value = readNonNegativeInt(object, key, defaultValue, sourceName);
+        if (value < 1) {
+            throw new SchemaValidationException(sourceName + "." + key + " must be >= 1");
+        }
+        return value;
     }
 
     private static WindowTransition parseTransition(JsonNode transition) {
