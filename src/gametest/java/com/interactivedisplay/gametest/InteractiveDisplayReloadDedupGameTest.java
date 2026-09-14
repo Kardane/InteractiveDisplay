@@ -21,9 +21,11 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMethodInvoker {
     private static final String SECOND_GROUP_ID = "qa_reload_group";
+    private static final Vec3 FIXED_ANCHOR = new Vec3(8.0D, 70.0D, 8.0D);
 
     @SuppressWarnings("removal")
     @GameTest
@@ -42,7 +44,7 @@ public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMe
             helper.assertTrue(manager.loadedGroupIds().contains(SECOND_GROUP_ID), Component.literal("second QA group was not loaded"));
 
             var mainOpened = manager.createWindow(player, "main_menu", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
-            var galleryOpened = manager.createWindow(player, "gallery", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            var galleryOpened = manager.createWindow(player, "gallery", PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
             var groupOpened = manager.createGroup(player, "menu_group", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
             var secondGroupOpened = manager.createGroup(player, SECOND_GROUP_ID, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
             helper.assertTrue(mainOpened.success(), Component.literal("main_menu open failed before reload dedup test: " + mainOpened.message()));

@@ -33,6 +33,8 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 
 public final class InteractiveDisplayGroupNavigationGameTest implements CustomTestMethodInvoker {
+    private static final Vec3 FIXED_ANCHOR = new Vec3(8.0D, 70.0D, 8.0D);
+
     @SuppressWarnings("removal")
     @GameTest
     public void handleCloseAndGroupNavigationShouldEmitExactLifecycleAndPreserveTopology(GameTestHelper helper) {
@@ -68,7 +70,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
                     Component.literal("WindowHandle.close emitted CLOSED for wrong window"));
 
             // Seed a live group directly through WindowManager so only navigation events are measured below.
-            var groupOpen = manager.createGroup(player, "menu_group", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            var groupOpen = manager.createGroup(player, "menu_group", PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
             helper.assertTrue(groupOpen.success(), Component.literal("menu_group direct open failed: " + groupOpen.message()));
             var group = manager.findActiveGroup(player.getUUID(), "menu_group");
             helper.assertTrue(group != null && "main_menu".equals(group.currentWindowId()),
@@ -178,7 +180,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
         WindowNavigationContext context = new WindowNavigationContext(
                 sourceWindowId,
                 groupId,
-                PositionMode.PLAYER_FIXED,
+                PositionMode.FIXED,
                 baseAnchor,
                 baseYaw,
                 basePitch

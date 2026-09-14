@@ -94,6 +94,21 @@ class UiHitResolverTest {
         assertNull(resolver.findUiHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0)));
     }
 
+    @Test
+    void shouldRaycastAgainstButtonVisualCenterAboveDisplayOrigin() {
+        UUID owner = UUID.randomUUID();
+        WindowInstance window = window(owner, "main_menu", null, null, Level.OVERWORLD, new Vec3(0.0, 0.0, 2.0));
+        WindowComponentRuntime button = buttonRuntime("close", new Vector3f(0.0f, 0.0f, 0.0f));
+        window.addRuntime(button);
+        store.putActiveWindow(owner, window.windowId(), window);
+
+        double y = button.hitHalfHeight() * 1.25D;
+        UiHitResult hit = resolver.findUiHit(owner, Level.OVERWORLD, new Vec3(0.0, y, 0.0), new Vec3(0.0, 0.0, 1.0));
+
+        assertNotNull(hit);
+        assertEquals("close", hit.componentId());
+    }
+
     private static WindowInstance window(UUID owner, String windowId, String groupId, String groupWindowId, net.minecraft.resources.ResourceKey<Level> worldKey, Vec3 anchor) {
         return new WindowInstance(owner, windowId, groupId, groupWindowId, worldKey, PositionMode.FIXED, anchor, 0.0f, 0.0f, null, anchor, 0.0f, 0.0f, anchor, 0.0f, 0.0f, 0L);
     }

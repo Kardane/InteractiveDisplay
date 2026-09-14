@@ -182,8 +182,8 @@ public final class WindowInstance {
     public Set<Integer> entityIds() {
         Set<Integer> ids = new LinkedHashSet<>();
         for (WindowComponentRuntime runtime : this.components.values()) {
-            if (runtime.displayElement() != null) {
-                for (int entityId : runtime.displayElement().getEntityIds()) {
+            if (runtime.virtualElement() != null) {
+                for (int entityId : runtime.virtualElement().getEntityIds()) {
                     ids.add(entityId);
                 }
             }

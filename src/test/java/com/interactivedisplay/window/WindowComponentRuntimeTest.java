@@ -32,6 +32,15 @@ class WindowComponentRuntimeTest {
     }
 
     @Test
+    void buttonHitCenterShouldBeAboveTextDisplayOrigin() {
+        WindowComponentRuntime buttonRuntime = runtime("☒", 0.45f, 0.35f);
+
+        assertEquals(buttonRuntime.hitHalfHeight(), buttonRuntime.hitCenterLocalPosition().y, 0.0001f);
+        assertEquals(0.0f, buttonRuntime.hitCenterLocalPosition().x, 0.0001f);
+        assertEquals(0.0f, buttonRuntime.hitCenterLocalPosition().z, 0.0001f);
+    }
+
+    @Test
     void runtimeWithoutMaterializedDisplayShouldReportZeroPacketEntities() {
         assertEquals(0, runtime("닫기", 1.0f, 0.35f).entityCount());
     }

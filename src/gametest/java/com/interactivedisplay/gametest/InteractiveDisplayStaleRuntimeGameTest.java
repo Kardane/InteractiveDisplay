@@ -9,6 +9,7 @@ import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.core.window.WindowInstance;
+import com.interactivedisplay.entity.MapDisplayElement;
 import com.interactivedisplay.entity.VirtualWindowHolder;
 import eu.pb4.polymer.virtualentity.api.elements.BlockDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
@@ -24,10 +25,12 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayStaleRuntimeGameTest implements CustomTestMethodInvoker {
     private static final String WINDOW_ID = "qa_stale_runtime";
     private static final String COMPONENT_ID = "content";
+    private static final Vec3 FIXED_ANCHOR = new Vec3(8.0D, 70.0D, 8.0D);
 
     @SuppressWarnings("removal")
     @GameTest
@@ -42,7 +45,7 @@ public final class InteractiveDisplayStaleRuntimeGameTest implements CustomTestM
         try {
             Files.writeString(windowFile, textYaml("before"), StandardCharsets.UTF_8);
             helper.assertTrue(manager.reloadOne(WINDOW_ID).success(), Component.literal("initial stale-runtime fixture failed to load"));
-            var opened = manager.createWindow(player, WINDOW_ID, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            var opened = manager.createWindow(player, WINDOW_ID, PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
             helper.assertTrue(opened.success(), Component.literal("initial stale-runtime fixture failed to open: " + opened.message()));
 
             WindowInstance current = manager.findActiveWindow(player.getUUID(), WINDOW_ID);
@@ -68,8 +71,8 @@ public final class InteractiveDisplayStaleRuntimeGameTest implements CustomTestM
                     runtime -> {
                         helper.assertTrue(runtime.definition() instanceof ImageComponentDefinition image && image.imageType() == ImageType.MAP,
                                 Component.literal("MAP definition did not replace BLOCK definition"));
-                        helper.assertTrue(runtime.displayElement() instanceof ItemDisplayElement,
-                                Component.literal("MAP runtime did not materialize map ItemDisplayElement"));
+                        helper.assertTrue(runtime.virtualElement() instanceof MapDisplayElement,
+                                Component.literal("MAP runtime did not materialize map ITEM_FRAME element"));
                         helper.assertTrue(runtime.mapCanvas() != null, Component.literal("MAP runtime did not create a canvas"));
                     });
             current = rewriteAndReload(helper, manager, player, windowFile, current, buttonYaml(),

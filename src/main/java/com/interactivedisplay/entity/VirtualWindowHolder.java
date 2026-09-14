@@ -4,6 +4,7 @@ import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.WindowTransition;
 import com.interactivedisplay.core.window.WindowTransitionType;
 import eu.pb4.polymer.virtualentity.api.ElementHolder;
+import eu.pb4.polymer.virtualentity.api.VirtualEntityUtils;
 import eu.pb4.polymer.virtualentity.api.attachment.EntityAttachment;
 import eu.pb4.polymer.virtualentity.api.attachment.HolderAttachment;
 import eu.pb4.polymer.virtualentity.api.attachment.ManualAttachment;
@@ -77,6 +78,27 @@ public final class VirtualWindowHolder {
 
     public <T extends VirtualElement> T addElement(T element) {
         if (!this.playerAttached) {
+            return this.holder.addElement(element);
+        }
+        // Item-frame map entities have no display transformation metadata. Keep them
+        // as ordinary holder elements. For player-attached windows, the map rides a
+        // normal virtual carrier instead of receiving movement packets itself: the
+        // vanilla client snaps block-attached item frames to floored block positions
+        // whenever it handles a position update.
+        if (element instanceof MapDisplayElement) {
+            MapDisplayElement map = (MapDisplayElement) element;
+            if (this.playerAttached) {
+                MapDisplayElement.MapAnchorElement anchor = map.ensurePassengerAnchor();
+                anchor.setOverridePos(map.getCurrentPos());
+                anchor.setOffset(Vec3.ZERO);
+                map.ignorePositionUpdates();
+                this.holder.addElement(anchor);
+                this.holder.addElement(map);
+                if (this.watching) {
+                    bindMapPassenger(map);
+                }
+                return element;
+            }
             return this.holder.addElement(element);
         }
         if (element instanceof GenericEntityElement genericEntityElement) {
@@ -266,7 +288,23 @@ public final class VirtualWindowHolder {
     private void startWatchingNow(ServerPlayer player) {
         this.holder.startWatching(player);
         this.watching = true;
+        for (VirtualElement element : this.holder.getElements()) {
+            if (element instanceof MapDisplayElement map) {
+                bindMapPassenger(map);
+            }
+        }
         refreshOwnerPassengerRelation();
+    }
+
+    private void bindMapPassenger(MapDisplayElement map) {
+        MapDisplayElement.MapAnchorElement anchor = map.passengerAnchor();
+        if (anchor == null) {
+            return;
+        }
+        this.holder.sendPacket(VirtualEntityUtils.createRidePacket(
+                anchor.getEntityId(),
+                new int[]{map.getEntityId()}
+        ));
     }
 
     private void destroyNow() {

@@ -36,8 +36,8 @@ class PanelRenderSpecWrappingTest {
         DisplayEntityFactory.PanelRenderSpec spec = DisplayEntityFactory.buildPanelRenderSpec(panel(7.0f, 4.0f));
         String firstRow = spec.text().getString().split("\\n", -1)[0];
 
-        assertEquals(71, firstRow.length());
-        assertEquals(284, spec.lineWidth());
+        assertEquals(70, firstRow.length());
+        assertEquals(280, spec.lineWidth());
         assertEquals(spec.lineWidth(), firstRow.length() * SPACE_ADVANCE_PIXELS);
     }
 

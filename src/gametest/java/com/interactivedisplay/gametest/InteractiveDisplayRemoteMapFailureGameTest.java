@@ -13,9 +13,11 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayRemoteMapFailureGameTest implements CustomTestMethodInvoker {
     private static final String WINDOW_ID = "qa_remote_failure";
+    private static final Vec3 FIXED_ANCHOR = new Vec3(8.0D, 70.0D, 8.0D);
 
     @SuppressWarnings("removal")
     @GameTest
@@ -52,7 +54,7 @@ public final class InteractiveDisplayRemoteMapFailureGameTest implements CustomT
             helper.assertTrue(!manager.brokenWindowIds().contains(WINDOW_ID),
                     Component.literal("recovered MAP fixture remained in broken set"));
 
-            var recoveredOpen = manager.createWindow(player, WINDOW_ID, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            var recoveredOpen = manager.createWindow(player, WINDOW_ID, PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
             helper.assertTrue(recoveredOpen.success(),
                     Component.literal("recovered MAP fixture failed to open: " + recoveredOpen.message()));
             helper.assertTrue(manager.removeWindow(player.getUUID(), WINDOW_ID).success(),

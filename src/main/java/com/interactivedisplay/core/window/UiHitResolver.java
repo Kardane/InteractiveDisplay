@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 
 final class UiHitResolver {
     private final WindowStateStore stateStore;
@@ -58,7 +59,8 @@ final class UiHitResolver {
                 if (!runtime.interactive()) {
                     continue;
                 }
-                Vec3 center = this.transformer.toWorld(anchor, runtime.localPosition(), instance.positionMode(), instance.currentYaw(), instance.currentPitch());
+                Vector3f hitCenter = runtime.hitCenterLocalPosition();
+                Vec3 center = this.transformer.toWorld(anchor, hitCenter, instance.positionMode(), instance.currentYaw(), instance.currentPitch());
                 double distance = this.transformer.raycastQuadDistance(
                         start,
                         normalizedDirection,

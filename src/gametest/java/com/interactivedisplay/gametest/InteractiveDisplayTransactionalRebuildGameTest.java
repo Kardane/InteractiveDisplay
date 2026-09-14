@@ -19,9 +19,11 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayTransactionalRebuildGameTest implements CustomTestMethodInvoker {
     private static final String WINDOW_ID = "qa_transaction_rebuild";
+    private static final Vec3 FIXED_ANCHOR = new Vec3(8.0D, 70.0D, 8.0D);
 
     @SuppressWarnings("removal")
     @GameTest
@@ -46,7 +48,7 @@ public final class InteractiveDisplayTransactionalRebuildGameTest implements Cus
             var loaded = manager.reloadOne(WINDOW_ID);
             helper.assertTrue(loaded.success(), Component.literal("QA transactional window did not load: " + loaded.message()));
 
-            var opened = manager.createWindow(player, WINDOW_ID, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            var opened = manager.createWindow(player, WINDOW_ID, PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
             helper.assertTrue(opened.success(), Component.literal("initial QA window open failed: " + opened.message()));
             var original = manager.findActiveWindow(player.getUUID(), WINDOW_ID);
             helper.assertTrue(original != null, Component.literal("initial active QA window missing"));

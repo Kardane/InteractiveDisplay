@@ -26,6 +26,7 @@ import eu.pb4.polymer.virtualentity.api.elements.BlockDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Locale;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import javax.imageio.ImageIO;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
@@ -45,6 +47,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -58,6 +61,9 @@ public final class DisplayEntityFactory {
     private static final int INTERPOLATION_DELAY = 0;
     private static final int TELEPORT_DURATION = 3;
     private static final float MIN_Z_SCALE = 0.001f;
+    private static final float TEXT_PIXEL_SCALE = 0.025f;
+    private static final float TEXT_LINE_HEIGHT_PIXELS = 10.0f;
+    private static final float TEXT_SPACE_ADVANCE_PIXELS = 4.0f;
 
     private final DebugRecorder debugRecorder;
     private final BiFunction<ServerPlayer, Component, Component> placeholderResolver;
@@ -86,9 +92,11 @@ public final class DisplayEntityFactory {
                                                ServerPlayer canvasViewer,
                                                VirtualWindowHolder holder) {
         try {
+            validateImagePositionMode(component, positionMode);
             holder.configure(positionMode, canvasViewer);
 
-            DisplayElement element;
+            DisplayElement element = null;
+            VirtualElement virtualElement;
             PlayerCanvas canvas = null;
 
             if (component instanceof TextComponentDefinition text) {
@@ -106,6 +114,7 @@ public final class DisplayEntityFactory {
                         new Vector3f()
                 );
                 element = textElement;
+                virtualElement = element;
             } else if (component instanceof PanelComponentDefinition panel) {
                 TextDisplayElement textElement = new TextDisplayElement();
                 PanelRenderSpec spec = buildPanelRenderSpec(panel);
@@ -122,6 +131,7 @@ public final class DisplayEntityFactory {
                         new Vector3f()
                 );
                 element = textElement;
+                virtualElement = element;
             } else if (component instanceof ButtonComponentDefinition button) {
                 TextDisplayElement textElement = new TextDisplayElement();
                 applyTextData(
@@ -137,20 +147,39 @@ public final class DisplayEntityFactory {
                         new Vector3f()
                 );
                 element = textElement;
+                virtualElement = element;
             } else if (component instanceof ImageComponentDefinition image) {
-                ImageRuntime imageRuntime = createImageElement(image, canvasViewer);
+                ImageRuntime imageRuntime = createImageElement(image, canvasViewer, positionMode, yaw, pitch);
                 element = imageRuntime.element();
+                virtualElement = imageRuntime.virtualElement();
                 canvas = imageRuntime.canvas();
-                applyDisplayData(element, billboard(positionMode), image.scale(), new Vector3f());
+                if (element != null) {
+                    configureImageElement(element);
+                    applyDisplayData(element, billboard(positionMode), flatScale(image.scale()), new Vector3f());
+                }
             } else {
                 throw new IllegalArgumentException("지원하지 않는 component type: " + component.type());
             }
 
-            positionElement(element, holder, position, positionMode, yaw, pitch, false);
-            holder.addElement(element);
-            return new WindowComponentRuntime(world.dimension(), component, new Vector3f(), element, canvas);
+            if (element != null) {
+                positionElement(element, holder, position, positionMode, yaw, pitch, false);
+            } else if (virtualElement instanceof MapDisplayElement mapElement) {
+                positionMapElement(mapElement, position, positionMode, yaw, pitch);
+            }
+            holder.addElement(virtualElement);
+            return new WindowComponentRuntime(world.dimension(), component, new Vector3f(), element, canvas, virtualElement);
         } catch (Exception exception) {
             throw spawnFailure(owner, component.id(), world, position, exception);
+        }
+    }
+
+    private static void validateImagePositionMode(ComponentDefinition component, PositionMode positionMode) {
+        if (component instanceof ImageComponentDefinition image
+                && image.imageType() == ImageType.MAP
+                && positionMode != PositionMode.FIXED) {
+            throw new IllegalArgumentException(
+                    "MAP 이미지 디스플레이는 FIXED 모드에서만 지원됩니다 (현재 모드: " + positionMode + ")"
+            );
         }
     }
 
@@ -161,10 +190,12 @@ public final class DisplayEntityFactory {
                             float yaw,
                             float pitch) {
         DisplayElement element = runtime.displayElement();
-        if (element == null) {
-            return;
+        if (element != null) {
+            positionElement(element, holder, position, positionMode, yaw, pitch, true);
         }
-        positionElement(element, holder, position, positionMode, yaw, pitch, true);
+        if (runtime.virtualElement() instanceof MapDisplayElement mapElement) {
+            positionMapElement(mapElement, position, positionMode, yaw, pitch);
+        }
     }
 
     public void destroyRuntime(WindowComponentRuntime runtime) {
@@ -226,12 +257,18 @@ public final class DisplayEntityFactory {
         }
     }
 
-    private ImageRuntime createImageElement(ImageComponentDefinition component, ServerPlayer canvasViewer) throws IOException {
+    private ImageRuntime createImageElement(ImageComponentDefinition component,
+                                            ServerPlayer canvasViewer,
+                                            PositionMode positionMode,
+                                            float yaw,
+                                            float pitch) throws IOException {
         if (component.imageType() == ImageType.ITEM) {
-            return new ImageRuntime(new ItemDisplayElement(buildItemStack(component.value())), null);
+            ItemDisplayElement element = new ItemDisplayElement(buildItemStack(component.value()));
+            return new ImageRuntime(element, element, null);
         }
         if (component.imageType() == ImageType.BLOCK) {
-            return new ImageRuntime(new BlockDisplayElement(buildBlockState(component.value())), null);
+            BlockDisplayElement element = new BlockDisplayElement(buildBlockState(component.value()));
+            return new ImageRuntime(element, element, null);
         }
 
         PlayerCanvas canvas = DrawableCanvas.create();
@@ -242,7 +279,16 @@ public final class DisplayEntityFactory {
         }
         CanvasUtils.draw(canvas, 0, 0, 128, 128, CanvasImage.from(image));
         syncMapCanvas(canvas, canvasViewer);
-        return new ImageRuntime(new ItemDisplayElement(canvas.asStack()), canvas);
+        MapDisplayElement element = new MapDisplayElement(canvas.asStack(), mapDirection(positionMode, yaw, pitch));
+        return new ImageRuntime(null, element, canvas);
+    }
+
+    private static void configureImageElement(DisplayElement element) {
+        if (element instanceof ItemDisplayElement itemDisplay) {
+            // Keep item images in a world-facing display context instead of an
+            // inventory/held-item presentation.
+            itemDisplay.setItemDisplayContext(ItemDisplayContext.FIXED);
+        }
     }
 
     private void positionElement(DisplayElement element,
@@ -252,16 +298,17 @@ public final class DisplayEntityFactory {
                                  float yaw,
                                  float pitch,
                                  boolean interpolate) {
+        Vec3 renderPosition = displayRenderPosition(element, worldPosition, positionMode, yaw, pitch);
         if (!holder.playerAttached()) {
-            element.setOffset(worldPosition.subtract(holder.anchor()));
+            element.setOffset(renderPosition.subtract(holder.anchor()));
             element.setYaw(displayYaw(positionMode, yaw));
             element.setPitch(displayPitch(positionMode, pitch));
             element.setBillboardMode(billboard(positionMode));
             return;
         }
 
-        element.setOffset(worldPosition.subtract(holder.attachmentPosition()));
-        Vec3 relative = worldPosition.subtract(holder.passengerRenderOrigin());
+        element.setOffset(renderPosition.subtract(holder.attachmentPosition()));
+        Vec3 relative = renderPosition.subtract(holder.passengerRenderOrigin());
         element.setYaw(0.0f);
         element.setPitch(0.0f);
         element.setBillboardMode(Display.BillboardConstraints.FIXED);
@@ -270,6 +317,50 @@ public final class DisplayEntityFactory {
         if (interpolate) {
             element.startInterpolationIfDirty();
         }
+    }
+
+    private static Vec3 displayRenderPosition(DisplayElement element,
+                                              Vec3 logicalPosition,
+                                              PositionMode positionMode,
+                                              float yaw,
+                                              float pitch) {
+        if (!(element instanceof BlockDisplayElement)) {
+            return logicalPosition;
+        }
+
+        // A block model occupies [0, 1] in each local axis, while an item
+        // display is centered by its item model transform. Move the block
+        // display entity origin back by half of its flattened model so both
+        // display types share the same logical center.
+        double halfWidth = 0.5D;
+        double halfDepth = MIN_Z_SCALE * 0.5D;
+        if (positionMode == PositionMode.FIXED) {
+            return logicalPosition.add(-halfWidth, -halfWidth, -halfDepth);
+        }
+
+        Vec3 look = Vec3.directionFromRotation(pitch, yaw).normalize();
+        Vec3 right = look.cross(new Vec3(0.0D, 1.0D, 0.0D)).normalize();
+        if (right.lengthSqr() < 1.0E-12D) {
+            right = new Vec3(1.0D, 0.0D, 0.0D);
+        }
+        Vec3 up = right.cross(look).normalize();
+        Vec3 normal = look.scale(-1.0D);
+        return logicalPosition
+                .subtract(right.scale(halfWidth))
+                .subtract(up.scale(halfWidth))
+                .subtract(normal.scale(halfDepth));
+    }
+
+    private void positionMapElement(MapDisplayElement element,
+                                    Vec3 worldPosition,
+                                    PositionMode positionMode,
+                                    float yaw,
+                                    float pitch) {
+        // The item-frame direction is fixed when the map entity is spawned.
+        // Its physical movement is delegated to MapAnchorElement for
+        // player-attached windows; the map's own world position remains the
+        // logical position used by server-side hit testing and diagnostics.
+        element.setRenderPosition(worldPosition);
     }
 
     private void applyTextData(TextDisplayElement element,
@@ -500,6 +591,18 @@ public final class DisplayEntityFactory {
         return new Vector3f(scale, scale, Math.max(scale, MIN_Z_SCALE));
     }
 
+    private static Vector3f flatScale(float scale) {
+        return new Vector3f(scale, scale, MIN_Z_SCALE);
+    }
+
+    private static Direction mapDirection(PositionMode positionMode, float yaw, float pitch) {
+        Vec3 normal = Vec3.directionFromRotation(
+                displayPitch(positionMode, pitch),
+                displayYaw(positionMode, yaw)
+        );
+        return Direction.getApproximateNearest(normal);
+    }
+
     private static int buttonLineWidth(ButtonComponentDefinition button) {
         float normalizedFontSize = Math.max(button.fontSize(), 0.1f);
         return Math.max(1, Math.round((button.size().width() * 100.0f) / normalizedFontSize));
@@ -517,12 +620,12 @@ public final class DisplayEntityFactory {
     }
 
     static PanelRenderSpec buildPanelRenderSpec(PanelComponentDefinition panel) {
-        int rowCount = Math.max(1, (int) Math.ceil(panel.size().height() / 0.25f));
-        float fontSize = Math.max(0.1f, panel.size().height() / rowCount);
-        int columnCount = Math.max(1, (int) Math.ceil(panel.size().width() / Math.max(fontSize * 0.6f, 0.05f)));
-        int requestedLineWidth = Math.max(1, columnCount * 6);
-        int spaceCount = Math.max(1, (int) Math.ceil(requestedLineWidth / 4.0f));
-        int lineWidth = spaceCount * 4;
+        float baseLineHeight = TEXT_PIXEL_SCALE * TEXT_LINE_HEIGHT_PIXELS;
+        int rowCount = Math.max(1, (int) Math.ceil(panel.size().height() / baseLineHeight));
+        float fontSize = Math.max(0.1f, panel.size().height() / (rowCount * baseLineHeight));
+        float spaceWidth = TEXT_PIXEL_SCALE * TEXT_SPACE_ADVANCE_PIXELS * fontSize;
+        int spaceCount = Math.max(1, (int) Math.ceil(panel.size().width() / spaceWidth));
+        int lineWidth = Math.max(1, Math.round(spaceCount * TEXT_SPACE_ADVANCE_PIXELS));
 
         String row = " ".repeat(spaceCount);
         StringJoiner joiner = new StringJoiner("\n");
@@ -541,6 +644,6 @@ public final class DisplayEntityFactory {
     record PanelRenderSpec(Component text, int lineWidth, float fontSize, float textOpacity) {
     }
 
-    private record ImageRuntime(DisplayElement element, PlayerCanvas canvas) {
+    private record ImageRuntime(DisplayElement element, VirtualElement virtualElement, PlayerCanvas canvas) {
     }
 }

@@ -81,6 +81,15 @@ class DisplayEntityFactoryTest {
     }
 
     @Test
+    void panelRenderSpecShouldMatchConfiguredWorldGeometry() {
+        DisplayEntityFactory.PanelRenderSpec spec = DisplayEntityFactory.buildPanelRenderSpec(panel(4.0f, 2.0f));
+        String[] rows = spec.text().getString().split("\\n", -1);
+
+        assertEquals(2.0f, rows.length * 10.0f * 0.025f * spec.fontSize(), 0.0001f);
+        assertTrue(spec.lineWidth() * 0.025f * spec.fontSize() >= 4.0f);
+    }
+
+    @Test
     void textAndButtonRenderingShouldUsePlaceholderResolver() {
         DisplayEntityFactory factory = new DisplayEntityFactory(
                 new DebugRecorder(10),

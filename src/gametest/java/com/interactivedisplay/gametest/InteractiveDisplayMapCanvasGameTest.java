@@ -2,6 +2,8 @@ package com.interactivedisplay.gametest;
 
 import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.core.positioning.PositionMode;
+import com.interactivedisplay.debug.DebugReason;
+import com.interactivedisplay.entity.MapDisplayElement;
 import com.interactivedisplay.entity.VirtualWindowHolder;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import java.awt.image.BufferedImage;
@@ -16,10 +18,12 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayMapCanvasGameTest implements CustomTestMethodInvoker {
     private static final String WINDOW_ID = "qa_map_dirty_flush";
     private static final String IMAGE_NAME = "qa_map_dirty_flush.png";
+    private static final Vec3 FIXED_ANCHOR = new Vec3(8.0D, 70.0D, 8.0D);
 
     @SuppressWarnings("removal")
     @GameTest
@@ -46,7 +50,7 @@ public final class InteractiveDisplayMapCanvasGameTest implements CustomTestMeth
 
             var reload = manager.reloadOne(WINDOW_ID);
             helper.assertTrue(reload.success(), Component.literal("MAP dirty-flush QA window failed to load: " + reload.message()));
-            var opened = manager.createWindow(player, WINDOW_ID, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            var opened = manager.createWindow(player, WINDOW_ID, PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
             helper.assertTrue(opened.success(), Component.literal("MAP dirty-flush QA window failed to open: " + opened.message()));
 
             var instance = manager.findActiveWindow(player.getUUID(), WINDOW_ID);
@@ -59,6 +63,22 @@ public final class InteractiveDisplayMapCanvasGameTest implements CustomTestMeth
             PlayerCanvas canvasB = runtimeB.mapCanvas();
             helper.assertTrue(canvasA != null && canvasB != null,
                     Component.literal("MAP dirty-flush PlayerCanvas missing"));
+            helper.assertTrue(runtimeA.virtualElement() instanceof MapDisplayElement,
+                    Component.literal("MAP dirty-flush runtime did not materialize an ITEM_FRAME map element"));
+            MapDisplayElement mapElement = (MapDisplayElement) runtimeA.virtualElement();
+
+            // MAP is deliberately limited to FIXED because a server-only
+            // ITEM_FRAME map renderer cannot smoothly follow a player-bound
+            // passenger without client-side interpolation support.
+            Vec3 initialMapPosition = mapElement.getCurrentPos();
+            Vec3 initialPlayerPosition = player.position();
+            Vec3 playerDelta = new Vec3(2.0D, 0.0D, 1.0D);
+            player.setPos(initialPlayerPosition.add(playerDelta));
+            manager.tick();
+            Vec3 movedMapPosition = mapElement.getCurrentPos();
+            helper.assertTrue(movedMapPosition.distanceToSqr(initialMapPosition) < 1.0E-10D,
+                    Component.literal("FIXED MAP position changed after player movement"));
+
             helper.assertTrue(!canvasA.isDirty() && !canvasB.isDirty(),
                     Component.literal("initial MAP canvas remained dirty after creation sync"));
 
@@ -83,6 +103,24 @@ public final class InteractiveDisplayMapCanvasGameTest implements CustomTestMeth
                     Component.literal("MAP canvases were not destroyed on window close"));
             helper.assertTrue(manager.ownerWindows(player.getUUID()).isEmpty(),
                     Component.literal("MAP dirty-flush owner runtime leaked after close"));
+
+            var playerFixedRejected = manager.createWindow(player, WINDOW_ID, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+            helper.assertTrue(!playerFixedRejected.success(),
+                    Component.literal("PLAYER_FIXED MAP window unexpectedly opened"));
+            helper.assertTrue(playerFixedRejected.reasonCode() == DebugReason.ENTITY_SPAWN_FAILED
+                            && "map_a".equals(playerFixedRejected.componentId()),
+                    Component.literal("PLAYER_FIXED MAP window returned the wrong failure boundary"));
+            helper.assertTrue(manager.findActiveWindow(player.getUUID(), WINDOW_ID) == null,
+                    Component.literal("rejected PLAYER_FIXED MAP window left an active runtime"));
+
+            var playerViewRejected = manager.createWindow(player, WINDOW_ID, PositionMode.PLAYER_VIEW, null, 0.0f, 0.0f);
+            helper.assertTrue(!playerViewRejected.success(),
+                    Component.literal("PLAYER_VIEW MAP window unexpectedly opened"));
+            helper.assertTrue(playerViewRejected.reasonCode() == DebugReason.ENTITY_SPAWN_FAILED
+                            && "map_a".equals(playerViewRejected.componentId()),
+                    Component.literal("PLAYER_VIEW MAP window returned the wrong failure boundary"));
+            helper.assertTrue(manager.findActiveWindow(player.getUUID(), WINDOW_ID) == null,
+                    Component.literal("rejected PLAYER_VIEW MAP window left an active runtime"));
         } finally {
             manager.removeAll(player.getUUID());
             VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
