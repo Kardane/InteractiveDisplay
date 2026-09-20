@@ -8,7 +8,7 @@ import java.util.Set;
 
 public final class SchemaValidator {
     private static final Set<String> COMPONENT_TYPES = Set.of("text", "button", "image", "panel");
-    private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "switch_mode_fixed", "switch_mode_player_fixed", "toggle_placement_tracking", "run_command", "callback");
+    private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "switch_mode_fixed", "switch_mode_player_fixed", "switch_mode_player_view", "toggle_placement_tracking", "run_command", "callback");
     private static final Set<String> IMAGE_TYPES = Set.of("item", "block", "map");
     private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal");
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");

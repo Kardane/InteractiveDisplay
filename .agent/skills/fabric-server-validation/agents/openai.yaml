@@ -1,0 +1,6 @@
+interface:
+  display_name: "Fabric Server Validation"
+  short_description: "Choose the cheapest reliable Fabric server validation route"
+  default_prompt: "Use $fabric-server-validation as the single validation orchestrator. Prefer committed Unit/GameTest evidence; use MCP Fabric + Carpet for structured runtime reproduction, Mineflayer only for real protocol-client contracts, and never substitute protocol/instrumented clients for an unmodified-vanilla gate."
+policy:
+  allow_implicit_invocation: true

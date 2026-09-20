@@ -27,7 +27,6 @@ import org.joml.Vector3f;
 public final class VirtualWindowHolder {
     private static final float MIN_TRANSITION_SCALE = 0.01f;
     private static final float TRANSITION_SLIDE_DISTANCE = 0.35f;
-    private static final double PASSENGER_RIDING_OFFSET_FACTOR = 0.75D;
     private static final List<VirtualWindowHolder> PENDING_DESTROYS = new ArrayList<>();
 
     private final OwnerOnlyElementHolder holder = new OwnerOnlyElementHolder();
@@ -213,11 +212,9 @@ public final class VirtualWindowHolder {
         if (!this.playerAttached || this.owner == null) {
             return this.anchor;
         }
-        return this.owner.position().add(0.0D, passengerRidingOffset(this.owner.getBbHeight()), 0.0D);
-    }
-
-    static double passengerRidingOffset(double boundingBoxHeight) {
-        return boundingBoxHeight * PASSENGER_RIDING_OFFSET_FACTOR;
+        // Virtual elements are passengers in the client packet, so their render
+        // base must match the seat position Minecraft calculates for the owner.
+        return this.owner.getPassengerRidingPosition(this.owner);
     }
 
     public boolean playerAttached() {

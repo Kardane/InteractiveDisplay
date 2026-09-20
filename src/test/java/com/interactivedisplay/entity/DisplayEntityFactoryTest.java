@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ClickType;
+import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
@@ -87,6 +90,29 @@ class DisplayEntityFactoryTest {
 
         assertEquals(2.0f, rows.length * 10.0f * 0.025f * spec.fontSize(), 0.0001f);
         assertTrue(spec.lineWidth() * 0.025f * spec.fontSize() >= 4.0f);
+    }
+
+    @Test
+    void buttonLineWidthShouldMatchConfiguredWorldWidthAfterTextScaling() {
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "test",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(0.9f, 0.5f),
+                true,
+                1.0f,
+                "R1C2",
+                0.45f,
+                "#AA174A7E",
+                "#EEFFE4A6",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow()
+        );
+
+        int lineWidth = DisplayEntityFactory.buttonLineWidth(button);
+
+        assertEquals(80, lineWidth);
+        assertEquals(button.size().width(), lineWidth * 0.025f * button.fontSize(), 0.0001f);
     }
 
     @Test

@@ -19,10 +19,10 @@ import org.joml.Vector3f;
 
 public final class WindowComponentRuntime {
     private static final double DEFAULT_MAX_DISTANCE = 6.0D;
-    private static final float MIN_BUTTON_WIDTH = 0.2f;
-    private static final float MIN_BUTTON_HEIGHT = 0.2f;
-    private static final float GLYPH_WIDTH_FACTOR = 0.72f;
-    private static final float HORIZONTAL_PADDING_FACTOR = 0.5f;
+    private static final float TEXT_PIXEL_SCALE = 0.025f;
+    private static final float TEXT_LINE_HEIGHT_PIXELS = 10.0f;
+    private static final float TEXT_BACKGROUND_PADDING_PIXELS = 1.0f;
+    private static final float MIN_FONT_SIZE = 0.1f;
 
     private final ResourceKey<Level> worldKey;
     private ComponentDefinition definition;
@@ -210,9 +210,9 @@ public final class WindowComponentRuntime {
     }
 
     /**
-     * TextDisplay renders its text quad above the display origin. Keep the
-     * server-side button hitbox above that same origin instead of centering it
-     * across the origin, which would make the visible upper part missable.
+     * TextDisplay's background quad starts at its display origin and grows
+     * upward by one font line per wrapped line. Center the hitbox on that
+     * rendered quad so its top and bottom edges agree with the visible face.
      */
     public Vector3f hitCenterLocalPosition() {
         Vector3f center = new Vector3f(this.localPosition);
@@ -234,19 +234,29 @@ public final class WindowComponentRuntime {
     }
 
     private static float buttonHitWidth(ButtonComponentDefinition button) {
-        float baseHeight = Math.max(button.size().height() * Math.max(button.fontSize(), 0.1f), MIN_BUTTON_HEIGHT);
-        float availableWidth = Math.max(button.size().width(), MIN_BUTTON_WIDTH);
-        float textWidth = estimateTextUnits(button.label()) * baseHeight * GLYPH_WIDTH_FACTOR;
-        float paddedWidth = Math.max(baseHeight, textWidth + (baseHeight * HORIZONTAL_PADDING_FACTOR));
-        return Math.min(availableWidth, Math.max(MIN_BUTTON_WIDTH, paddedWidth));
+        float fontSize = normalizedFontSize(button);
+        float onePixel = TEXT_PIXEL_SCALE * fontSize;
+        // DisplayEntityFactory derives TextDisplay.lineWidth from the configured
+        // button width. The background quad therefore spans the full configured
+        // width even when the label itself is short.
+        return Math.max(button.size().width(), onePixel * TEXT_BACKGROUND_PADDING_PIXELS);
     }
 
     private static float buttonHitHeight(ButtonComponentDefinition button) {
-        float baseHeight = Math.max(button.size().height() * Math.max(button.fontSize(), 0.1f), MIN_BUTTON_HEIGHT);
-        float availableWidth = buttonHitWidth(button);
-        float textWidth = estimateTextUnits(button.label()) * baseHeight * GLYPH_WIDTH_FACTOR;
-        int lineCount = Math.max(1, (int) Math.ceil(textWidth / Math.max(availableWidth, MIN_BUTTON_WIDTH)));
-        return baseHeight * lineCount;
+        float fontSize = normalizedFontSize(button);
+        float lineHeight = TEXT_PIXEL_SCALE * TEXT_LINE_HEIGHT_PIXELS * fontSize;
+        float availableWidth = Math.max(button.size().width(), TEXT_PIXEL_SCALE * fontSize);
+        float textWidth = estimatedTextWidth(button.label(), fontSize);
+        int lineCount = Math.max(1, (int) Math.ceil(textWidth / availableWidth));
+        return lineHeight * lineCount;
+    }
+
+    private static float estimatedTextWidth(String label, float fontSize) {
+        return estimateTextUnits(label) * TEXT_LINE_HEIGHT_PIXELS * TEXT_PIXEL_SCALE * fontSize;
+    }
+
+    private static float normalizedFontSize(ButtonComponentDefinition button) {
+        return Math.max(button.fontSize(), MIN_FONT_SIZE);
     }
 
     private static float estimateTextUnits(String label) {

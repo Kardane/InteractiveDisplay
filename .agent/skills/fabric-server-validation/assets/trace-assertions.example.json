@@ -1,0 +1,16 @@
+{
+  "expect": [
+    {
+      "name": "relevant S2C packet is emitted",
+      "match": {
+        "test": "replace-me",
+        "direction": "S2C",
+        "connection": "player-under-test",
+        "phase": "PLAY",
+        "packet": {"regex": "ReplaceWithFocusedPacketRegex"}
+      },
+      "count": {"min": 1}
+    }
+  ],
+  "forbid": []
+}

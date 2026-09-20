@@ -78,17 +78,58 @@ Runtime configuration is stored under:
 run/config/interactivedisplay/
 ├── command_whitelist.yaml
 ├── groups/
-│   └── menu_group.yaml
+│   ├── menu_group.yaml
+│   ├── sample_group.yaml
+│   ├── button_showcase_group.yaml
+│   └── text_animation_group.yaml
 ├── images/
 │   └── sample_local.png
 └── windows/
     ├── gallery.yaml
     ├── gallery_remote.example.yaml.disabled
+    ├── animation_showcase.yaml
+    ├── sample_index.yaml
+    ├── button_calibration.yaml
+    ├── display_showcase.yaml
+    ├── map_showcase.yaml
+    ├── button_showcase.yaml
+    ├── button_showcase_secondary.yaml
+    ├── text_animation_showcase.yaml
+    ├── text_animation_typewriter.yaml
+    ├── text_animation_fade_linear.yaml
+    ├── text_animation_fade_smooth.yaml
+    ├── text_animation_fade_cut.yaml
+    ├── window_mode_conversion.yaml
     ├── main_menu.yaml
     └── main_menu2.yaml
 ```
 
 Defaults bundled in the mod are copied only when the corresponding config file does not already exist.
+
+### Bundled sample windows
+
+The `sample_index` window is the entry point for the bundled examples. It links to the requested five sample areas:
+
+| Sample | Window IDs | What it demonstrates |
+| --- | --- | --- |
+| 3×3 button calibration | `button_calibration` | nine aligned hit boxes, left/right/both click types, hover scale, and mode actions |
+| Display sample | `display_showcase` (also available as legacy `gallery`) | item, block, and text displays; `map_showcase` is the separate FIXED-only map example |
+| Button feature group | `button_showcase`, `button_showcase_secondary` | related-window navigation, click types, mode switching, and placement tracking |
+| Independent text animations | `text_animation_showcase`, `text_animation_typewriter`, `text_animation_fade_linear`, `text_animation_fade_smooth`, `text_animation_fade_cut` | one animation preview per window |
+| Window mode conversion | `window_mode_conversion` | FIXED, PLAYER_FIXED, and PLAYER_VIEW conversion on the same window |
+
+Open the complete sample group with:
+
+```mcfunction
+/interactivedisplay group create sample_group <player> player_fixed
+```
+
+The related button and animation groups can also be opened directly:
+
+```mcfunction
+/interactivedisplay group create button_showcase_group <player> player_fixed
+/interactivedisplay group create text_animation_group <player> player_fixed
+```
 
 InteractiveDisplay reads `.yaml` files only. `.yml` and legacy `.json` window/group files are not loaded. Legacy JSON files are only reported as warnings.
 
@@ -201,6 +242,32 @@ The exact placeholder syntax and available placeholders depend on Placeholder AP
 
 YAML treats `#` as a comment marker, so color values must be quoted.
 
+### Text animations
+
+Text components can run the built-in `typewriter` and `fade` animations when the window is created. Multiple animation entries on one text component still share an animation clock, while the bundled preview windows keep each animation independent so their timing and output can be inspected separately.
+
+```yaml
+animations:
+  - type: typewriter
+    delay: 4
+    interval: 2
+    charsPerStep: 1
+  - type: fade
+    delay: 2
+    duration: 12
+    interpolation: smooth
+```
+
+`typewriter` preserves styled Unicode grapheme clusters. `fade` supports `linear`, `smooth`, and `cut` interpolation. `text_animation_showcase` lists one independent preview for each option, and `animation_showcase` remains a compatible menu ID:
+
+```mcfunction
+/interactivedisplay create text_animation_showcase <player> player_fixed [yaw pitch]
+/interactivedisplay create text_animation_typewriter <player> player_fixed [yaw pitch]
+/interactivedisplay create text_animation_fade_smooth <player> player_fixed [yaw pitch]
+```
+
+After opening one preview, hold the InteractiveDisplay pointer in the main hand and use `목록` to return to the animation list. Bundled files are copied only when the corresponding config file does not already exist.
+
 ### Buttons
 
 ```yaml
@@ -283,6 +350,7 @@ Supported action types:
 | `open_window` | `target` |
 | `switch_mode_fixed` | none |
 | `switch_mode_player_fixed` | none |
+| `switch_mode_player_view` | none |
 | `toggle_placement_tracking` | none |
 | `run_command` | `command`, optional `permissionLevel` (`0`-`4`) |
 | `callback` | `id` |

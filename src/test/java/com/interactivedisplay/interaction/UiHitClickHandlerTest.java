@@ -53,7 +53,9 @@ class UiHitClickHandlerTest {
         assertEquals(PositionMode.FIXED, executor.lastPositionMode);
         assertTrueConsumed(handler.handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.switchModePlayerFixed(), "player_fixed")));
         assertEquals(PositionMode.PLAYER_FIXED, executor.lastPositionMode);
-        assertEquals(2, executor.switchModeCalls);
+        assertTrueConsumed(handler.handle(UUID.randomUUID(), "Steve", buttonHit(ComponentAction.switchModePlayerView(), "player_view")));
+        assertEquals(PositionMode.PLAYER_VIEW, executor.lastPositionMode);
+        assertEquals(3, executor.switchModeCalls);
     }
 
     @Test

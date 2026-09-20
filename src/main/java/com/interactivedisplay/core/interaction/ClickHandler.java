@@ -80,6 +80,16 @@ public final class ClickHandler {
             return clickResult;
         }
 
+        if (hitResult.action().type() == ComponentActionType.SWITCH_MODE_PLAYER_VIEW) {
+            CreateWindowResult result = this.actionExecutor.switchMode(playerId, context, PositionMode.PLAYER_VIEW);
+            if (!result.success()) {
+                return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), PositionMode.PLAYER_VIEW.name(), result.message());
+            }
+            ClickHandleResult clickResult = ClickHandleResult.consumed(playerId, playerName, hitResult.windowId(), hitResult.componentId(), PositionMode.PLAYER_VIEW.name(), "switch_mode_player_view 처리 완료");
+            record(DebugLevel.DEBUG, clickResult);
+            return clickResult;
+        }
+
         if (hitResult.action().type() == ComponentActionType.TOGGLE_PLACEMENT_TRACKING) {
             ActionExecutionResult result = this.actionExecutor.togglePlacementTracking(playerId, context);
             if (!result.success()) {

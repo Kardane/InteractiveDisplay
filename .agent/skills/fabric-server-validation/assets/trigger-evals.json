@@ -1,0 +1,31 @@
+{
+  "purpose": "Manual prompts for checking whether the skill description triggers on the intended Fabric validation work and stays out of unrelated tasks.",
+  "should_trigger": [
+    "이 Fabric 서버사이드 텔레포트 변경을 실제 클라이언트 동기화까지 검증해.",
+    "Validate this Fabric custom payload handler and prove the server state changes after the real C2S path.",
+    "엔티티 metadata 동기화 버그를 고쳤는데 GameTest랑 필요한 경우 패킷 trace로 회귀 테스트를 만들어줘.",
+    "이 모드는 fabric.mod.json environment가 server야. 멀티플레이 클라이언트까지 포함해서 검증해.",
+    "Fabric 서버 모드의 inventory sync가 가끔 깨져. Codex가 반복 재현하고 원인을 좁힐 수 있는 검증 루프를 만들어줘.",
+    "이 Fabric 모드는 dedicated server entrypoint와 server-scoped mixin이 있어. 실제 물리 서버 경로까지 E2E 검증해.",
+    "이 Fabric 서버 모드는 클라이언트 모드 설치 없이 바닐라 클라이언트가 접속해야 해. 실제 바닐라 호환성까지 검증해."
+  ],
+  "should_not_trigger": [
+    "Fabric 클라이언트 HUD 색상을 바꿔줘.",
+    "NeoForge 모드의 capability 코드를 리뷰해줘.",
+    "Minecraft 리소스팩의 텍스처를 만들어줘.",
+    "Fabric 모드 README 문장을 다듬어줘.",
+    "일반 Java 정렬 알고리즘의 시간복잡도를 설명해줘."
+  ],
+  "expected_behavior": [
+    "Inspect project versions and existing test setup before choosing API names.",
+    "Choose the cheapest validation tier that crosses the behavior boundary.",
+    "Do not use packet existence as a gameplay PASS criterion when state can be asserted.",
+    "For physical-server-sensitive production loading, prefer Loom production-server verification first; then choose the client-fidelity gate required by the product contract.",
+    "Treat Fabric Client GameTest, production Fabric clients, Fabric probes, protocol bots, and unmodified vanilla clients as distinct evidence classes.",
+    "Never use Fabric Client GameTest, a Fabric probe, or a protocol bot as proof of an unmodified-vanilla compatibility contract.",
+    "Treat Client GameTest as version-sensitive/Experimental and verify exact APIs against the project version.",
+    "If an unmodified vanilla-visible behavior cannot be faithfully automated, report BLOCKED or MANUAL GATE REQUIRED rather than relabeling an instrumented test as vanilla.",
+    "Do not silently accept the Minecraft EULA.",
+    "Keep packet tracing focused and test-only."
+  ]
+}

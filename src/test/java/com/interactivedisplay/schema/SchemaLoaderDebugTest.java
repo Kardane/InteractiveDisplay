@@ -33,8 +33,24 @@ class SchemaLoaderDebugTest {
                 "windows/main_menu.yaml",
                 "windows/main_menu2.yaml",
                 "windows/gallery.yaml",
+                "windows/animation_showcase.yaml",
+                "windows/sample_index.yaml",
+                "windows/button_calibration.yaml",
+                "windows/display_showcase.yaml",
+                "windows/map_showcase.yaml",
+                "windows/button_showcase.yaml",
+                "windows/button_showcase_secondary.yaml",
+                "windows/text_animation_showcase.yaml",
+                "windows/text_animation_typewriter.yaml",
+                "windows/text_animation_fade_linear.yaml",
+                "windows/text_animation_fade_smooth.yaml",
+                "windows/text_animation_fade_cut.yaml",
+                "windows/window_mode_conversion.yaml",
                 "windows/gallery_remote.example.yaml.disabled",
                 "groups/menu_group.yaml",
+                "groups/sample_group.yaml",
+                "groups/button_showcase_group.yaml",
+                "groups/text_animation_group.yaml",
                 "images/sample_local.png"
         }) {
             assertTrue(Files.exists(configRoot.resolve(relativePath)), relativePath);
@@ -391,6 +407,14 @@ class SchemaLoaderDebugTest {
                       "size": {"width": 1.0, "height": 0.35},
                       "label": "플레이어 고정",
                       "action": {"type": "switch_mode_player_fixed"}
+                    },
+                    {
+                      "id": "switch_player_view",
+                      "type": "button",
+                      "position": {"x": 0.0, "y": -0.8, "z": 0.0},
+                      "size": {"width": 1.0, "height": 0.35},
+                      "label": "플레이어 시점",
+                      "action": {"type": "switch_mode_player_view"}
                     }
                   ]
                 }
@@ -407,6 +431,10 @@ class SchemaLoaderDebugTest {
         assertEquals(
                 com.interactivedisplay.core.component.ComponentActionType.SWITCH_MODE_PLAYER_FIXED,
                 ((com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions().get("button_only").components().get(1)).action().type()
+        );
+        assertEquals(
+                com.interactivedisplay.core.component.ComponentActionType.SWITCH_MODE_PLAYER_VIEW,
+                ((com.interactivedisplay.core.component.ButtonComponentDefinition) result.definitions().get("button_only").components().get(2)).action().type()
         );
     }
 

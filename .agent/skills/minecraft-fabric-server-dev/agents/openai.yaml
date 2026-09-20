@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minecraft Fabric Server Dev"
+  short_description: "Java 1.21.8 Fabric 서버모드 실무 설계/검증"
+  default_prompt: "Use $minecraft-fabric-server-dev to build and validate a production-ready Minecraft Java 1.21.8 Fabric server-side mod with strict Mixin conflict handling, Polymer server-adapter patterns, and WSL-first verification scripts."

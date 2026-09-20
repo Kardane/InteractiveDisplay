@@ -1,0 +1,44 @@
+id: button_showcase_group
+initialWindowId: button_showcase
+defaultMode: player_fixed
+windows:
+  - windowId: main_menu
+    offset:
+      forward: 2.0
+      horizontal: 0.0
+      vertical: 0.5
+    orbit:
+      yaw: 0.0
+      pitch: 0.0
+  - windowId: sample_index
+    offset:
+      forward: 2.6
+      horizontal: 0.0
+      vertical: 0.6
+    orbit:
+      yaw: 0.0
+      pitch: 0.0
+  - windowId: button_showcase
+    offset:
+      forward: 2.6
+      horizontal: 0.0
+      vertical: 0.6
+    orbit:
+      yaw: 0.0
+      pitch: 0.0
+  - windowId: button_showcase_secondary
+    offset:
+      forward: 2.6
+      horizontal: 0.0
+      vertical: 0.6
+    orbit:
+      yaw: 0.0
+      pitch: 0.0
+  - windowId: button_calibration
+    offset:
+      forward: 2.5
+      horizontal: 0.0
+      vertical: 0.6
+    orbit:
+      yaw: 0.0
+      pitch: 0.0

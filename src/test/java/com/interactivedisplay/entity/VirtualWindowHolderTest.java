@@ -2,12 +2,15 @@ package com.interactivedisplay.entity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 class VirtualWindowHolderTest {
     @Test
-    void passengerRidingOffsetShouldUseVanillaThreeQuarterHeight() {
-        assertEquals(1.35D, VirtualWindowHolder.passengerRidingOffset(1.8D), 0.000001D);
-        assertEquals(1.125D, VirtualWindowHolder.passengerRidingOffset(1.5D), 0.000001D);
+    void unattachedRenderOriginShouldUseConfiguredAnchor() {
+        Vec3 anchor = new Vec3(1.0D, 2.0D, 3.0D);
+        VirtualWindowHolder holder = new VirtualWindowHolder(null, anchor);
+
+        assertEquals(anchor, holder.passengerRenderOrigin());
     }
 }

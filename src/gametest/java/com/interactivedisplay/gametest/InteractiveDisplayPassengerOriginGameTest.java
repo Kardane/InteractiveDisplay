@@ -14,7 +14,6 @@ import net.minecraft.world.phys.Vec3;
 
 public final class InteractiveDisplayPassengerOriginGameTest implements CustomTestMethodInvoker {
     private static final double EPSILON = 1.0E-5D;
-    private static final double RIDING_OFFSET_FACTOR = 0.75D;
 
     @SuppressWarnings("removal")
     @GameTest
@@ -47,13 +46,9 @@ public final class InteractiveDisplayPassengerOriginGameTest implements CustomTe
                         + " actual=" + player.getBbHeight()));
 
         Vec3 origin = holder.passengerRenderOrigin();
-        double expectedY = player.getY() + expectedHeight * RIDING_OFFSET_FACTOR;
-        helper.assertTrue(Math.abs(origin.x - player.getX()) <= EPSILON,
-                Component.literal(pose + " passenger origin X drifted expected=" + player.getX() + " actual=" + origin.x));
-        helper.assertTrue(Math.abs(origin.y - expectedY) <= EPSILON,
-                Component.literal(pose + " passenger origin Y mismatch expected=" + expectedY + " actual=" + origin.y));
-        helper.assertTrue(Math.abs(origin.z - player.getZ()) <= EPSILON,
-                Component.literal(pose + " passenger origin Z drifted expected=" + player.getZ() + " actual=" + origin.z));
+        Vec3 expectedOrigin = player.getPassengerRidingPosition(player);
+        helper.assertTrue(origin.distanceToSqr(expectedOrigin) <= EPSILON * EPSILON,
+                Component.literal(pose + " passenger render origin mismatch expected=" + expectedOrigin + " actual=" + origin));
     }
 
     @Override

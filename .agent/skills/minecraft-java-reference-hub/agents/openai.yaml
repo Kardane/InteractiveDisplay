@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minecraft Java Reference Hub"
+  short_description: "1.21.8/1.21.11 버전 잠금형 실무 레퍼런스"
+  default_prompt: "Use $minecraft-java-reference-hub to answer Minecraft Java Edition questions with strict version locking (1.21.8 or 1.21.11), domain-tag decomposition, execution-ready steps, validation points, and operational risk/rollback notes."

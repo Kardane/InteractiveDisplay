@@ -17,6 +17,10 @@ public record ComponentAction(ComponentActionType type, String target, Integer p
         return new ComponentAction(ComponentActionType.SWITCH_MODE_PLAYER_FIXED, null, null);
     }
 
+    public static ComponentAction switchModePlayerView() {
+        return new ComponentAction(ComponentActionType.SWITCH_MODE_PLAYER_VIEW, null, null);
+    }
+
     public static ComponentAction togglePlacementTracking() {
         return new ComponentAction(ComponentActionType.TOGGLE_PLACEMENT_TRACKING, null, null);
     }

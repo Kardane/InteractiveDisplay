@@ -1,0 +1,197 @@
+id: button_showcase
+size:
+  width: 4.8
+  height: 3.4
+offset:
+  forward: 2.6
+  horizontal: 0.0
+  vertical: 0.6
+components:
+  - id: background
+    type: panel
+    position:
+      x: 0.0
+      y: -1.25
+      z: 0.0
+    size:
+      width: 4.8
+      height: 3.4
+    backgroundColor: "#CC10243A"
+    children: []
+  - id: title
+    type: text
+    position:
+      x: 0.0
+      y: 1.2
+      z: 0.03
+    size:
+      width: 4.2
+      height: 0.35
+    content: "BUTTON FEATURE SHOWCASE"
+    fontSize: 0.5
+    color: "#FFD3A5"
+    alignment: center
+    background: "#00000000"
+  - id: hint
+    type: text
+    position:
+      x: 0.0
+      y: 0.88
+      z: 0.03
+    size:
+      width: 4.2
+      height: 0.25
+    content: "여러 입력 타입과 창 이동을 한 그룹에서 확인"
+    fontSize: 0.27
+    color: "#B9C7D6"
+    alignment: center
+    background: "#00000000"
+  - id: left_action
+    type: button
+    position:
+      x: -1.25
+      y: 0.38
+      z: 0.04
+    size:
+      width: 1.05
+      height: 0.48
+    label: "LEFT"
+    fontSize: 0.38
+    clickType: left
+    hoverScale: 1.06
+    backgroundColor: "#CC174A7E"
+    hoverColor: "#EE2B78B5"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_showcase_secondary
+  - id: right_action
+    type: button
+    position:
+      x: 0.0
+      y: 0.38
+      z: 0.04
+    size:
+      width: 1.05
+      height: 0.48
+    label: "RIGHT"
+    fontSize: 0.38
+    clickType: right
+    hoverScale: 1.06
+    backgroundColor: "#CC1B6478"
+    hoverColor: "#EE2F9AB0"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_showcase_secondary
+  - id: both_action
+    type: button
+    position:
+      x: 1.25
+      y: 0.38
+      z: 0.04
+    size:
+      width: 1.05
+      height: 0.48
+    label: "BOTH"
+    fontSize: 0.38
+    clickType: both
+    hoverScale: 1.06
+    backgroundColor: "#CC5C3D24"
+    hoverColor: "#EEA56A31"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_showcase_secondary
+  - id: view_mode
+    type: button
+    position:
+      x: -1.25
+      y: -0.28
+      z: 0.04
+    size:
+      width: 2.1
+      height: 0.45
+    label: "PLAYER VIEW로 전환"
+    fontSize: 0.3
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC3E1B4D"
+    hoverColor: "#EE71358A"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: switch_mode_player_view
+  - id: tracking
+    type: button
+    position:
+      x: 1.25
+      y: -0.28
+      z: 0.04
+    size:
+      width: 2.1
+      height: 0.45
+    label: "배치 추적 토글"
+    fontSize: 0.3
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC3D244C"
+    hoverColor: "#EE754A91"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: toggle_placement_tracking
+  - id: more
+    type: button
+    position:
+      x: 0.0
+      y: -0.82
+      z: 0.04
+    size:
+      width: 2.1
+      height: 0.45
+    label: "다음 창"
+    fontSize: 0.3
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC334455"
+    hoverColor: "#EE557799"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_showcase_secondary
+  - id: home
+    type: button
+    position:
+      x: -1.1
+      y: -1.3
+      z: 0.04
+    size:
+      width: 1.35
+      height: 0.4
+    label: "홈"
+    fontSize: 0.34
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC174A7E"
+    hoverColor: "#EE2B78B5"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: sample_index
+  - id: close
+    type: button
+    position:
+      x: 1.1
+      y: -1.3
+      z: 0.04
+    size:
+      width: 1.35
+      height: 0.4
+    label: "닫기"
+    fontSize: 0.34
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC992222"
+    hoverColor: "#EECC4444"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: close_window

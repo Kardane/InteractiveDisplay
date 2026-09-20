@@ -14,9 +14,9 @@ components:
       y: -1.0
       z: 0.0
     size:
-      width: 7.0
-      height: 4.0
-    backgroundColor: "#88000000"
+      width: 3.2
+      height: 2.2
+    backgroundColor: "#CC10243A"
     children: []
   - id: title
     type: text
@@ -26,7 +26,7 @@ components:
       z: 0.01
     width: 2.6
     height: 0.35
-    content: InteractiveDisplay
+    content: "BUTTON ACTIONS"
     fontSize: 0.6
     alignment: center
     background: "#00000000"
@@ -38,7 +38,7 @@ components:
       z: 0.01
     width: 2.6
     height: 0.45
-    content: "테스트트틑2"
+    content: "기존 main_menu2 ID를 유지한 버튼 샘플"
     fontSize: 0.4
     alignment: center
     color: "#E8E8E8"
@@ -46,36 +46,35 @@ components:
   - id: back_main
     type: button
     position:
-      x: -0.5
-      y: -0.55
-      z: 0.01
-    size:
-      width: 1.2
-      height: 0.35
-    label: "돌아가기"
-    fontSize: 0.4
-    backgroundColor: "#CC225577"
-    hoverColor: "#EE3388AA"
-    action:
-      type: open_window
-      target: main_menu
-  - id: command_ping
-    type: button
-    position:
-      x: 0.5
+      x: -0.65
       y: -0.55
       z: 0.01
     size:
       width: 1.25
       height: 0.35
-    label: "명령어 실행"
+    label: "샘플 목록"
+    fontSize: 0.4
+    backgroundColor: "#CC225577"
+    hoverColor: "#EE3388AA"
+    action:
+      type: open_window
+      target: sample_index
+  - id: command_ping
+    type: button
+    position:
+      x: 0.65
+      y: -0.55
+      z: 0.01
+    size:
+      width: 1.35
+      height: 0.35
+    label: "버튼 기능"
     fontSize: 0.4
     backgroundColor: "#CC9A8124"
     hoverColor: "#EEC5A534"
     action:
-      type: run_command
-      command: 'title @s actionbar {"text":"main_menu2 command"}'
-      permissionLevel: 2
+      type: open_window
+      target: button_showcase
   - id: close2
     type: button
     position:

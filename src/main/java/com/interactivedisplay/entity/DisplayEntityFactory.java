@@ -603,9 +603,9 @@ public final class DisplayEntityFactory {
         return Direction.getApproximateNearest(normal);
     }
 
-    private static int buttonLineWidth(ButtonComponentDefinition button) {
+    static int buttonLineWidth(ButtonComponentDefinition button) {
         float normalizedFontSize = Math.max(button.fontSize(), 0.1f);
-        return Math.max(1, Math.round((button.size().width() * 100.0f) / normalizedFontSize));
+        return Math.max(1, Math.round(button.size().width() / (TEXT_PIXEL_SCALE * normalizedFontSize)));
     }
 
     private static String normalizeAlignment(String alignment) {

@@ -14,6 +14,7 @@ final class CustomActionNormalizer {
             "open_window",
             "switch_mode_fixed",
             "switch_mode_player_fixed",
+            "switch_mode_player_view",
             "toggle_placement_tracking",
             "run_command",
             "callback"

@@ -1,0 +1,4 @@
+[mcp_servers.mcdev-mcp]
+command = "npx"
+args = ["-y", "mcdev-mcp", "serve"]
+enabled = true

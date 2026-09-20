@@ -1,0 +1,123 @@
+id: button_showcase_secondary
+size:
+  width: 4.8
+  height: 3.0
+offset:
+  forward: 2.6
+  horizontal: 0.0
+  vertical: 0.6
+components:
+  - id: background
+    type: panel
+    position:
+      x: 0.0
+      y: -1.1
+      z: 0.0
+    size:
+      width: 4.8
+      height: 3.0
+    backgroundColor: "#CC10243A"
+    children: []
+  - id: title
+    type: text
+    position:
+      x: 0.0
+      y: 1.05
+      z: 0.03
+    size:
+      width: 4.2
+      height: 0.35
+    content: "BUTTON GROUP · SECOND WINDOW"
+    fontSize: 0.46
+    color: "#FFD3A5"
+    alignment: center
+    background: "#00000000"
+  - id: body
+    type: text
+    position:
+      x: 0.0
+      y: 0.35
+      z: 0.03
+    size:
+      width: 3.8
+      height: 0.7
+    content: "같은 그룹의 다른 창입니다.\n뒤로 가면 첫 번째 창으로 돌아갑니다."
+    fontSize: 0.38
+    lineWidth: 180
+    color: "#FFFFFF"
+    alignment: center
+    background: "#00000000"
+  - id: fixed
+    type: button
+    position:
+      x: -1.35
+      y: -0.62
+      z: 0.04
+    size:
+      width: 1.7
+      height: 0.42
+    label: "PLAYER FIXED"
+    fontSize: 0.3
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC174A7E"
+    hoverColor: "#EE2B78B5"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: switch_mode_player_fixed
+  - id: back
+    type: button
+    position:
+      x: 0.0
+      y: -0.62
+      z: 0.04
+    size:
+      width: 1.25
+      height: 0.42
+    label: "뒤로"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC5C3D24"
+    hoverColor: "#EEA56A31"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_showcase
+  - id: home
+    type: button
+    position:
+      x: 1.35
+      y: -0.62
+      z: 0.04
+    size:
+      width: 1.7
+      height: 0.42
+    label: "캘리브레이션"
+    fontSize: 0.3
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC3D244C"
+    hoverColor: "#EE754A91"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_calibration
+  - id: close
+    type: button
+    position:
+      x: 0.0
+      y: -1.18
+      z: 0.04
+    size:
+      width: 1.35
+      height: 0.4
+    label: "닫기"
+    fontSize: 0.34
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC992222"
+    hoverColor: "#EECC4444"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: close_window

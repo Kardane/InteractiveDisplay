@@ -251,6 +251,7 @@ public final class WindowDefinitionParser {
             case "open_window" -> ComponentAction.openWindow(action.get("target").textValue());
             case "switch_mode_fixed" -> ComponentAction.switchModeFixed();
             case "switch_mode_player_fixed" -> ComponentAction.switchModePlayerFixed();
+            case "switch_mode_player_view" -> ComponentAction.switchModePlayerView();
             case "toggle_placement_tracking" -> ComponentAction.togglePlacementTracking();
             case "run_command" -> ComponentAction.runCommand(
                     action.get("command").textValue(),

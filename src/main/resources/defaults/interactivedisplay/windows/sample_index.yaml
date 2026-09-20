@@ -1,0 +1,180 @@
+id: sample_index
+size:
+  width: 5.4
+  height: 4.0
+offset:
+  forward: 2.6
+  horizontal: 0.0
+  vertical: 0.6
+components:
+  - id: background
+    type: panel
+    position:
+      x: 0.0
+      y: -1.5
+      z: 0.0
+    size:
+      width: 5.4
+      height: 4.0
+    backgroundColor: "#CC10243A"
+    children: []
+  - id: title
+    type: text
+    position:
+      x: 0.0
+      y: 1.35
+      z: 0.02
+    size:
+      width: 4.8
+      height: 0.35
+    content: "INTERACTIVE DISPLAY SAMPLES"
+    fontSize: 0.52
+    color: "#79D9FF"
+    alignment: center
+    background: "#00000000"
+  - id: subtitle
+    type: text
+    position:
+      x: 0.0
+      y: 1.02
+      z: 0.02
+    size:
+      width: 4.8
+      height: 0.25
+    content: "각 샘플을 열어 렌더링과 입력 동작을 확인하세요"
+    fontSize: 0.28
+    color: "#B9C7D6"
+    alignment: center
+    background: "#00000000"
+  - id: calibration
+    type: button
+    position:
+      x: -1.35
+      y: 0.5
+      z: 0.03
+    size:
+      width: 2.2
+      height: 0.45
+    label: "1  버튼 캘리브레이션"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC174A7E"
+    hoverColor: "#EE2B78B5"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_calibration
+  - id: display
+    type: button
+    position:
+      x: 1.35
+      y: 0.5
+      z: 0.03
+    size:
+      width: 2.2
+      height: 0.45
+    label: "2  디스플레이 샘플"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC1B6478"
+    hoverColor: "#EE2F9AB0"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: display_showcase
+  - id: buttons
+    type: button
+    position:
+      x: -1.35
+      y: -0.12
+      z: 0.03
+    size:
+      width: 2.2
+      height: 0.45
+    label: "3  버튼 기능 그룹"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC5C3D24"
+    hoverColor: "#EEA56A31"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: button_showcase
+  - id: animations
+    type: button
+    position:
+      x: 1.35
+      y: -0.12
+      z: 0.03
+    size:
+      width: 2.2
+      height: 0.45
+    label: "4  텍스트 애니메이션"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC3E1B4D"
+    hoverColor: "#EE71358A"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: text_animation_showcase
+  - id: modes
+    type: button
+    position:
+      x: -1.35
+      y: -0.74
+      z: 0.03
+    size:
+      width: 2.2
+      height: 0.45
+    label: "5  창 타입 변환"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC3D244C"
+    hoverColor: "#EE754A91"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: window_mode_conversion
+  - id: legacy
+    type: button
+    position:
+      x: 1.35
+      y: -0.74
+      z: 0.03
+    size:
+      width: 2.2
+      height: 0.45
+    label: "기본 창 열기"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC334455"
+    hoverColor: "#EE557799"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: main_menu
+  - id: close
+    type: button
+    position:
+      x: 0.0
+      y: -1.35
+      z: 0.03
+    size:
+      width: 1.35
+      height: 0.4
+    label: "닫기"
+    fontSize: 0.36
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC992222"
+    hoverColor: "#EECC4444"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: close_window

@@ -1,0 +1,20 @@
+{
+  "implementation_orchestrator": "minecraft-fabric-server-dev",
+  "validation_orchestrator": "fabric-server-validation",
+  "cross_cutting_source_analysis": "mcdev-source-analysis",
+  "validation_helpers": {
+    "server_gametest": "fabric-gametest",
+    "structured_runtime": "mcpfabric-runtime",
+    "player_actuator": "carpet-player-harness",
+    "protocol_client": "mineflayer-e2e"
+  },
+  "specialists": [
+    "minecraft-java-reference-hub",
+    "minecraft-java-1.21.8-world-nbt",
+    "minecraft-java-datapack-engineering",
+    "minecraft-java-resourcepack-engineering"
+  ],
+  "intentionally_removed": [
+    "minecraft-fabric-test-orchestrator"
+  ]
+}

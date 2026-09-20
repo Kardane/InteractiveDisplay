@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minecraft Java World NBT"
+  short_description: "Safely inspect and edit Java 1.21.8 NBT/Anvil world data"
+  default_prompt: "Use $minecraft-java-world-nbt for probe-first, type-preserving inspection or targeted edits of Minecraft Java 1.21.8 .dat and .mca world data."
