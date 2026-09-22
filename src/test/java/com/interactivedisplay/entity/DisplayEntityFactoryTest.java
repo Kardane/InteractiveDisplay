@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
@@ -142,6 +145,44 @@ class DisplayEntityFactoryTest {
     }
 
     @Test
+    void buttonPaddingShouldReduceLabelLineWidthWithoutChangingOuterBackground() {
+        ButtonComponentDefinition button = button(
+                "Button", 0.9f, 0.5f, 0.5f,
+                new ButtonPadding(0.1f, 0.05f),
+                ButtonHorizontalAlignment.LEFT,
+                ButtonVerticalAlignment.BOTTOM
+        );
+
+        assertEquals(0.7f, DisplayEntityFactory.buttonContentWidth(button), 0.0001f);
+        assertEquals(56, DisplayEntityFactory.buttonLineWidth(button));
+
+        DisplayEntityFactory.ButtonBackgroundRenderSpec background =
+                DisplayEntityFactory.buildButtonBackgroundRenderSpec(button);
+        assertEquals(button.size().width(), (background.lineWidth() + 1.0f) * 0.025f * background.scale().x, 0.0001f);
+    }
+
+    @Test
+    void buttonVerticalAlignmentShouldPositionLabelInsidePadding() {
+        ButtonPadding padding = new ButtonPadding(0.1f, 0.05f);
+        ButtonComponentDefinition bottom = button(
+                "Button", 2.2f, 0.45f, 0.5f, padding,
+                ButtonHorizontalAlignment.CENTER, ButtonVerticalAlignment.BOTTOM
+        );
+        ButtonComponentDefinition center = button(
+                "Button", 2.2f, 0.45f, 0.5f, padding,
+                ButtonHorizontalAlignment.CENTER, ButtonVerticalAlignment.CENTER
+        );
+        ButtonComponentDefinition top = button(
+                "Button", 2.2f, 0.45f, 0.5f, padding,
+                ButtonHorizontalAlignment.CENTER, ButtonVerticalAlignment.TOP
+        );
+
+        assertEquals(0.05f, DisplayEntityFactory.buttonLabelLocalOffset(bottom).y, 0.0001f);
+        assertEquals(0.1625f, DisplayEntityFactory.buttonLabelLocalOffset(center).y, 0.0001f);
+        assertEquals(0.275f, DisplayEntityFactory.buttonLabelLocalOffset(top).y, 0.0001f);
+    }
+
+    @Test
     void textAndButtonRenderingShouldUsePlaceholderResolver() {
         DisplayEntityFactory factory = new DisplayEntityFactory(
                 new DebugRecorder(10),
@@ -201,6 +242,33 @@ class DisplayEntityFactoryTest {
                 null,
                 ClickType.BOTH,
                 ComponentAction.closeWindow()
+        );
+    }
+
+    private static ButtonComponentDefinition button(String label,
+                                                            float width,
+                                                            float height,
+                                                            float fontSize,
+                                                            ButtonPadding padding,
+                                                            ButtonHorizontalAlignment horizontalAlignment,
+                                                            ButtonVerticalAlignment verticalAlignment) {
+        return new ButtonComponentDefinition(
+                "test",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(width, height),
+                true,
+                1.0f,
+                label,
+                fontSize,
+                "#AA174A7E",
+                "#EEFFE4A6",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                padding,
+                horizontalAlignment,
+                verticalAlignment
         );
     }
 
