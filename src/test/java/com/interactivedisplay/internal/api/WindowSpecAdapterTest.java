@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import com.interactivedisplay.api.window.WindowSpec;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentActionType;
 import com.interactivedisplay.core.component.ImageComponentDefinition;
@@ -61,6 +63,8 @@ class WindowSpecAdapterTest {
                         .background("#CC111111", "#EE333333")
                         .clickSound("minecraft:ui.button.click")
                         .hoverScale(1.1f)
+                        .padding(0.08f, 0.04f)
+                        .alignment(WindowSpec.HorizontalAlignment.RIGHT, WindowSpec.VerticalAlignment.TOP)
                         .click(WindowSpec.Click.BOTH)
                         .action(WindowSpec.Actions.callback(callbackId)))
                 .build();
@@ -122,6 +126,10 @@ class WindowSpecAdapterTest {
         assertEquals(ComponentActionType.CALLBACK, button.action().type());
         assertEquals("economy:buy", button.action().target());
         assertEquals(1.1f, button.hoverScale());
+        assertEquals(0.08f, button.padding().horizontal(), 0.0001f);
+        assertEquals(0.04f, button.padding().vertical(), 0.0001f);
+        assertEquals(ButtonHorizontalAlignment.RIGHT, button.horizontalAlignment());
+        assertEquals(ButtonVerticalAlignment.TOP, button.verticalAlignment());
     }
 
     @Test
