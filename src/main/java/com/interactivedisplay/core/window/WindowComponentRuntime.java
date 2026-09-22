@@ -3,6 +3,7 @@ package com.interactivedisplay.core.window;
 import com.interactivedisplay.core.animation.AnimationDefinition;
 import com.interactivedisplay.core.animation.AnimationRegistry;
 import com.interactivedisplay.core.animation.AnimationRuntime;
+import com.interactivedisplay.core.component.ButtonBoxModel;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
@@ -282,7 +283,7 @@ public final class WindowComponentRuntime {
 
     public float hitHalfWidth() {
         if (this.definition instanceof ButtonComponentDefinition button) {
-            return button.size().width() / 2.0f;
+            return ButtonBoxModel.resolve(button).width() / 2.0f;
         }
         if (this.definition instanceof TextInputComponentDefinition input) {
             return input.size().width() / 2.0f;
@@ -292,7 +293,7 @@ public final class WindowComponentRuntime {
 
     public float hitHalfHeight() {
         if (this.definition instanceof ButtonComponentDefinition button) {
-            return button.size().height() / 2.0f;
+            return ButtonBoxModel.resolve(button).height() / 2.0f;
         }
         if (this.definition instanceof TextInputComponentDefinition input) {
             return input.size().height() / 2.0f;
