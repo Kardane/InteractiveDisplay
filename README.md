@@ -178,6 +178,15 @@ components:
     label: "Close"
     clickType: both
     hoverScale: 1.08
+    padding:
+      horizontal: 0.08
+      vertical: 0.04
+    alignment:
+      horizontal: center
+      vertical: center
+    sizing:
+      width: fixed
+      height: content
     backgroundColor: "#AA992222"
     hoverColor: "#EECC4444"
     action:
@@ -197,6 +206,23 @@ components:
 | `components` | Component definitions |
 | `transition` | Optional enter/exit transition configuration |
 
+### Button box model
+
+Buttons use `size.width` and `size.height` as the fixed dimensions by default. The background, hit box, and label content area are derived from the same resolved box.
+
+```yaml
+padding:
+  horizontal: 0.12
+  vertical: 0.06
+alignment:
+  horizontal: left   # left, center, right
+  vertical: top      # bottom, center, top
+sizing:
+  width: fixed       # fixed or content
+  height: content    # fixed or content
+```
+
+`padding` defaults to zero, both alignment axes default to `center`, and both sizing axes default to `fixed`. A `content` width is measured from the configured label plus horizontal padding. With fixed width + content height, the estimated wrapped line count determines height. With content width, only explicit line breaks create multiple lines.
 ### Transitions
 
 ```yaml
