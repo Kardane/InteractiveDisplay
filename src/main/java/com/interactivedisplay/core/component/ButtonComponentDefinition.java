@@ -58,6 +58,30 @@ public record ButtonComponentDefinition(
         );
     }
 
+    public ButtonComponentDefinition(
+            String id,
+            ComponentPosition position,
+            ComponentSize size,
+            boolean visible,
+            float opacity,
+            String label,
+            float fontSize,
+            String backgroundColor,
+            String hoverColor,
+            String clickSound,
+            ClickType clickType,
+            ComponentAction action,
+            float hoverScale,
+            ButtonPadding padding,
+            ButtonHorizontalAlignment horizontalAlignment,
+            ButtonVerticalAlignment verticalAlignment
+    ) {
+        this(
+                id, position, size, visible, opacity, label, fontSize, backgroundColor, hoverColor, clickSound,
+                clickType, action, hoverScale, padding, horizontalAlignment, verticalAlignment, ButtonSizing.fixed()
+        );
+    }
+
     public ButtonComponentDefinition {
         clickType = clickType == null ? ClickType.RIGHT : clickType;
         hoverScale = hoverScale > 0.0f ? hoverScale : 1.0f;
