@@ -8,6 +8,7 @@ import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
@@ -150,6 +151,22 @@ public final class DisplayEntityFactory {
                 );
                 element = textElement;
                 virtualElement = element;
+            } else if (component instanceof TextInputComponentDefinition input) {
+                TextDisplayElement textElement = new TextDisplayElement();
+                applyTextData(
+                        textElement,
+                        renderTextInputValue(input, input.initialValue(), ownerPlayer(server, owner)),
+                        textInputLineWidth(input),
+                        parseArgb(input.backgroundColor()),
+                        true,
+                        input.opacity(),
+                        billboard(positionMode),
+                        input.fontSize(),
+                        "left",
+                        new Vector3f()
+                );
+                element = textElement;
+                virtualElement = element;
             } else if (component instanceof ImageComponentDefinition image) {
                 ImageRuntime imageRuntime = createImageElement(image, canvasViewer, positionMode, yaw, pitch);
                 element = imageRuntime.element();
@@ -232,6 +249,50 @@ public final class DisplayEntityFactory {
         textElement.setScale(targetScale);
         textElement.startInterpolationIfDirty();
         runtime.setHovered(hovered);
+    }
+
+    public void setTextInputHover(MinecraftServer server,
+                                  UUID owner,
+                                  WindowComponentRuntime runtime,
+                                  TextInputComponentDefinition input,
+                                  boolean hovered) {
+        if (!(runtime.displayElement() instanceof TextDisplayElement textElement)) {
+            return;
+        }
+        int background = hovered ? parseArgb(input.hoverColor()) : parseArgb(input.backgroundColor());
+        applyTextStyle(
+                textElement,
+                renderTextInputValue(input, runtime.inputValue(), ownerPlayer(server, owner)),
+                textInputLineWidth(input),
+                background,
+                true,
+                input.opacity(),
+                "left"
+        );
+        runtime.setHovered(hovered);
+    }
+
+    public boolean updateTextInputValue(MinecraftServer server,
+                                        UUID owner,
+                                        WindowComponentRuntime runtime,
+                                        TextInputComponentDefinition input,
+                                        String value) {
+        if (!(runtime.displayElement() instanceof TextDisplayElement textElement)) {
+            return false;
+        }
+        runtime.setInputValue(value);
+        int background = runtime.hovered() ? parseArgb(input.hoverColor()) : parseArgb(input.backgroundColor());
+        Component rendered = renderTextInputValue(input, runtime.inputValue(), ownerPlayer(server, owner));
+        applyTextStyle(
+                textElement,
+                rendered,
+                textInputLineWidth(input),
+                background,
+                true,
+                input.opacity(),
+                "left"
+        );
+        return true;
     }
 
     public boolean refreshText(MinecraftServer server,
@@ -475,6 +536,11 @@ public final class DisplayEntityFactory {
         return resolvePlaceholders(Component.literal(label), owner);
     }
 
+    Component renderTextInputValue(TextInputComponentDefinition input, String value, ServerPlayer owner) {
+        String display = value == null || value.isEmpty() ? input.placeholder() : value;
+        return renderTextContent(display, input.color(), owner);
+    }
+
     private MutableComponent buildBaseText(String content, String color) {
         Component parsed;
         if ((content.startsWith("{") || content.startsWith("["))) {
@@ -603,6 +669,11 @@ public final class DisplayEntityFactory {
     static int buttonLineWidth(ButtonComponentDefinition button) {
         float normalizedFontSize = Math.max(button.fontSize(), 0.1f);
         return Math.max(1, Math.round(button.size().width() / (TEXT_PIXEL_SCALE * normalizedFontSize)));
+    }
+
+    static int textInputLineWidth(TextInputComponentDefinition input) {
+        float normalizedFontSize = Math.max(input.fontSize(), 0.1f);
+        return Math.max(1, Math.round(input.size().width() / (TEXT_PIXEL_SCALE * normalizedFontSize)));
     }
 
     private static String normalizeAlignment(String alignment) {
