@@ -280,9 +280,9 @@ public final class WindowComponentRuntime {
     }
 
     /**
-     * TextDisplay's background quad starts at its display origin and grows
-     * upward by one font line per wrapped line. Center the hitbox on that
-     * rendered quad so its top and bottom edges agree with the visible face.
+     * Interactive component origins are the lower edge of their configured box.
+     * Shift the hit center upward by half the configured height so rendering and
+     * raycast geometry share the same box coordinates.
      */
     public Vector3f hitCenterLocalPosition() {
         Vector3f center = new Vector3f(this.localPosition);
