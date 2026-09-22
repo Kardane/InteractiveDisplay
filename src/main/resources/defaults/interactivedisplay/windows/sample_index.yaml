@@ -186,10 +186,16 @@ components:
       y: -1.72
       z: 0.03
     size:
-      width: 1.35
-      height: 0.4
-    label: "닫기"
-    fontSize: 0.36
+      width: 0.42
+      height: 0.42
+    label: "×"
+    fontSize: 0.5
+    padding:
+      horizontal: 0.04
+      vertical: 0.04
+    alignment:
+      horizontal: center
+      vertical: center
     clickType: both
     hoverScale: 1.05
     backgroundColor: "#CC992222"
