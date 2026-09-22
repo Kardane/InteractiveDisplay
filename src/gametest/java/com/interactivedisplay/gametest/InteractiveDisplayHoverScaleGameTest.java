@@ -56,6 +56,12 @@ public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMet
             helper.assertTrue(runtime.backgroundElement() instanceof TextDisplayElement,
                     Component.literal("hover-scale fixture background runtime missing"));
             TextDisplayElement background = (TextDisplayElement) runtime.backgroundElement();
+            helper.assertTrue(runtime.renderedComponent().displayElements().size() == 2,
+                    Component.literal("button render bundle should contain two display elements"));
+            helper.assertTrue(runtime.renderedComponent().primaryDisplay() == element,
+                    Component.literal("button render bundle primary display mismatch"));
+            helper.assertTrue(runtime.renderedComponent().backgroundDisplay() == background,
+                    Component.literal("button render bundle background display mismatch"));
             Vector3f baseScale = runtime.baseScale();
             Vector3f backgroundBaseScale = runtime.baseScale(background);
             Vector3f baseTranslation = new Vector3f(element.getTranslation());
