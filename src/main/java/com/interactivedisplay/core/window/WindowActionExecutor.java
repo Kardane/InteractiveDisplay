@@ -1,6 +1,7 @@
 package com.interactivedisplay.core.window;
 
 import com.interactivedisplay.core.interaction.UiHitResult;
+import com.interactivedisplay.debug.DebugReason;
 import java.util.UUID;
 
 public interface WindowActionExecutor {
