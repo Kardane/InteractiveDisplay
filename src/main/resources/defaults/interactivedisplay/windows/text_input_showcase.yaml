@@ -1,0 +1,177 @@
+id: text_input_showcase
+size:
+  width: 4.8
+  height: 3.4
+offset:
+  forward: 2.6
+  horizontal: 0.0
+  vertical: 0.6
+components:
+  - id: background
+    type: panel
+    position:
+      x: 0.0
+      y: -1.25
+      z: 0.0
+    size:
+      width: 4.8
+      height: 3.4
+    backgroundColor: "#CC10243A"
+    children: []
+  - id: title
+    type: text
+    position:
+      x: 0.0
+      y: 1.2
+      z: 0.03
+    size:
+      width: 4.2
+      height: 0.35
+    content: "TEXT INPUT SHOWCASE"
+    fontSize: 0.5
+    color: "#9CF3D3"
+    alignment: center
+    background: "#00000000"
+  - id: hint
+    type: text
+    position:
+      x: 0.0
+      y: 0.88
+      z: 0.03
+    size:
+      width: 4.4
+      height: 0.25
+    content: "입력창을 클릭하면 Minecraft native dialog가 열립니다"
+    fontSize: 0.25
+    color: "#B9C7D6"
+    alignment: center
+    background: "#00000000"
+  - id: nickname_label
+    type: text
+    position:
+      x: -1.65
+      y: 0.62
+      z: 0.04
+    size:
+      width: 1.0
+      height: 0.22
+    content: "닉네임"
+    fontSize: 0.25
+    color: "#9CF3D3"
+    alignment: left
+    background: "#00000000"
+  - id: nickname
+    type: text_input
+    position:
+      x: 0.0
+      y: 0.30
+      z: 0.04
+    size:
+      width: 3.8
+      height: 0.42
+    placeholder: "[ 클릭해서 닉네임 입력 ]"
+    initialValue: ""
+    maxLength: 32
+    fontSize: 0.34
+    color: "#FFFFFF"
+    backgroundColor: "#0019384D"
+    hoverColor: "#EE286C8F"
+    clickType: both
+    dialogTitle: "닉네임 입력"
+    dialogLabel: "플레이어 이름"
+    confirmLabel: "적용"
+    cancelLabel: "취소"
+  - id: message_label
+    type: text
+    position:
+      x: -1.65
+      y: -0.20
+      z: 0.04
+    size:
+      width: 1.0
+      height: 0.22
+    content: "메시지"
+    fontSize: 0.25
+    color: "#9CF3D3"
+    alignment: left
+    background: "#00000000"
+  - id: nickname_click_area
+    type: panel
+    position:
+      x: 0.0
+      y: 0.30
+      z: 0.02
+    size:
+      width: 3.8
+      height: 0.42
+    backgroundColor: "#EE286C8F"
+    children: []
+  - id: message_click_area
+    type: panel
+    position:
+      x: 0.0
+      y: -0.52
+      z: 0.02
+    size:
+      width: 3.8
+      height: 0.42
+    backgroundColor: "#EE754A91"
+    children: []
+  - id: message
+    type: text_input
+    position:
+      x: 0.0
+      y: -0.52
+      z: 0.04
+    size:
+      width: 3.8
+      height: 0.42
+    placeholder: "메시지를 입력하세요"
+    initialValue: "Hello InteractiveDisplay"
+    maxLength: 64
+    fontSize: 0.34
+    color: "#FFFFFF"
+    backgroundColor: "#003D244C"
+    hoverColor: "#EE754A91"
+    clickType: both
+    dialogTitle: "메시지 입력"
+    dialogLabel: "표시할 메시지"
+    confirmLabel: "적용"
+    cancelLabel: "취소"
+  - id: home
+    type: button
+    position:
+      x: -1.1
+      y: -1.3
+      z: 0.04
+    size:
+      width: 1.35
+      height: 0.4
+    label: "홈"
+    fontSize: 0.34
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC174A7E"
+    hoverColor: "#EE2B78B5"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: sample_index
+  - id: close
+    type: button
+    position:
+      x: 1.1
+      y: -1.3
+      z: 0.04
+    size:
+      width: 1.35
+      height: 0.4
+    label: "닫기"
+    fontSize: 0.34
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC992222"
+    hoverColor: "#EECC4444"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: close_window

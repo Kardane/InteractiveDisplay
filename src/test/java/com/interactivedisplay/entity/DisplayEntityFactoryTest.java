@@ -134,6 +134,14 @@ class DisplayEntityFactoryTest {
     }
 
     @Test
+    void malformedJsonLookingTextShouldRenderLiterally() {
+        DisplayEntityFactory factory = new DisplayEntityFactory(new DebugRecorder(10), (player, text) -> text);
+
+        assertEquals("[ 클릭해서 닉네임 입력 ]", factory.renderTextContent("[ 클릭해서 닉네임 입력 ]", "#FFFFFF", null).getString());
+        assertEquals("{plain text}", factory.renderTextContent("{plain text}", "#FFFFFF", null).getString());
+    }
+
+    @Test
     void attachedRotationShouldMatchLogicalWindowBasis() {
         assertAttachedRotationMatchesBasis(PositionMode.PLAYER_VIEW, 0.0f, 30.0f);
         assertAttachedRotationMatchesBasis(PositionMode.PLAYER_VIEW, 90.0f, -25.0f);

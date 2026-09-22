@@ -170,10 +170,10 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             return false;
         }
 
-        UiHitResult hitResult = manager.findUiHit(player);
-        if (hitResult == null && clickType == ClickType.RIGHT && player.isShiftKeyDown()) {
-            hitResult = manager.findPlacementSurfaceHit(player);
-        }
+        boolean placementGesture = clickType == ClickType.RIGHT && player.isShiftKeyDown();
+        UiHitResult hitResult = placementGesture
+                ? manager.findPlacementSurfaceHit(player)
+                : manager.findUiHit(player);
         if (hitResult == null) {
             return false;
         }

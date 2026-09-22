@@ -1,5 +1,6 @@
 package com.interactivedisplay.entity;
 
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
@@ -543,8 +544,13 @@ public final class DisplayEntityFactory {
 
     private MutableComponent buildBaseText(String content, String color) {
         Component parsed;
-        if ((content.startsWith("{") || content.startsWith("["))) {
-            parsed = ComponentSerialization.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(content)).result().orElse(Component.literal(content));
+        if (content.startsWith("{") || content.startsWith("[")) {
+            try {
+                parsed = ComponentSerialization.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(content))
+                        .result().orElse(Component.literal(content));
+            } catch (JsonParseException exception) {
+                parsed = Component.literal(content);
+            }
         } else {
             parsed = Component.literal(content);
         }

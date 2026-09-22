@@ -312,17 +312,21 @@ final class WindowLifecycleCoordinator {
                 return ActionExecutionResult.failure(DebugReason.ACTION_EXECUTION_FAILED, "그룹 배치 추적은 PLAYER_FIXED만 지원");
             }
             if (this.placementController.isTracking(owner, context)) {
-                this.placementController.stop(owner);
                 WindowGroupDefinition groupDefinition = this.stateStore.groupDefinition(context.groupId());
                 WindowDefinition definition = this.stateStore.definition(groupInstance.currentWindowId());
-                if (groupDefinition == null || definition == null) {
+                WindowGroupEntry entry = groupDefinition == null ? null : groupDefinition.entry(groupInstance.currentWindowId());
+                if (definition == null || entry == null) {
                     return ActionExecutionResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, "배치 추적 커밋 대상 정의를 찾을 수 없음");
                 }
                 WindowPlacementController.GroupCommit commit = this.placementController.commitGroup(groupInstance, groupDefinition, definition, player.getEyePosition(), player.getYRot(), player.getXRot());
-                CreateWindowResult result = openGroupWindow(owner, context.groupId(), groupInstance.currentMode(), groupInstance.currentWindowId(), commit.baseAnchor(), commit.baseYaw(), commit.basePitch(), player);
-                return result.success()
-                        ? ActionExecutionResult.success("toggle_placement_tracking 처리 완료")
-                        : ActionExecutionResult.failure(result.reasonCode(), result.message());
+                this.placementController.stop(owner);
+                groupInstance.updateBasePlacement(commit.baseAnchor(), commit.baseYaw(), commit.basePitch());
+                WindowInstance instance = groupInstance.currentWindow();
+                instance.updateFixedPlacement(instance.fixedAnchor(),
+                        Mth.wrapDegrees(commit.baseYaw() + entry.orbit().yaw()),
+                        Mth.clamp(commit.basePitch() + entry.orbit().pitch(), -90.0f, 90.0f));
+                applyCommittedPlacement(player, instance, definition);
+                return ActionExecutionResult.success("toggle_placement_tracking 처리 완료");
             }
             this.placementController.start(owner, context);
             return ActionExecutionResult.success("toggle_placement_tracking 처리 완료");
@@ -333,16 +337,15 @@ final class WindowLifecycleCoordinator {
             return ActionExecutionResult.failure(DebugReason.NO_ACTIVE_WINDOW, "배치 추적 대상 창이 없음");
         }
         if (this.placementController.isTracking(owner, context)) {
-            this.placementController.stop(owner);
             WindowDefinition definition = this.stateStore.definition(context.windowId());
             if (definition == null) {
                 return ActionExecutionResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, "배치 추적 커밋 대상 창 정의를 찾을 수 없음");
             }
             WindowPlacementController.StandaloneCommit commit = this.placementController.commitStandalone(instance, definition, player.getEyePosition(), player.getYRot(), player.getXRot());
-            CreateWindowResult result = createWindow(player, context.windowId(), instance.positionMode(), commit.fixedAnchor(), commit.fixedYaw(), commit.fixedPitch());
-            return result.success()
-                    ? ActionExecutionResult.success("toggle_placement_tracking 처리 완료")
-                    : ActionExecutionResult.failure(result.reasonCode(), result.message());
+            this.placementController.stop(owner);
+            instance.updateFixedPlacement(commit.fixedAnchor(), commit.fixedYaw(), commit.fixedPitch());
+            applyCommittedPlacement(player, instance, definition);
+            return ActionExecutionResult.success("toggle_placement_tracking 처리 완료");
         }
         this.placementController.start(owner, context);
         return ActionExecutionResult.success("toggle_placement_tracking 처리 완료");
@@ -354,7 +357,15 @@ final class WindowLifecycleCoordinator {
 
     WindowPositionTracker.WindowTransformState resolveTransform(ServerPlayer player, WindowInstance instance, WindowDefinition definition) {
         if (!this.placementController.isTracking(player.getUUID(), instance)) {
-            return this.positionTracker.resolve(player, instance.positionMode(), definition.offset(), instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
+            WindowOffset offset = definition.offset();
+            if (instance.groupId() != null) {
+                WindowGroupDefinition groupDefinition = this.stateStore.groupDefinition(instance.groupId());
+                WindowGroupEntry entry = groupDefinition == null ? null : groupDefinition.entry(instance.windowId());
+                if (entry != null) {
+                    offset = offset.plus(entry.offset());
+                }
+            }
+            return this.positionTracker.resolve(player, instance.positionMode(), offset, instance.fixedAnchor(), instance.fixedYaw(), instance.fixedPitch());
         }
         if (instance.groupId() != null) {
             WindowGroupInstance groupInstance = this.stateStore.findActiveGroup(player.getUUID(), instance.groupId());
@@ -364,6 +375,13 @@ final class WindowLifecycleCoordinator {
             }
         }
         return this.placementController.previewStandalone(instance, definition, player.getEyePosition(), player.getYRot(), player.getXRot());
+    }
+
+    private void applyCommittedPlacement(ServerPlayer player, WindowInstance instance, WindowDefinition definition) {
+        WindowPositionTracker.WindowTransformState state = resolveTransform(player, instance, definition);
+        moveWindow(instance, state, player.level());
+        instance.updateTarget(state.anchor(), state.yaw(), state.pitch());
+        instance.updateTransform(state.anchor(), state.yaw(), state.pitch(), this.server.getTickCount());
     }
 
     void moveWindow(WindowInstance instance,

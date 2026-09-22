@@ -100,6 +100,7 @@ run/config/interactivedisplay/
     ├── text_animation_fade_smooth.yaml
     ├── text_animation_fade_cut.yaml
     ├── window_mode_conversion.yaml
+    ├── text_input_showcase.yaml
     ├── main_menu.yaml
     └── main_menu2.yaml
 ```
@@ -108,7 +109,7 @@ Defaults bundled in the mod are copied only when the corresponding config file d
 
 ### Bundled sample windows
 
-The `sample_index` window is the entry point for the bundled examples. It links to the requested five sample areas:
+The `sample_index` window is the entry point for the bundled examples. It links to the bundled sample areas:
 
 | Sample | Window IDs | What it demonstrates |
 | --- | --- | --- |
@@ -117,6 +118,7 @@ The `sample_index` window is the entry point for the bundled examples. It links 
 | Button feature group | `button_showcase`, `button_showcase_secondary` | related-window navigation, click types, mode switching, and placement tracking |
 | Independent text animations | `text_animation_showcase`, `text_animation_typewriter`, `text_animation_fade_linear`, `text_animation_fade_smooth`, `text_animation_fade_cut` | one animation preview per window |
 | Window mode conversion | `window_mode_conversion` | FIXED, PLAYER_FIXED, and PLAYER_VIEW conversion on the same window |
+| Text input dialog | `text_input_showcase` | native Minecraft text dialog, initial value, placeholder, max length, and player-local submitted value |
 
 Open the complete sample group with:
 
@@ -356,9 +358,9 @@ Supported action types:
 | `callback` | `id` |
 
 While holding the InteractiveDisplay pointer, Shift+right-clicking a panel background invokes
-`toggle_placement_tracking`. Buttons keep their configured click behavior when they overlap the
-background. Placement tracking remains available for `FIXED` and `PLAYER_FIXED`; `PLAYER_VIEW`
-continues to follow the player's view directly.
+`toggle_placement_tracking`, including when a button or text input overlaps the panel. This
+gesture does not activate the overlapping control. Placement tracking remains available for
+`FIXED` and `PLAYER_FIXED`; `PLAYER_VIEW` continues to follow the player's view directly.
 
 ## Command whitelist
 

@@ -19,9 +19,9 @@ public final class WindowInstance {
     private final String groupWindowId;
     private final ResourceKey<Level> worldKey;
     private final PositionMode positionMode;
-    private final Vec3 fixedAnchor;
-    private final float fixedYaw;
-    private final float fixedPitch;
+    private Vec3 fixedAnchor;
+    private float fixedYaw;
+    private float fixedPitch;
     private final VirtualWindowHolder virtualHolder;
     private final Map<String, WindowComponentRuntime> components = new LinkedHashMap<>();
     private Vec3 targetAnchor;
@@ -120,6 +120,12 @@ public final class WindowInstance {
 
     public float fixedPitch() {
         return this.fixedPitch;
+    }
+
+    public void updateFixedPlacement(Vec3 fixedAnchor, float fixedYaw, float fixedPitch) {
+        this.fixedAnchor = fixedAnchor;
+        this.fixedYaw = fixedYaw;
+        this.fixedPitch = fixedPitch;
     }
 
     public VirtualWindowHolder virtualHolder() {

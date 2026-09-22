@@ -1,7 +1,7 @@
 id: sample_index
 size:
   width: 5.4
-  height: 4.0
+  height: 4.8
 offset:
   forward: 2.6
   horizontal: 0.0
@@ -11,18 +11,18 @@ components:
     type: panel
     position:
       x: 0.0
-      y: -1.5
+      y: -1.9
       z: 0.0
     size:
       width: 5.4
-      height: 4.0
+      height: 4.8
     backgroundColor: "#CC10243A"
     children: []
   - id: title
     type: text
     position:
       x: 0.0
-      y: 1.35
+      y: 1.65
       z: 0.02
     size:
       width: 4.8
@@ -36,7 +36,7 @@ components:
     type: text
     position:
       x: 0.0
-      y: 1.02
+      y: 1.33
       z: 0.02
     size:
       width: 4.8
@@ -50,7 +50,7 @@ components:
     type: button
     position:
       x: -1.35
-      y: 0.5
+      y: 0.72
       z: 0.03
     size:
       width: 2.2
@@ -69,7 +69,7 @@ components:
     type: button
     position:
       x: 1.35
-      y: 0.5
+      y: 0.72
       z: 0.03
     size:
       width: 2.2
@@ -88,7 +88,7 @@ components:
     type: button
     position:
       x: -1.35
-      y: -0.12
+      y: 0.10
       z: 0.03
     size:
       width: 2.2
@@ -107,7 +107,7 @@ components:
     type: button
     position:
       x: 1.35
-      y: -0.12
+      y: 0.10
       z: 0.03
     size:
       width: 2.2
@@ -126,7 +126,7 @@ components:
     type: button
     position:
       x: -1.35
-      y: -0.74
+      y: -0.52
       z: 0.03
     size:
       width: 2.2
@@ -141,11 +141,30 @@ components:
     action:
       type: open_window
       target: window_mode_conversion
+  - id: input
+    type: button
+    position:
+      x: 1.35
+      y: -0.52
+      z: 0.03
+    size:
+      width: 2.2
+      height: 0.45
+    label: "6  텍스트 입력"
+    fontSize: 0.32
+    clickType: both
+    hoverScale: 1.05
+    backgroundColor: "#CC2F6F5E"
+    hoverColor: "#EE4CA989"
+    clickSound: "minecraft:ui.button.click"
+    action:
+      type: open_window
+      target: text_input_showcase
   - id: legacy
     type: button
     position:
       x: 1.35
-      y: -0.74
+      y: -1.14
       z: 0.03
     size:
       width: 2.2
@@ -164,7 +183,7 @@ components:
     type: button
     position:
       x: 0.0
-      y: -1.35
+      y: -1.72
       z: 0.03
     size:
       width: 1.35

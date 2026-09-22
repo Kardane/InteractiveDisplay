@@ -53,6 +53,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         helper.assertTrue(windows.contains("button_showcase"), Component.literal("button_showcase was not loaded"));
         helper.assertTrue(windows.contains("text_animation_showcase"), Component.literal("text_animation_showcase was not loaded"));
         helper.assertTrue(windows.contains("window_mode_conversion"), Component.literal("window_mode_conversion was not loaded"));
+        helper.assertTrue(windows.contains("text_input_showcase"), Component.literal("text_input_showcase was not loaded"));
         helper.assertTrue(mod.windowManager().loadedGroupIds().contains("menu_group"), Component.literal("default menu_group was not loaded"));
         helper.assertTrue(mod.windowManager().loadedGroupIds().contains("sample_group"), Component.literal("default sample_group was not loaded"));
         helper.assertTrue(mod.windowManager().loadedGroupIds().contains("button_showcase_group"), Component.literal("default button_showcase_group was not loaded"));

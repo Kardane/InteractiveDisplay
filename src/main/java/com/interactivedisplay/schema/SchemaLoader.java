@@ -41,6 +41,7 @@ public final class SchemaLoader {
     private static final String DEFAULT_TEXT_ANIMATION_SMOOTH_FILE = "text_animation_fade_smooth.yaml";
     private static final String DEFAULT_TEXT_ANIMATION_CUT_FILE = "text_animation_fade_cut.yaml";
     private static final String DEFAULT_WINDOW_MODE_CONVERSION_FILE = "window_mode_conversion.yaml";
+    private static final String DEFAULT_TEXT_INPUT_SHOWCASE_FILE = "text_input_showcase.yaml";
     private static final String DEFAULT_GROUP_FILE = "menu_group.yaml";
     private static final String DEFAULT_SAMPLE_GROUP_FILE = "sample_group.yaml";
     private static final String DEFAULT_BUTTON_SHOWCASE_GROUP_FILE = "button_showcase_group.yaml";
@@ -343,6 +344,7 @@ public final class SchemaLoader {
         copyDefaultResource("windows/" + DEFAULT_TEXT_ANIMATION_SMOOTH_FILE);
         copyDefaultResource("windows/" + DEFAULT_TEXT_ANIMATION_CUT_FILE);
         copyDefaultResource("windows/" + DEFAULT_WINDOW_MODE_CONVERSION_FILE);
+        copyDefaultResource("windows/" + DEFAULT_TEXT_INPUT_SHOWCASE_FILE);
         copyDefaultResource("windows/" + DEFAULT_REMOTE_EXAMPLE_FILE);
         copyDefaultResource("groups/" + DEFAULT_GROUP_FILE);
         copyDefaultResource("groups/" + DEFAULT_SAMPLE_GROUP_FILE);

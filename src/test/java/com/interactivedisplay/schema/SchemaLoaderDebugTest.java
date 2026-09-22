@@ -46,6 +46,7 @@ class SchemaLoaderDebugTest {
                 "windows/text_animation_fade_smooth.yaml",
                 "windows/text_animation_fade_cut.yaml",
                 "windows/window_mode_conversion.yaml",
+                "windows/text_input_showcase.yaml",
                 "windows/gallery_remote.example.yaml.disabled",
                 "groups/menu_group.yaml",
                 "groups/sample_group.yaml",

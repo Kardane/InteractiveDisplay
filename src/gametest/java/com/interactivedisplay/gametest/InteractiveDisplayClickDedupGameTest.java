@@ -11,6 +11,7 @@ import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
+import com.interactivedisplay.core.window.WindowNavigationContext;
 import com.interactivedisplay.entity.VirtualWindowHolder;
 import com.interactivedisplay.item.InteractiveDisplayItems;
 import java.lang.reflect.Method;
@@ -46,12 +47,26 @@ public final class InteractiveDisplayClickDedupGameTest implements CustomTestMet
                 LayoutMode.ABSOLUTE,
                 List.of()
         );
+        ButtonComponentDefinition overlappingButton = new ButtonComponentDefinition(
+                "overlapping_button",
+                new ComponentPosition(0.0f, -0.1f, 0.04f),
+                new ComponentSize(1.0f, 0.4f),
+                true,
+                1.0f,
+                "Close",
+                1.0f,
+                "#AA222222",
+                "#CC444444",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow()
+        );
         WindowDefinition definition = new WindowDefinition(
                 windowId,
                 new ComponentSize(3.0f, 2.0f),
                 new WindowOffset(2.0f, 0.0f, 0.0f),
                 LayoutMode.ABSOLUTE,
-                List.of(background)
+                List.of(background, overlappingButton)
         );
 
         helper.assertTrue(manager.registerProgrammaticWindow(definition),
@@ -64,12 +79,14 @@ public final class InteractiveDisplayClickDedupGameTest implements CustomTestMet
 
         var opened = manager.createWindow(player, windowId, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
         helper.assertTrue(opened.success(), Component.literal("failed to open panel placement fixture: " + opened.message()));
-        helper.assertTrue(manager.findUiHit(player) == null,
-                Component.literal("background panel unexpectedly became a regular button hit"));
+        helper.assertTrue(manager.findUiHit(player) != null,
+                Component.literal("overlapping button is not raycastable"));
         helper.assertTrue(manager.findPlacementSurfaceHit(player) != null,
                 Component.literal("background panel is not raycastable as a placement surface"));
         helper.assertTrue(app.consumeUiRightClick(player),
-                Component.literal("shift-right-click on background panel was not consumed"));
+                Component.literal("shift-right-click over button was not consumed as placement"));
+        helper.assertTrue(manager.findActiveWindow(player.getUUID(), windowId) != null,
+                Component.literal("shift-right-click activated the overlapping close button"));
 
         player.setYRot(30.0f);
         player.setYHeadRot(30.0f);
@@ -81,8 +98,102 @@ public final class InteractiveDisplayClickDedupGameTest implements CustomTestMet
         helper.assertTrue(Math.abs(moved.currentPitch() - 60.0f) < 0.001f,
                 Component.literal("placement tracking did not clamp player pitch to 60 degrees"));
 
+        var originalRuntime = moved.runtime("overlapping_button");
+        var commit = manager.togglePlacementTracking(player.getUUID(), new WindowNavigationContext(
+                windowId, null, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f));
+        helper.assertTrue(commit.success(), Component.literal("placement commit failed: " + commit.message()));
+        helper.assertTrue(manager.findActiveWindow(player.getUUID(), windowId) == moved,
+                Component.literal("placement commit recreated the window"));
+        helper.assertTrue(moved.runtime("overlapping_button") == originalRuntime,
+                Component.literal("placement commit recreated component runtime"));
+        helper.assertTrue(Math.abs(moved.fixedYaw() - 30.0f) < 0.001f && Math.abs(moved.fixedPitch() - 60.0f) < 0.001f,
+                Component.literal("placement commit did not keep the preview rotation"));
+
         manager.removeWindow(player.getUUID(), windowId);
         VirtualWindowHolder.destroyAllPending(server);
+        helper.succeed();
+    }
+
+    @SuppressWarnings("removal")
+    @GameTest
+    public void textInputShowcaseShouldSpawnWithBracketedPlaceholder(GameTestHelper helper) {
+        var manager = InteractiveDisplay.instance().windowManager();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+
+        var opened = manager.createWindow(player, "text_input_showcase", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+        helper.assertTrue(opened.success(), Component.literal("text input showcase failed to spawn: " + opened.message()));
+        helper.assertTrue(manager.findActiveWindow(player.getUUID(), "text_input_showcase").runtime("nickname") != null,
+                Component.literal("nickname input is missing"));
+
+        manager.removeWindow(player.getUUID(), "text_input_showcase");
+        VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
+        helper.succeed();
+    }
+
+    @SuppressWarnings("removal")
+    @GameTest
+    public void groupPlacementCommitShouldKeepCurrentWindowAndRuntimes(GameTestHelper helper) {
+        var manager = InteractiveDisplay.instance().windowManager();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setYRot(0.0f);
+        player.setXRot(0.0f);
+
+        var opened = manager.createGroup(player, "sample_group", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+        helper.assertTrue(opened.success(), Component.literal("sample group failed to open: " + opened.message()));
+        var group = manager.findActiveGroup(player.getUUID(), "sample_group");
+        var window = group.currentWindow();
+        var runtime = window.runtime("title");
+        var context = new WindowNavigationContext(window.windowId(), group.groupId(), PositionMode.PLAYER_FIXED,
+                group.baseAnchor(), group.baseYaw(), group.basePitch());
+
+        helper.assertTrue(manager.togglePlacementTracking(player.getUUID(), context).success(),
+                Component.literal("group placement tracking did not start"));
+        player.setYRot(25.0f);
+        player.setXRot(15.0f);
+        helper.assertTrue(manager.togglePlacementTracking(player.getUUID(), context).success(),
+                Component.literal("group placement tracking did not commit"));
+        helper.assertTrue(manager.findActiveGroup(player.getUUID(), "sample_group") == group,
+                Component.literal("placement commit recreated the group"));
+        helper.assertTrue(group.currentWindow() == window && window.runtime("title") == runtime,
+                Component.literal("placement commit recreated the group window or runtime"));
+
+        manager.removeGroup(player.getUUID(), "sample_group");
+        VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
+        helper.succeed();
+    }
+
+    @SuppressWarnings("removal")
+    @GameTest
+    public void placementCommitShouldNotRestartTextAnimation(GameTestHelper helper) {
+        var manager = InteractiveDisplay.instance().windowManager();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setYRot(0.0f);
+        player.setXRot(0.0f);
+        String windowId = "text_animation_typewriter";
+
+        var opened = manager.createWindow(player, windowId, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+        helper.assertTrue(opened.success(), Component.literal("animated window failed to open: " + opened.message()));
+        var window = manager.findActiveWindow(player.getUUID(), windowId);
+        var animatedText = window.runtime("animated_text");
+        long animationGeneration = animatedText.animationGeneration();
+        helper.assertTrue(animatedText.activeAnimationCount() > 0,
+                Component.literal("typewriter animation was not configured"));
+        var context = new WindowNavigationContext(windowId, null, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+
+        helper.assertTrue(manager.togglePlacementTracking(player.getUUID(), context).success(),
+                Component.literal("animated window placement did not start"));
+        player.setYRot(20.0f);
+        helper.assertTrue(manager.togglePlacementTracking(player.getUUID(), context).success(),
+                Component.literal("animated window placement did not commit"));
+        helper.assertTrue(manager.findActiveWindow(player.getUUID(), windowId) == window,
+                Component.literal("animated window was recreated"));
+        helper.assertTrue(window.runtime("animated_text") == animatedText
+                        && animatedText.animationGeneration() == animationGeneration
+                        && animatedText.activeAnimationCount() > 0,
+                Component.literal("typewriter animation restarted on placement commit"));
+
+        manager.removeWindow(player.getUUID(), windowId);
+        VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
         helper.succeed();
     }
 

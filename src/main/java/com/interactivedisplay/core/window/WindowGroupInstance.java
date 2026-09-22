@@ -7,9 +7,9 @@ import net.minecraft.world.phys.Vec3;
 public final class WindowGroupInstance {
     private final UUID owner;
     private final String groupId;
-    private final Vec3 baseAnchor;
-    private final float baseYaw;
-    private final float basePitch;
+    private Vec3 baseAnchor;
+    private float baseYaw;
+    private float basePitch;
     private PositionMode currentMode;
     private String currentWindowId;
     private WindowInstance currentWindow;
@@ -50,6 +50,12 @@ public final class WindowGroupInstance {
 
     public float basePitch() {
         return this.basePitch;
+    }
+
+    public void updateBasePlacement(Vec3 baseAnchor, float baseYaw, float basePitch) {
+        this.baseAnchor = baseAnchor;
+        this.baseYaw = baseYaw;
+        this.basePitch = basePitch;
     }
 
     public PositionMode currentMode() {
