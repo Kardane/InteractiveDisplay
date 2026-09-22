@@ -14,7 +14,9 @@ public interface WindowActionExecutor {
 
     ActionExecutionResult executeCallback(UUID owner, String windowId, String componentId, String callbackId);
 
-    ActionExecutionResult openTextInput(UUID owner, UiHitResult hitResult);
+    default ActionExecutionResult openTextInput(UUID owner, UiHitResult hitResult) {
+        return ActionExecutionResult.failure(DebugReason.ACTION_EXECUTION_FAILED, "text input action is not supported");
+    }
 
     ActionExecutionResult togglePlacementTracking(UUID owner, WindowNavigationContext context);
 }
