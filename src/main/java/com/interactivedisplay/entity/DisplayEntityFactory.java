@@ -163,7 +163,7 @@ public final class DisplayEntityFactory {
                         button.opacity(),
                         billboard(positionMode),
                         button.fontSize(),
-                        "center",
+                        button.horizontalAlignment().serializedName(),
                         new Vector3f()
                 );
                 backgroundElement = buttonBackground;
@@ -209,18 +209,20 @@ public final class DisplayEntityFactory {
             } else if (virtualElement instanceof MapDisplayElement mapElement) {
                 positionMapElement(mapElement, position, positionMode, yaw, pitch);
             }
-            if (backgroundElement != null) {
-                holder.addElement(backgroundElement);
+            RenderedComponent renderedComponent = backgroundElement != null
+                    ? RenderedComponent.composite(element, backgroundElement)
+                    : element != null
+                    ? RenderedComponent.single(element)
+                    : RenderedComponent.virtualOnly(virtualElement);
+            for (VirtualElement renderedElement : renderedComponent.virtualElements()) {
+                holder.addElement(renderedElement);
             }
-            holder.addElement(virtualElement);
             return new WindowComponentRuntime(
                     world.dimension(),
                     component,
                     new Vector3f(),
-                    element,
-                    canvas,
-                    virtualElement,
-                    backgroundElement
+                    renderedComponent,
+                    canvas
             );
         } catch (Exception exception) {
             throw spawnFailure(owner, component.id(), world, position, exception);
@@ -737,13 +739,19 @@ public final class DisplayEntityFactory {
 
     static Vector3f buttonLabelLocalOffset(ButtonComponentDefinition button) {
         float labelHeight = estimatedButtonLabelHeight(button);
-        float verticalOffset = Math.max(0.0f, (button.size().height() - labelHeight) / 2.0f);
+        float contentHeight = button.size().height() - button.padding().vertical() * 2.0f;
+        float verticalOffset = switch (button.verticalAlignment()) {
+            case BOTTOM -> button.padding().vertical();
+            case TOP -> button.size().height() - button.padding().vertical() - labelHeight;
+            case CENTER -> button.padding().vertical() + Math.max(0.0f, (contentHeight - labelHeight) / 2.0f);
+        };
+        verticalOffset = Math.max(button.padding().vertical(), verticalOffset);
         return new Vector3f(0.0f, verticalOffset, BUTTON_LABEL_Z_OFFSET);
     }
 
     private static float estimatedButtonLabelHeight(ButtonComponentDefinition button) {
         float fontSize = Math.max(button.fontSize(), 0.1f);
-        float availableWidth = Math.max(button.size().width(), TEXT_PIXEL_SCALE * fontSize);
+        float availableWidth = Math.max(buttonContentWidth(button), TEXT_PIXEL_SCALE * fontSize);
         int lineCount = estimatedWrappedLineCount(button.label(), fontSize, availableWidth);
         return lineCount * TEXT_LINE_HEIGHT_PIXELS * TEXT_PIXEL_SCALE * fontSize;
     }
@@ -811,9 +819,13 @@ public final class DisplayEntityFactory {
                 || Character.getType(codePoint) == Character.OTHER_SYMBOL;
     }
 
+    static float buttonContentWidth(ButtonComponentDefinition button) {
+        return button.size().width() - button.padding().horizontal() * 2.0f;
+    }
+
     static int buttonLineWidth(ButtonComponentDefinition button) {
         float normalizedFontSize = Math.max(button.fontSize(), 0.1f);
-        return Math.max(1, Math.round(button.size().width() / (TEXT_PIXEL_SCALE * normalizedFontSize)));
+        return Math.max(1, Math.round(buttonContentWidth(button) / (TEXT_PIXEL_SCALE * normalizedFontSize)));
     }
 
     static int textInputLineWidth(TextInputComponentDefinition input) {
