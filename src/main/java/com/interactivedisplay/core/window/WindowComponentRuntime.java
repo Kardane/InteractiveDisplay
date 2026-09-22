@@ -8,12 +8,15 @@ import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.component.TextInputComponentDefinition;
+import com.interactivedisplay.entity.RenderedComponent;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
@@ -24,13 +27,9 @@ public final class WindowComponentRuntime {
     private final ResourceKey<Level> worldKey;
     private ComponentDefinition definition;
     private Vector3f localPosition;
-    private final DisplayElement displayElement;
-    private final VirtualElement virtualElement;
-    private final DisplayElement backgroundElement;
-    private final Vector3f baseScale;
-    private final Vector3f baseTranslation;
-    private final Vector3f backgroundBaseScale;
-    private final Vector3f backgroundBaseTranslation;
+    private final RenderedComponent renderedComponent;
+    private final Map<DisplayElement, Vector3f> baseScales = new IdentityHashMap<>();
+    private final Map<DisplayElement, Vector3f> baseTranslations = new IdentityHashMap<>();
     private PlayerCanvas mapCanvas;
     private boolean hovered;
     private String inputValue;
@@ -44,7 +43,7 @@ public final class WindowComponentRuntime {
                                   Vector3f localPosition,
                                   DisplayElement displayElement,
                                   PlayerCanvas mapCanvas) {
-        this(worldKey, definition, localPosition, displayElement, mapCanvas, displayElement, null);
+        this(worldKey, definition, localPosition, RenderedComponent.single(displayElement), mapCanvas);
     }
 
     public WindowComponentRuntime(ResourceKey<Level> worldKey,
@@ -53,7 +52,13 @@ public final class WindowComponentRuntime {
                                   DisplayElement displayElement,
                                   PlayerCanvas mapCanvas,
                                   VirtualElement virtualElement) {
-        this(worldKey, definition, localPosition, displayElement, mapCanvas, virtualElement, null);
+        this(
+                worldKey,
+                definition,
+                localPosition,
+                RenderedComponent.of(displayElement, virtualElement, null),
+                mapCanvas
+        );
     }
 
     public WindowComponentRuntime(ResourceKey<Level> worldKey,
@@ -63,18 +68,32 @@ public final class WindowComponentRuntime {
                                   PlayerCanvas mapCanvas,
                                   VirtualElement virtualElement,
                                   DisplayElement backgroundElement) {
+        this(
+                worldKey,
+                definition,
+                localPosition,
+                RenderedComponent.of(displayElement, virtualElement, backgroundElement),
+                mapCanvas
+        );
+    }
+
+    public WindowComponentRuntime(ResourceKey<Level> worldKey,
+                                  ComponentDefinition definition,
+                                  Vector3f localPosition,
+                                  RenderedComponent renderedComponent,
+                                  PlayerCanvas mapCanvas) {
         this.worldKey = worldKey;
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
-        this.displayElement = displayElement;
-        this.virtualElement = virtualElement;
-        this.backgroundElement = backgroundElement;
+        this.renderedComponent = renderedComponent == null
+                ? RenderedComponent.of(null, null, null)
+                : renderedComponent;
         this.mapCanvas = mapCanvas;
         this.inputValue = definition instanceof TextInputComponentDefinition input ? input.initialValue() : null;
-        this.baseScale = displayElement == null ? new Vector3f(1.0f) : new Vector3f(displayElement.getScale());
-        this.baseTranslation = displayElement == null ? new Vector3f() : new Vector3f(displayElement.getTranslation());
-        this.backgroundBaseScale = backgroundElement == null ? new Vector3f(1.0f) : new Vector3f(backgroundElement.getScale());
-        this.backgroundBaseTranslation = backgroundElement == null ? new Vector3f() : new Vector3f(backgroundElement.getTranslation());
+        for (DisplayElement display : this.renderedComponent.displayElements()) {
+            this.baseScales.put(display, new Vector3f(display.getScale()));
+            this.baseTranslations.put(display, new Vector3f(display.getTranslation()));
+        }
     }
 
     public ResourceKey<Level> worldKey() {
@@ -101,48 +120,42 @@ public final class WindowComponentRuntime {
         return new Vector3f(this.localPosition);
     }
 
+    public RenderedComponent renderedComponent() {
+        return this.renderedComponent;
+    }
+
     public DisplayElement displayElement() {
-        return this.displayElement;
+        return this.renderedComponent.primaryDisplay();
     }
 
     public VirtualElement virtualElement() {
-        return this.virtualElement;
+        return this.renderedComponent.primaryVirtual();
     }
 
     public DisplayElement backgroundElement() {
-        return this.backgroundElement;
+        return this.renderedComponent.backgroundDisplay();
     }
 
     public List<VirtualElement> virtualElements() {
-        if (this.virtualElement == null) {
-            return this.backgroundElement == null ? List.of() : List.of(this.backgroundElement);
-        }
-        if (this.backgroundElement == null || this.backgroundElement == this.virtualElement) {
-            return List.of(this.virtualElement);
-        }
-        return List.of(this.backgroundElement, this.virtualElement);
+        return this.renderedComponent.virtualElements();
     }
 
     public Vector3f baseScale() {
-        return new Vector3f(this.baseScale);
+        return baseScale(displayElement());
     }
 
     public Vector3f baseTranslation() {
-        return new Vector3f(this.baseTranslation);
+        return baseTranslation(displayElement());
     }
 
     public Vector3f baseScale(DisplayElement element) {
-        if (element != null && element == this.backgroundElement) {
-            return new Vector3f(this.backgroundBaseScale);
-        }
-        return baseScale();
+        Vector3f scale = this.baseScales.get(element);
+        return scale == null ? new Vector3f(1.0f) : new Vector3f(scale);
     }
 
     public Vector3f baseTranslation(DisplayElement element) {
-        if (element != null && element == this.backgroundElement) {
-            return new Vector3f(this.backgroundBaseTranslation);
-        }
-        return baseTranslation();
+        Vector3f translation = this.baseTranslations.get(element);
+        return translation == null ? new Vector3f() : new Vector3f(translation);
     }
 
     public boolean shouldRefreshText(long tick, int refreshInterval) {
