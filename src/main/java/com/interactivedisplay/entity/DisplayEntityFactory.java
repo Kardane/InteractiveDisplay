@@ -67,6 +67,7 @@ public final class DisplayEntityFactory {
     private static final float TEXT_PIXEL_SCALE = 0.025f;
     private static final float TEXT_LINE_HEIGHT_PIXELS = 10.0f;
     private static final float TEXT_SPACE_ADVANCE_PIXELS = 4.0f;
+    private static final float TEXT_BACKGROUND_WIDTH_PADDING_PIXELS = 1.0f;
     private static final float BUTTON_LABEL_Z_OFFSET = 0.001f;
     private static final CoordinateTransformer COORDINATE_TRANSFORMER = new CoordinateTransformer();
 
@@ -778,26 +779,36 @@ public final class DisplayEntityFactory {
         if (Character.isWhitespace(codePoint)) {
             return 0.35f;
         }
-        if (codePoint <= 0x7F && Character.isLetterOrDigit(codePoint)) {
+        if (isAsciiLetterOrDigit(codePoint)) {
             return 0.62f;
         }
-        if (codePoint <= 0x7F) {
+        if (isAsciiPunctuation(codePoint)) {
             return 0.5f;
         }
-        if (codePoint >= 0x1100
-                && (codePoint <= 0x115F
-                || codePoint == 0x2329
-                || codePoint == 0x232A
-                || (codePoint >= 0x2E80 && codePoint <= 0xA4CF)
-                || (codePoint >= 0xAC00 && codePoint <= 0xD7A3)
-                || (codePoint >= 0xF900 && codePoint <= 0xFAFF)
-                || (codePoint >= 0xFE10 && codePoint <= 0xFE19)
-                || (codePoint >= 0xFE30 && codePoint <= 0xFE6F)
-                || (codePoint >= 0xFF00 && codePoint <= 0xFF60)
-                || (codePoint >= 0xFFE0 && codePoint <= 0xFFE6))) {
+        if (isWideGlyph(codePoint)) {
             return 1.0f;
         }
         return 0.8f;
+    }
+
+    private static boolean isAsciiLetterOrDigit(int codePoint) {
+        return codePoint <= 0x7F && Character.isLetterOrDigit(codePoint);
+    }
+
+    private static boolean isAsciiPunctuation(int codePoint) {
+        return codePoint <= 0x7F && !Character.isLetterOrDigit(codePoint) && !Character.isWhitespace(codePoint);
+    }
+
+    private static boolean isWideGlyph(int codePoint) {
+        Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
+        return block == Character.UnicodeBlock.HANGUL_SYLLABLES
+                || block == Character.UnicodeBlock.HANGUL_JAMO
+                || block == Character.UnicodeBlock.HANGUL_COMPATIBILITY_JAMO
+                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
+                || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
+                || block == Character.UnicodeBlock.ENCLOSED_CJK_LETTERS_AND_MONTHS
+                || Character.getType(codePoint) == Character.OTHER_SYMBOL;
     }
 
     static int buttonLineWidth(ButtonComponentDefinition button) {
@@ -831,7 +842,8 @@ public final class DisplayEntityFactory {
         float spaceWidthAtScaleY = TEXT_PIXEL_SCALE * TEXT_SPACE_ADVANCE_PIXELS * scaleY;
         int spaceCount = Math.max(1, (int) Math.ceil(targetWidth / spaceWidthAtScaleY));
         int lineWidth = Math.max(1, Math.round(spaceCount * TEXT_SPACE_ADVANCE_PIXELS));
-        float scaleX = targetWidth / (lineWidth * TEXT_PIXEL_SCALE);
+        float backgroundPixelWidth = lineWidth + TEXT_BACKGROUND_WIDTH_PADDING_PIXELS;
+        float scaleX = targetWidth / (backgroundPixelWidth * TEXT_PIXEL_SCALE);
 
         String row = " ".repeat(spaceCount);
         StringJoiner joiner = new StringJoiner("\n");
