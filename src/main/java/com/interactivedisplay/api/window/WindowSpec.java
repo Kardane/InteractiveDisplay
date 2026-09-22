@@ -75,6 +75,11 @@ public final class WindowSpec {
         TOP
     }
 
+    public enum ButtonSizeMode {
+        FIXED,
+        CONTENT
+    }
+
     public enum TransitionType {
         NONE,
         SCALE,
@@ -98,6 +103,17 @@ public final class WindowSpec {
             if (width <= 0.0f || height <= 0.0f) {
                 throw new IllegalArgumentException("size must be positive");
             }
+        }
+    }
+
+    public record ButtonSizing(ButtonSizeMode width, ButtonSizeMode height) {
+        public ButtonSizing {
+            width = width == null ? ButtonSizeMode.FIXED : width;
+            height = height == null ? ButtonSizeMode.FIXED : height;
+        }
+
+        public static ButtonSizing fixed() {
+            return new ButtonSizing(ButtonSizeMode.FIXED, ButtonSizeMode.FIXED);
         }
     }
 
@@ -188,7 +204,8 @@ public final class WindowSpec {
             float hoverScale,
             ButtonPadding padding,
             HorizontalAlignment horizontalAlignment,
-            VerticalAlignment verticalAlignment
+            VerticalAlignment verticalAlignment,
+            ButtonSizing sizing
     ) implements ComponentSpec {
         public ButtonSpec(
                 String id,
@@ -207,7 +224,8 @@ public final class WindowSpec {
         ) {
             this(
                     id, position, size, visible, opacity, label, fontSize, backgroundColor, hoverColor, clickSound,
-                    click, action, hoverScale, ButtonPadding.zero(), HorizontalAlignment.CENTER, VerticalAlignment.CENTER
+                    click, action, hoverScale, ButtonPadding.zero(), HorizontalAlignment.CENTER, VerticalAlignment.CENTER,
+                    ButtonSizing.fixed()
             );
         }
 
@@ -225,8 +243,12 @@ public final class WindowSpec {
             padding = padding == null ? ButtonPadding.zero() : padding;
             horizontalAlignment = horizontalAlignment == null ? HorizontalAlignment.CENTER : horizontalAlignment;
             verticalAlignment = verticalAlignment == null ? VerticalAlignment.CENTER : verticalAlignment;
-            if (size.width() <= padding.horizontal() * 2.0f || size.height() <= padding.vertical() * 2.0f) {
-                throw new IllegalArgumentException("button padding must leave positive content size");
+            sizing = sizing == null ? ButtonSizing.fixed() : sizing;
+            if (sizing.width() == ButtonSizeMode.FIXED && size.width() <= padding.horizontal() * 2.0f) {
+                throw new IllegalArgumentException("button horizontal padding must leave positive content width");
+            }
+            if (sizing.height() == ButtonSizeMode.FIXED && size.height() <= padding.vertical() * 2.0f) {
+                throw new IllegalArgumentException("button vertical padding must leave positive content height");
             }
             opacity = clampOpacity(opacity);
         }
@@ -551,6 +573,7 @@ public final class WindowSpec {
         private ButtonPadding padding = ButtonPadding.zero();
         private HorizontalAlignment horizontalAlignment = HorizontalAlignment.CENTER;
         private VerticalAlignment verticalAlignment = VerticalAlignment.CENTER;
+        private ButtonSizing sizing = ButtonSizing.fixed();
 
         private ButtonBuilder(String id) {
             this.id = id;
@@ -623,13 +646,18 @@ public final class WindowSpec {
             return this;
         }
 
+        public ButtonBuilder sizing(ButtonSizeMode width, ButtonSizeMode height) {
+            this.sizing = new ButtonSizing(width, height);
+            return this;
+        }
+
         private ButtonSpec build() {
             if (this.action == null) {
                 throw new IllegalStateException("button action is required: " + this.id);
             }
             return new ButtonSpec(this.id, this.position, this.size, this.visible, this.opacity, this.label, this.fontSize,
                     this.backgroundColor, this.hoverColor, this.clickSound, this.click, this.action, this.hoverScale,
-                    this.padding, this.horizontalAlignment, this.verticalAlignment);
+                    this.padding, this.horizontalAlignment, this.verticalAlignment, this.sizing);
         }
     }
 
