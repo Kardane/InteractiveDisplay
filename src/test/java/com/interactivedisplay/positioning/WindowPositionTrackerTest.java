@@ -138,6 +138,39 @@ class WindowPositionTrackerTest {
     }
 
     @Test
+    void playerViewResolveShouldClampPitchToSafeRange() {
+        WindowPositionTracker.WindowTransformState lookingDown = tracker.resolve(
+                PositionMode.PLAYER_VIEW,
+                new WindowOffset(2.0f, 0.0f, 0.0f),
+                new Vec3(0.0, 64.0, 0.0),
+                Vec3.directionFromRotation(90.0f, 0.0f),
+                0.0f, 90.0f, null, 0.0f, 15.0f
+        );
+        WindowPositionTracker.WindowTransformState lookingUp = tracker.resolve(
+                PositionMode.PLAYER_VIEW,
+                new WindowOffset(2.0f, 0.0f, 0.0f),
+                new Vec3(0.0, 64.0, 0.0),
+                Vec3.directionFromRotation(-90.0f, 0.0f),
+                0.0f, -90.0f, null, 0.0f, -15.0f
+        );
+
+        assertEquals(60.0f, lookingDown.pitch(), 0.0001f);
+        assertEquals(-60.0f, lookingUp.pitch(), 0.0001f);
+        assertVec3Equals(new CoordinateTransformer().toPlayerFixedAnchor(
+                new Vec3(0.0, 64.0, 0.0), new WindowOffset(2.0f, 0.0f, 0.0f), 0.0f, 60.0f
+        ), lookingDown.anchor());
+        assertVec3Equals(new CoordinateTransformer().toPlayerFixedAnchor(
+                new Vec3(0.0, 64.0, 0.0), new WindowOffset(2.0f, 0.0f, 0.0f), 0.0f, -60.0f
+        ), lookingUp.anchor());
+    }
+
+    private static void assertVec3Equals(Vec3 expected, Vec3 actual) {
+        assertEquals(expected.x, actual.x, 0.0001);
+        assertEquals(expected.y, actual.y, 0.0001);
+        assertEquals(expected.z, actual.z, 0.0001);
+    }
+
+    @Test
     void fixedModeShouldNotMoveOrRequestUpdates() {
         WindowInstance instance = new WindowInstance(
                 UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.FIXED,

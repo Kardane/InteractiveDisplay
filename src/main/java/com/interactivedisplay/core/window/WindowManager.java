@@ -347,6 +347,10 @@ public final class WindowManager implements WindowActionExecutor {
         return this.uiHitResolver.findUiHit(player);
     }
 
+    public UiHitResult findPlacementSurfaceHit(ServerPlayer player) {
+        return this.uiHitResolver.findPlacementSurfaceHit(player);
+    }
+
     public List<BindingSnapshot> bindingSnapshots(UUID owner) {
         return this.stateStore.bindingSnapshots(owner);
     }

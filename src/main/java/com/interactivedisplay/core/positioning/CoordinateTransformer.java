@@ -2,6 +2,7 @@ package com.interactivedisplay.core.positioning;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix3f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -120,8 +121,21 @@ public final class CoordinateTransformer {
         );
     }
 
+    public Quaternionf basisRotation(PositionMode positionMode, float yaw, float pitch) {
+        WindowBasis basis = basis(positionMode, yaw, pitch);
+        Matrix3f orientation = new Matrix3f()
+                .setColumn(0, vector(basis.right()))
+                .setColumn(1, vector(basis.up()))
+                .setColumn(2, vector(basis.normal()));
+        return orientation.getNormalizedRotation(new Quaternionf());
+    }
+
     private static Vector3f normalize(Vec3 vector) {
-        return new Vector3f((float) vector.x, (float) vector.y, (float) vector.z).normalize();
+        return vector(vector).normalize();
+    }
+
+    private static Vector3f vector(Vec3 vector) {
+        return new Vector3f((float) vector.x, (float) vector.y, (float) vector.z);
     }
 
     private static Vector3f right(Vector3f look) {

@@ -9,6 +9,7 @@ import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
+import com.interactivedisplay.core.positioning.WindowPositionTracker;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.world.level.Level;
@@ -42,6 +43,25 @@ class WindowPlacementControllerTest {
     }
 
     @Test
+    void placementPreviewShouldClampStandalonePitchAndAnchor() {
+        CoordinateTransformer transformer = new CoordinateTransformer();
+        WindowPlacementController controller = new WindowPlacementController(transformer);
+        WindowOffset offset = new WindowOffset(2.0f, 0.0f, 0.0f);
+        WindowDefinition definition = new WindowDefinition("main_menu", new ComponentSize(1.0f, 1.0f), offset, LayoutMode.ABSOLUTE, List.of());
+        WindowInstance playerFixed = new WindowInstance(UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f, null, Vec3.ZERO, 0.0f, 0.0f, Vec3.ZERO, 0.0f, 0.0f, 0L);
+        WindowInstance fixed = new WindowInstance(UUID.randomUUID(), "main_menu", Level.OVERWORLD, PositionMode.FIXED, Vec3.ZERO, 0.0f, 0.0f, null, Vec3.ZERO, 0.0f, 0.0f, Vec3.ZERO, 0.0f, 0.0f, 0L);
+        Vec3 eyePos = new Vec3(0.0, 64.0, 0.0);
+
+        WindowPositionTracker.WindowTransformState playerFixedPreview = controller.previewStandalone(playerFixed, definition, eyePos, 0.0f, 90.0f);
+        WindowPositionTracker.WindowTransformState fixedPreview = controller.previewStandalone(fixed, definition, eyePos, 0.0f, -90.0f);
+
+        assertEquals(60.0f, playerFixedPreview.pitch(), 0.0001f);
+        assertVec3Equals(transformer.toPlayerFixedAnchor(eyePos, offset, 0.0f, 60.0f), playerFixedPreview.anchor());
+        assertEquals(0.0f, fixedPreview.pitch(), 0.0001f);
+        assertVec3Equals(transformer.toPlayerFixedAnchor(eyePos, offset, 0.0f, -60.0f), fixedPreview.anchor());
+    }
+
+    @Test
     void commitGroupPlayerFixedShouldSubtractCurrentOrbitFromBaseRotation() {
         WindowPlacementController controller = new WindowPlacementController(new CoordinateTransformer());
         WindowDefinition definition = new WindowDefinition("settings", new ComponentSize(1.0f, 1.0f), new WindowOffset(2.0f, 0.0f, 0.5f), LayoutMode.ABSOLUTE, List.of());
@@ -66,5 +86,11 @@ class WindowPlacementControllerTest {
 
         assertEquals(35.0f, commit.baseYaw(), 0.0001f);
         assertEquals(-10.0f, commit.basePitch(), 0.0001f);
+    }
+
+    private static void assertVec3Equals(Vec3 expected, Vec3 actual) {
+        assertEquals(expected.x, actual.x, 0.0001);
+        assertEquals(expected.y, actual.y, 0.0001);
+        assertEquals(expected.z, actual.z, 0.0001);
     }
 }

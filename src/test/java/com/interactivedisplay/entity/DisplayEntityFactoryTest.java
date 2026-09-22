@@ -11,11 +11,15 @@ import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
+import com.interactivedisplay.core.positioning.CoordinateTransformer;
+import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.debug.DebugRecorder;
 import com.mojang.math.Transformation;
 import java.util.List;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Display;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -127,6 +131,30 @@ class DisplayEntityFactoryTest {
 
         assertEquals("resolved:안녕 {player:name}", content.getString());
         assertEquals("resolved:열기 {player:name}", label.getString());
+    }
+
+    @Test
+    void attachedRotationShouldMatchLogicalWindowBasis() {
+        assertAttachedRotationMatchesBasis(PositionMode.PLAYER_VIEW, 0.0f, 30.0f);
+        assertAttachedRotationMatchesBasis(PositionMode.PLAYER_VIEW, 90.0f, -25.0f);
+        assertAttachedRotationMatchesBasis(PositionMode.PLAYER_FIXED, -135.0f, 45.0f);
+        assertAttachedRotationMatchesBasis(PositionMode.PLAYER_VIEW, 45.0f, 90.0f);
+        assertAttachedRotationMatchesBasis(PositionMode.PLAYER_VIEW, -70.0f, -90.0f);
+    }
+
+    private static void assertAttachedRotationMatchesBasis(PositionMode mode, float yaw, float pitch) {
+        CoordinateTransformer.WindowBasis basis = new CoordinateTransformer().basis(mode, yaw, pitch);
+        Quaternionf rotation = DisplayEntityFactory.attachedRotation(mode, yaw, pitch);
+
+        assertVectorEquals(basis.right(), rotation.transform(new Vector3f(1.0f, 0.0f, 0.0f)));
+        assertVectorEquals(basis.up(), rotation.transform(new Vector3f(0.0f, 1.0f, 0.0f)));
+        assertVectorEquals(basis.normal(), rotation.transform(new Vector3f(0.0f, 0.0f, 1.0f)));
+    }
+
+    private static void assertVectorEquals(Vec3 expected, Vector3f actual) {
+        assertEquals(expected.x, actual.x, 0.0001);
+        assertEquals(expected.y, actual.y, 0.0001);
+        assertEquals(expected.z, actual.z, 0.0001);
     }
 
     private static PanelComponentDefinition panel(float width, float height) {

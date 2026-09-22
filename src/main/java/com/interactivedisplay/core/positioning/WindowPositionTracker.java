@@ -6,6 +6,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class WindowPositionTracker {
+    private static final float WINDOW_MIN_PITCH = -60.0f;
+    private static final float WINDOW_MAX_PITCH = 60.0f;
     private static final long UPDATE_INTERVAL_TICKS = 2L;
     private static final double APPLY_POSITION_EPSILON_SQUARED = 1.0E-6D;
     private static final float APPLY_ROTATION_EPSILON = 0.01f;
@@ -42,7 +44,7 @@ public final class WindowPositionTracker {
         float resolvedPitch = switch (positionMode) {
             case FIXED -> 0.0f;
             case PLAYER_FIXED -> fixedPitch;
-            case PLAYER_VIEW -> Mth.clamp(playerPitch + fixedPitch, -90.0f, 90.0f);
+            case PLAYER_VIEW -> clampWindowPitch(playerPitch + fixedPitch);
         };
         Vec3 resolvedLook = positionMode == PositionMode.PLAYER_VIEW ? Vec3.directionFromRotation(resolvedPitch, resolvedYaw) : look;
         Vec3 anchor = switch (positionMode) {
@@ -85,6 +87,10 @@ public final class WindowPositionTracker {
 
     private static float angleDelta(float current, float target) {
         return Mth.wrapDegrees(target - current);
+    }
+
+    public static float clampWindowPitch(float pitch) {
+        return Mth.clamp(pitch, WINDOW_MIN_PITCH, WINDOW_MAX_PITCH);
     }
 
     public record WindowTransformState(Vec3 anchor, float yaw, float pitch, Vec3 focusPoint) {

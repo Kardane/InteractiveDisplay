@@ -3,6 +3,7 @@ package com.interactivedisplay;
 import com.interactivedisplay.command.InteractiveDisplayCommand;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ClickType;
+import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.ClickHandleResult;
 import com.interactivedisplay.core.interaction.ClickHandler;
@@ -168,13 +169,22 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         }
 
         UiHitResult hitResult = manager.findUiHit(player);
-        if (hitResult == null || !(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
+        if (hitResult == null && clickType == ClickType.RIGHT && player.isShiftKeyDown()) {
+            hitResult = manager.findPlacementSurfaceHit(player);
+        }
+        if (hitResult == null) {
             return false;
         }
         if (clickType == ClickType.RIGHT) {
             rememberRightUiInput(player);
         }
-        if (!button.clickType().allows(clickType == ClickType.LEFT)) {
+        if (hitResult.runtime().definition() instanceof ButtonComponentDefinition button) {
+            if (!button.clickType().allows(clickType == ClickType.LEFT)) {
+                return false;
+            }
+        } else if (!(clickType == ClickType.RIGHT
+                && player.isShiftKeyDown()
+                && hitResult.runtime().definition() instanceof PanelComponentDefinition)) {
             return false;
         }
 

@@ -6,6 +6,7 @@ import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
+import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
@@ -25,6 +26,66 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
 public final class InteractiveDisplayClickDedupGameTest implements CustomTestMethodInvoker {
+    @SuppressWarnings("removal")
+    @GameTest
+    public void shiftRightClickOnPanelShouldStartPlacementTracking(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var app = InteractiveDisplay.instance();
+        var manager = app.windowManager();
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        String windowId = "qa:panel_placement_" + UUID.randomUUID().toString().replace("-", "");
+
+        PanelComponentDefinition background = new PanelComponentDefinition(
+                "background",
+                new ComponentPosition(0.0f, -1.0f, 0.0f),
+                new ComponentSize(3.0f, 2.0f),
+                true,
+                1.0f,
+                "#88000000",
+                0.0f,
+                LayoutMode.ABSOLUTE,
+                List.of()
+        );
+        WindowDefinition definition = new WindowDefinition(
+                windowId,
+                new ComponentSize(3.0f, 2.0f),
+                new WindowOffset(2.0f, 0.0f, 0.0f),
+                LayoutMode.ABSOLUTE,
+                List.of(background)
+        );
+
+        helper.assertTrue(manager.registerProgrammaticWindow(definition),
+                Component.literal("failed to register panel placement fixture"));
+        player.setYRot(0.0f);
+        player.setXRot(0.0f);
+        player.setYHeadRot(0.0f);
+        player.setShiftKeyDown(true);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(InteractiveDisplayItems.POINTER));
+
+        var opened = manager.createWindow(player, windowId, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+        helper.assertTrue(opened.success(), Component.literal("failed to open panel placement fixture: " + opened.message()));
+        helper.assertTrue(manager.findUiHit(player) == null,
+                Component.literal("background panel unexpectedly became a regular button hit"));
+        helper.assertTrue(manager.findPlacementSurfaceHit(player) != null,
+                Component.literal("background panel is not raycastable as a placement surface"));
+        helper.assertTrue(app.consumeUiRightClick(player),
+                Component.literal("shift-right-click on background panel was not consumed"));
+
+        player.setYRot(30.0f);
+        player.setYHeadRot(30.0f);
+        player.setXRot(90.0f);
+        manager.tick();
+        var moved = manager.findActiveWindow(player.getUUID(), windowId);
+        helper.assertTrue(moved != null && Math.abs(moved.currentYaw() - 30.0f) < 0.001f,
+                Component.literal("placement tracking did not follow player yaw after background gesture"));
+        helper.assertTrue(Math.abs(moved.currentPitch() - 60.0f) < 0.001f,
+                Component.literal("placement tracking did not clamp player pitch to 60 degrees"));
+
+        manager.removeWindow(player.getUUID(), windowId);
+        VirtualWindowHolder.destroyAllPending(server);
+        helper.succeed();
+    }
+
     @SuppressWarnings("removal")
     @GameTest
     public void sameTickRuntimeClicksShouldInvokeActionOnceAndNextTickShouldInvokeAgain(GameTestHelper helper) {

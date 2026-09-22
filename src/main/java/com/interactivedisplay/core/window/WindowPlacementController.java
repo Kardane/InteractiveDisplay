@@ -47,17 +47,18 @@ final class WindowPlacementController {
                                                                 Vec3 eyePos,
                                                                 float playerYaw,
                                                                 float playerPitch) {
+        float resolvedPitch = WindowPositionTracker.clampWindowPitch(playerPitch);
         return switch (instance.positionMode()) {
             case FIXED -> new WindowPositionTracker.WindowTransformState(
-                    this.transformer.toPlayerFixedAnchor(eyePos, definition.offset(), playerYaw, playerPitch),
+                    this.transformer.toPlayerFixedAnchor(eyePos, definition.offset(), playerYaw, resolvedPitch),
                     Mth.wrapDegrees(playerYaw),
                     0.0f,
                     eyePos
             );
             case PLAYER_FIXED -> new WindowPositionTracker.WindowTransformState(
-                    this.transformer.toPlayerFixedAnchor(eyePos, definition.offset(), playerYaw, playerPitch),
+                    this.transformer.toPlayerFixedAnchor(eyePos, definition.offset(), playerYaw, resolvedPitch),
                     Mth.wrapDegrees(playerYaw),
-                    Mth.clamp(playerPitch, -90.0f, 90.0f),
+                    resolvedPitch,
                     eyePos
             );
             case PLAYER_VIEW -> new WindowPositionTracker.WindowTransformState(instance.currentAnchor(), instance.currentYaw(), instance.currentPitch(), eyePos);
@@ -76,7 +77,7 @@ final class WindowPlacementController {
         }
         var effectiveOffset = definition.offset().plus(entry.offset());
         float resolvedYaw = Mth.wrapDegrees(playerYaw);
-        float resolvedPitch = Mth.clamp(playerPitch, -90.0f, 90.0f);
+        float resolvedPitch = WindowPositionTracker.clampWindowPitch(playerPitch);
         return new WindowPositionTracker.WindowTransformState(
                 this.transformer.toPlayerFixedAnchor(eyePos, effectiveOffset, resolvedYaw, resolvedPitch),
                 resolvedYaw,

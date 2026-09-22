@@ -7,12 +7,16 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
+import com.interactivedisplay.core.component.ComponentActionType;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
+import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.interaction.UiHitResult;
+import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.PositionMode;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -109,6 +113,21 @@ class UiHitResolverTest {
         assertEquals("close", hit.componentId());
     }
 
+    @Test
+    void shouldResolvePanelAsPlacementSurfaceWithoutMakingItARegularButton() {
+        UUID owner = UUID.randomUUID();
+        WindowInstance window = window(owner, "main_menu", null, null, Level.OVERWORLD, new Vec3(0.0, 0.0, 2.0));
+        window.addRuntime(panelRuntime("background", new Vector3f(0.0f, -1.0f, 0.0f)));
+        store.putActiveWindow(owner, window.windowId(), window);
+
+        assertNull(resolver.findUiHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0)));
+        UiHitResult hit = resolver.findPlacementSurfaceHit(owner, Level.OVERWORLD, Vec3.ZERO, new Vec3(0.0, 0.0, 1.0));
+
+        assertNotNull(hit);
+        assertEquals("background", hit.componentId());
+        assertEquals(ComponentActionType.TOGGLE_PLACEMENT_TRACKING, hit.action().type());
+    }
+
     private static WindowInstance window(UUID owner, String windowId, String groupId, String groupWindowId, net.minecraft.resources.ResourceKey<Level> worldKey, Vec3 anchor) {
         return new WindowInstance(owner, windowId, groupId, groupWindowId, worldKey, PositionMode.FIXED, anchor, 0.0f, 0.0f, null, anchor, 0.0f, 0.0f, anchor, 0.0f, 0.0f, 0L);
     }
@@ -119,5 +138,19 @@ class UiHitResolverTest {
 
     private static WindowComponentRuntime textRuntime(String componentId, Vector3f localPosition) {
         return new WindowComponentRuntime(Level.OVERWORLD, new TextComponentDefinition(componentId, new ComponentPosition(0.0f, 0.0f, 0.0f), new ComponentSize(1.0f, 0.2f), true, 1.0f, "본문", 1.0f, "#FFFFFF", "left", 100, true, "#00000000"), localPosition, null, null);
+    }
+
+    private static WindowComponentRuntime panelRuntime(String componentId, Vector3f localPosition) {
+        return new WindowComponentRuntime(Level.OVERWORLD, new PanelComponentDefinition(
+                componentId,
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(3.0f, 2.0f),
+                true,
+                1.0f,
+                "#88000000",
+                0.0f,
+                LayoutMode.ABSOLUTE,
+                List.of()
+        ), localPosition, null, null);
     }
 }

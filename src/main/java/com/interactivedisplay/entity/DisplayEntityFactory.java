@@ -8,6 +8,7 @@ import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
+import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.debug.DebugEventType;
@@ -64,6 +65,7 @@ public final class DisplayEntityFactory {
     private static final float TEXT_PIXEL_SCALE = 0.025f;
     private static final float TEXT_LINE_HEIGHT_PIXELS = 10.0f;
     private static final float TEXT_SPACE_ADVANCE_PIXELS = 4.0f;
+    private static final CoordinateTransformer COORDINATE_TRANSFORMER = new CoordinateTransformer();
 
     private final DebugRecorder debugRecorder;
     private final BiFunction<ServerPlayer, Component, Component> placeholderResolver;
@@ -564,14 +566,9 @@ public final class DisplayEntityFactory {
                 : Display.BillboardConstraints.FIXED;
     }
 
-    private static Quaternionf attachedRotation(PositionMode positionMode, float yaw, float pitch) {
-        float renderedYaw = displayYaw(positionMode, yaw);
+    static Quaternionf attachedRotation(PositionMode positionMode, float yaw, float pitch) {
         float renderedPitch = displayPitch(positionMode, pitch);
-        return new Quaternionf().rotationYXZ(
-                (float) Math.toRadians(-renderedYaw),
-                (float) Math.toRadians(renderedPitch),
-                0.0f
-        );
+        return COORDINATE_TRANSFORMER.basisRotation(positionMode, yaw, renderedPitch);
     }
 
     private static float displayYaw(PositionMode positionMode, float yaw) {

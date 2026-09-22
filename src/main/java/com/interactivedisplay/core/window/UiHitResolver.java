@@ -1,5 +1,7 @@
 package com.interactivedisplay.core.window;
 
+import com.interactivedisplay.core.component.ComponentAction;
+import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.interaction.UiHitResult;
 import com.interactivedisplay.core.positioning.CoordinateTransformer;
 import java.util.List;
@@ -20,24 +22,41 @@ final class UiHitResolver {
     }
 
     UiHitResult findUiHit(ServerPlayer player) {
-        return findUiHit(
+        return findHit(
                 player.getUUID(),
                 player.level().dimension(),
                 player.getEyePosition(),
                 player.getViewVector(1.0f).normalize(),
+                true,
+                false
+        );
+    }
+
+    UiHitResult findPlacementSurfaceHit(ServerPlayer player) {
+        return findHit(
+                player.getUUID(),
+                player.level().dimension(),
+                player.getEyePosition(),
+                player.getViewVector(1.0f).normalize(),
+                true,
                 true
         );
     }
 
     UiHitResult findUiHit(UUID owner, ResourceKey<Level> worldKey, Vec3 start, Vec3 direction) {
-        return findUiHit(owner, worldKey, start, direction, false);
+        return findHit(owner, worldKey, start, direction, false, false);
     }
 
-    private UiHitResult findUiHit(UUID owner,
-                                  ResourceKey<Level> worldKey,
-                                  Vec3 start,
-                                  Vec3 direction,
-                                  boolean useLivePassengerAnchor) {
+    UiHitResult findPlacementSurfaceHit(UUID owner, ResourceKey<Level> worldKey, Vec3 start, Vec3 direction) {
+        return findHit(owner, worldKey, start, direction, false, true);
+    }
+
+    private UiHitResult findHit(UUID owner,
+                                ResourceKey<Level> worldKey,
+                                Vec3 start,
+                                Vec3 direction,
+                                boolean useLivePassengerAnchor,
+                                boolean placementSurface) {
         List<WindowContext> windows = this.stateStore.ownerWindowContexts(owner);
         if (windows.isEmpty()) {
             return null;
@@ -56,10 +75,17 @@ final class UiHitResolver {
                     : instance.currentAnchor();
             CoordinateTransformer.WindowBasis basis = this.transformer.basis(instance.positionMode(), instance.currentYaw(), instance.currentPitch());
             for (WindowComponentRuntime runtime : instance.runtimes()) {
-                if (!runtime.interactive()) {
+                PanelComponentDefinition panel = runtime.definition() instanceof PanelComponentDefinition definition
+                        ? definition
+                        : null;
+                if (placementSurface ? panel == null : !runtime.interactive()) {
                     continue;
                 }
-                Vector3f hitCenter = runtime.hitCenterLocalPosition();
+                Vector3f hitCenter = placementSurface
+                        ? new Vector3f(runtime.localPosition()).add(0.0f, panel.size().height() / 2.0f, 0.0f)
+                        : runtime.hitCenterLocalPosition();
+                float halfWidth = placementSurface ? panel.size().width() / 2.0f : runtime.hitHalfWidth();
+                float halfHeight = placementSurface ? panel.size().height() / 2.0f : runtime.hitHalfHeight();
                 Vec3 center = this.transformer.toWorld(anchor, hitCenter, instance.positionMode(), instance.currentYaw(), instance.currentPitch());
                 double distance = this.transformer.raycastQuadDistance(
                         start,
@@ -68,8 +94,8 @@ final class UiHitResolver {
                         basis.right(),
                         basis.up(),
                         basis.normal(),
-                        runtime.hitHalfWidth(),
-                        runtime.hitHalfHeight(),
+                        halfWidth,
+                        halfHeight,
                         runtime.maxDistance()
                 );
                 if (distance < 0.0D) {
@@ -83,7 +109,7 @@ final class UiHitResolver {
                             windowContext.navigationContext(),
                             runtime.definition().id(),
                             runtime,
-                            runtime.action(),
+                            placementSurface ? ComponentAction.togglePlacementTracking() : runtime.action(),
                             start.add(normalizedDirection.scale(distance)),
                             squared
                     );

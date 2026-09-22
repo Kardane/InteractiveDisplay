@@ -1,5 +1,7 @@
 package com.interactivedisplay.gametest;
 
+import com.interactivedisplay.core.positioning.CoordinateTransformer;
+import com.interactivedisplay.core.positioning.PositionMode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,6 +17,7 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Display;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -200,15 +203,22 @@ public final class InteractiveDisplayClientModesGameTest implements FabricClient
     }
 
     private static void assertRotationMatchesView(Quaternionf actual, ViewState view, String label) {
-        Quaternionf expected = new Quaternionf().rotationYXZ(
-                (float) Math.toRadians(-(view.yaw() + 180.0f)),
-                (float) Math.toRadians(view.pitch()),
-                0.0f
+        CoordinateTransformer.WindowBasis basis = new CoordinateTransformer().basis(
+                PositionMode.PLAYER_VIEW,
+                view.yaw(),
+                view.pitch()
         );
-        float dot = Math.abs(actual.dot(expected));
-        if (dot < 0.98f) {
-            throw new AssertionError(label + " quaternion mismatch: absDot=" + dot
-                    + " yaw=" + view.yaw() + " pitch=" + view.pitch());
+        assertAxisMatches(actual, new Vector3f(1.0f, 0.0f, 0.0f), basis.right(), label + " right");
+        assertAxisMatches(actual, new Vector3f(0.0f, 1.0f, 0.0f), basis.up(), label + " up");
+        assertAxisMatches(actual, new Vector3f(0.0f, 0.0f, 1.0f), basis.normal(), label + " normal");
+    }
+
+    private static void assertAxisMatches(Quaternionf rotation, Vector3f localAxis, Vec3 expected, String label) {
+        Vector3f actual = rotation.transform(localAxis);
+        double error = new Vec3(actual.x, actual.y, actual.z).distanceTo(expected);
+        if (error > 0.02D) {
+            throw new AssertionError(label + " axis mismatch: error=" + error
+                    + " actual=" + actual + " expected=" + expected);
         }
     }
 

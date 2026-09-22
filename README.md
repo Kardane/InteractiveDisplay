@@ -355,6 +355,11 @@ Supported action types:
 | `run_command` | `command`, optional `permissionLevel` (`0`-`4`) |
 | `callback` | `id` |
 
+While holding the InteractiveDisplay pointer, Shift+right-clicking a panel background invokes
+`toggle_placement_tracking`. Buttons keep their configured click behavior when they overlap the
+background. Placement tracking remains available for `FIXED` and `PLAYER_FIXED`; `PLAYER_VIEW`
+continues to follow the player's view directly.
+
 ## Command whitelist
 
 `run_command` actions must pass `config/interactivedisplay/command_whitelist.yaml`.
