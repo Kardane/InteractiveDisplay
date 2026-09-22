@@ -14,5 +14,7 @@ public interface WindowActionExecutor {
 
     ActionExecutionResult executeCallback(UUID owner, String windowId, String componentId, String callbackId);
 
+    ActionExecutionResult openTextInput(UUID owner, UiHitResult hitResult);
+
     ActionExecutionResult togglePlacementTracking(UUID owner, WindowNavigationContext context);
 }
