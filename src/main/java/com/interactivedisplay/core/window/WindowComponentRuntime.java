@@ -20,18 +20,17 @@ import org.joml.Vector3f;
 
 public final class WindowComponentRuntime {
     private static final double DEFAULT_MAX_DISTANCE = 6.0D;
-    private static final float TEXT_PIXEL_SCALE = 0.025f;
-    private static final float TEXT_LINE_HEIGHT_PIXELS = 10.0f;
-    private static final float TEXT_BACKGROUND_PADDING_PIXELS = 1.0f;
-    private static final float MIN_FONT_SIZE = 0.1f;
 
     private final ResourceKey<Level> worldKey;
     private ComponentDefinition definition;
     private Vector3f localPosition;
     private final DisplayElement displayElement;
     private final VirtualElement virtualElement;
+    private final DisplayElement backgroundElement;
     private final Vector3f baseScale;
     private final Vector3f baseTranslation;
+    private final Vector3f backgroundBaseScale;
+    private final Vector3f backgroundBaseTranslation;
     private PlayerCanvas mapCanvas;
     private boolean hovered;
     private String inputValue;
@@ -45,7 +44,7 @@ public final class WindowComponentRuntime {
                                   Vector3f localPosition,
                                   DisplayElement displayElement,
                                   PlayerCanvas mapCanvas) {
-        this(worldKey, definition, localPosition, displayElement, mapCanvas, displayElement);
+        this(worldKey, definition, localPosition, displayElement, mapCanvas, displayElement, null);
     }
 
     public WindowComponentRuntime(ResourceKey<Level> worldKey,
@@ -54,15 +53,28 @@ public final class WindowComponentRuntime {
                                   DisplayElement displayElement,
                                   PlayerCanvas mapCanvas,
                                   VirtualElement virtualElement) {
+        this(worldKey, definition, localPosition, displayElement, mapCanvas, virtualElement, null);
+    }
+
+    public WindowComponentRuntime(ResourceKey<Level> worldKey,
+                                  ComponentDefinition definition,
+                                  Vector3f localPosition,
+                                  DisplayElement displayElement,
+                                  PlayerCanvas mapCanvas,
+                                  VirtualElement virtualElement,
+                                  DisplayElement backgroundElement) {
         this.worldKey = worldKey;
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
         this.displayElement = displayElement;
         this.virtualElement = virtualElement;
+        this.backgroundElement = backgroundElement;
         this.mapCanvas = mapCanvas;
         this.inputValue = definition instanceof TextInputComponentDefinition input ? input.initialValue() : null;
         this.baseScale = displayElement == null ? new Vector3f(1.0f) : new Vector3f(displayElement.getScale());
         this.baseTranslation = displayElement == null ? new Vector3f() : new Vector3f(displayElement.getTranslation());
+        this.backgroundBaseScale = backgroundElement == null ? new Vector3f(1.0f) : new Vector3f(backgroundElement.getScale());
+        this.backgroundBaseTranslation = backgroundElement == null ? new Vector3f() : new Vector3f(backgroundElement.getTranslation());
     }
 
     public ResourceKey<Level> worldKey() {
@@ -97,12 +109,40 @@ public final class WindowComponentRuntime {
         return this.virtualElement;
     }
 
+    public DisplayElement backgroundElement() {
+        return this.backgroundElement;
+    }
+
+    public List<VirtualElement> virtualElements() {
+        if (this.virtualElement == null) {
+            return this.backgroundElement == null ? List.of() : List.of(this.backgroundElement);
+        }
+        if (this.backgroundElement == null || this.backgroundElement == this.virtualElement) {
+            return List.of(this.virtualElement);
+        }
+        return List.of(this.backgroundElement, this.virtualElement);
+    }
+
     public Vector3f baseScale() {
         return new Vector3f(this.baseScale);
     }
 
     public Vector3f baseTranslation() {
         return new Vector3f(this.baseTranslation);
+    }
+
+    public Vector3f baseScale(DisplayElement element) {
+        if (element != null && element == this.backgroundElement) {
+            return new Vector3f(this.backgroundBaseScale);
+        }
+        return baseScale();
+    }
+
+    public Vector3f baseTranslation(DisplayElement element) {
+        if (element != null && element == this.backgroundElement) {
+            return new Vector3f(this.backgroundBaseTranslation);
+        }
+        return baseTranslation();
     }
 
     public boolean shouldRefreshText(long tick, int refreshInterval) {
@@ -176,7 +216,11 @@ public final class WindowComponentRuntime {
     }
 
     public int entityCount() {
-        return this.virtualElement == null ? 0 : this.virtualElement.getEntityIds().size();
+        int count = 0;
+        for (VirtualElement element : virtualElements()) {
+            count += element.getEntityIds().size();
+        }
+        return count;
     }
 
     public PlayerCanvas mapCanvas() {
@@ -217,7 +261,7 @@ public final class WindowComponentRuntime {
 
     public float hitHalfWidth() {
         if (this.definition instanceof ButtonComponentDefinition button) {
-            return buttonHitWidth(button) / 2.0f;
+            return button.size().width() / 2.0f;
         }
         if (this.definition instanceof TextInputComponentDefinition input) {
             return input.size().width() / 2.0f;
@@ -227,7 +271,7 @@ public final class WindowComponentRuntime {
 
     public float hitHalfHeight() {
         if (this.definition instanceof ButtonComponentDefinition button) {
-            return buttonHitHeight(button) / 2.0f;
+            return button.size().height() / 2.0f;
         }
         if (this.definition instanceof TextInputComponentDefinition input) {
             return input.size().height() / 2.0f;
@@ -261,82 +305,6 @@ public final class WindowComponentRuntime {
             return ComponentAction.openTextInput();
         }
         return null;
-    }
-
-    private static float buttonHitWidth(ButtonComponentDefinition button) {
-        float fontSize = normalizedFontSize(button);
-        float onePixel = TEXT_PIXEL_SCALE * fontSize;
-        // DisplayEntityFactory derives TextDisplay.lineWidth from the configured
-        // button width. The background quad therefore spans the full configured
-        // width even when the label itself is short.
-        return Math.max(button.size().width(), onePixel * TEXT_BACKGROUND_PADDING_PIXELS);
-    }
-
-    private static float buttonHitHeight(ButtonComponentDefinition button) {
-        float fontSize = normalizedFontSize(button);
-        float lineHeight = TEXT_PIXEL_SCALE * TEXT_LINE_HEIGHT_PIXELS * fontSize;
-        float availableWidth = Math.max(button.size().width(), TEXT_PIXEL_SCALE * fontSize);
-        float textWidth = estimatedTextWidth(button.label(), fontSize);
-        int lineCount = Math.max(1, (int) Math.ceil(textWidth / availableWidth));
-        return lineHeight * lineCount;
-    }
-
-    private static float estimatedTextWidth(String label, float fontSize) {
-        return estimateTextUnits(label) * TEXT_LINE_HEIGHT_PIXELS * TEXT_PIXEL_SCALE * fontSize;
-    }
-
-    private static float normalizedFontSize(ButtonComponentDefinition button) {
-        return Math.max(button.fontSize(), MIN_FONT_SIZE);
-    }
-
-    private static float estimateTextUnits(String label) {
-        if (label == null || label.isEmpty()) {
-            return 1.0f;
-        }
-
-        float units = 0.0f;
-        for (int index = 0; index < label.length();) {
-            int codePoint = label.codePointAt(index);
-            units += glyphUnit(codePoint);
-            index += Character.charCount(codePoint);
-        }
-        return Math.max(1.0f, units);
-    }
-
-    private static float glyphUnit(int codePoint) {
-        if (Character.isWhitespace(codePoint)) {
-            return 0.35f;
-        }
-        if (isAsciiLetterOrDigit(codePoint)) {
-            return 0.62f;
-        }
-        if (isAsciiPunctuation(codePoint)) {
-            return 0.5f;
-        }
-        if (isWideGlyph(codePoint)) {
-            return 1.0f;
-        }
-        return 0.8f;
-    }
-
-    private static boolean isAsciiLetterOrDigit(int codePoint) {
-        return codePoint <= 0x7F && Character.isLetterOrDigit(codePoint);
-    }
-
-    private static boolean isAsciiPunctuation(int codePoint) {
-        return codePoint <= 0x7F && !Character.isLetterOrDigit(codePoint) && !Character.isWhitespace(codePoint);
-    }
-
-    private static boolean isWideGlyph(int codePoint) {
-        Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
-        return block == Character.UnicodeBlock.HANGUL_SYLLABLES
-                || block == Character.UnicodeBlock.HANGUL_JAMO
-                || block == Character.UnicodeBlock.HANGUL_COMPATIBILITY_JAMO
-                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
-                || block == Character.UnicodeBlock.ENCLOSED_CJK_LETTERS_AND_MONTHS
-                || Character.getType(codePoint) == Character.OTHER_SYMBOL;
     }
 
     private record ScheduledAnimation(long generation, AnimationRuntime animation) {
