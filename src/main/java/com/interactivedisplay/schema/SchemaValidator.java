@@ -14,6 +14,7 @@ public final class SchemaValidator {
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
     private static final Set<String> BUTTON_VERTICAL_ALIGNMENTS = Set.of("bottom", "center", "top");
+    private static final Set<String> BUTTON_SIZE_MODES = Set.of("fixed", "content");
     private static final Set<String> POSITION_MODES = Set.of("fixed", "player_fixed", "player_view");
     private static final Set<String> TRANSITION_TYPES = Set.of("none", "scale", "slide_up", "slide_down");
     private static final List<String> COLOR_FIELDS = List.of("color", "backgroundColor", "hoverColor", "background");
@@ -122,6 +123,7 @@ public final class SchemaValidator {
                 validatePositiveOptional(component, "hoverScale", componentName, errors);
                 validateButtonPadding(component, componentName, errors);
                 validateButtonAlignment(component, componentName, errors);
+                validateButtonSizing(component, componentName, errors);
                 validateButtonContentArea(component, componentName, errors);
                 validateAction(component, componentName, errors);
                 continue;
@@ -365,6 +367,27 @@ public final class SchemaValidator {
         }
     }
 
+    private static void validateButtonSizing(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode sizing = component.get("sizing");
+        if (sizing == null) {
+            return;
+        }
+        if (!sizing.isObject()) {
+            errors.add(sourceName + ": sizing must be object");
+            return;
+        }
+        validateOptionalString(sizing, "width", sourceName + ".sizing", errors);
+        validateOptionalString(sizing, "height", sourceName + ".sizing", errors);
+        String width = optionalString(sizing, "width");
+        if (width != null && !BUTTON_SIZE_MODES.contains(width.toLowerCase())) {
+            errors.add(sourceName + ".sizing: width must be fixed or content");
+        }
+        String height = optionalString(sizing, "height");
+        if (height != null && !BUTTON_SIZE_MODES.contains(height.toLowerCase())) {
+            errors.add(sourceName + ".sizing: height must be fixed or content");
+        }
+    }
+
     private static void validateButtonPadding(JsonNode component, String sourceName, List<String> errors) {
         JsonNode padding = component.get("padding");
         if (padding == null) {
@@ -427,10 +450,16 @@ public final class SchemaValidator {
                 vertical = verticalNode.floatValue();
             }
         }
-        if (horizontal >= 0.0f && size.get("width").floatValue() <= horizontal * 2.0f) {
+        JsonNode sizing = component.get("sizing");
+        String widthMode = sizing != null && sizing.isObject() ? optionalString(sizing, "width") : null;
+        String heightMode = sizing != null && sizing.isObject() ? optionalString(sizing, "height") : null;
+        boolean fixedWidth = widthMode == null || !"content".equalsIgnoreCase(widthMode);
+        boolean fixedHeight = heightMode == null || !"content".equalsIgnoreCase(heightMode);
+
+        if (fixedWidth && horizontal >= 0.0f && size.get("width").floatValue() <= horizontal * 2.0f) {
             errors.add(sourceName + ": horizontal padding must leave positive content width");
         }
-        if (vertical >= 0.0f && size.get("height").floatValue() <= vertical * 2.0f) {
+        if (fixedHeight && vertical >= 0.0f && size.get("height").floatValue() <= vertical * 2.0f) {
             errors.add(sourceName + ": vertical padding must leave positive content height");
         }
     }
