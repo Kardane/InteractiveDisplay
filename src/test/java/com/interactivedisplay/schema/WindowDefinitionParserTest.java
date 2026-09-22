@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonSizeMode;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
@@ -101,6 +102,9 @@ class WindowDefinitionParserTest {
                     alignment:
                       horizontal: right
                       vertical: top
+                    sizing:
+                      width: fixed
+                      height: content
                     label: Action
                     action:
                       type: close_window
@@ -115,6 +119,8 @@ class WindowDefinitionParserTest {
         assertEquals(0.06f, button.padding().vertical(), 0.0001f);
         assertEquals(ButtonHorizontalAlignment.RIGHT, button.horizontalAlignment());
         assertEquals(ButtonVerticalAlignment.TOP, button.verticalAlignment());
+        assertEquals(ButtonSizeMode.FIXED, button.sizing().width());
+        assertEquals(ButtonSizeMode.CONTENT, button.sizing().height());
     }
 
     @Test
