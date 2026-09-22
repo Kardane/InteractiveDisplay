@@ -229,6 +229,30 @@ public final class WindowSpec {
             );
         }
 
+        public ButtonSpec(
+                String id,
+                Position position,
+                Size size,
+                boolean visible,
+                float opacity,
+                String label,
+                float fontSize,
+                String backgroundColor,
+                String hoverColor,
+                String clickSound,
+                Click click,
+                ButtonAction action,
+                float hoverScale,
+                ButtonPadding padding,
+                HorizontalAlignment horizontalAlignment,
+                VerticalAlignment verticalAlignment
+        ) {
+            this(
+                    id, position, size, visible, opacity, label, fontSize, backgroundColor, hoverColor, clickSound,
+                    click, action, hoverScale, padding, horizontalAlignment, verticalAlignment, ButtonSizing.fixed()
+            );
+        }
+
         public ButtonSpec {
             requireComponentId(id);
             Objects.requireNonNull(position, "position");
