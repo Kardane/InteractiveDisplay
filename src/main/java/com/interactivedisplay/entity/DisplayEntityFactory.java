@@ -67,6 +67,7 @@ public final class DisplayEntityFactory {
     private static final float TEXT_PIXEL_SCALE = 0.025f;
     private static final float TEXT_LINE_HEIGHT_PIXELS = 10.0f;
     private static final float TEXT_SPACE_ADVANCE_PIXELS = 4.0f;
+    private static final float BUTTON_LABEL_Z_OFFSET = 0.001f;
     private static final CoordinateTransformer COORDINATE_TRANSFORMER = new CoordinateTransformer();
 
     private final DebugRecorder debugRecorder;
@@ -100,6 +101,7 @@ public final class DisplayEntityFactory {
             holder.configure(positionMode, canvasViewer);
 
             DisplayElement element = null;
+            DisplayElement backgroundElement = null;
             VirtualElement virtualElement;
             PlayerCanvas canvas = null;
 
@@ -137,12 +139,25 @@ public final class DisplayEntityFactory {
                 element = textElement;
                 virtualElement = element;
             } else if (component instanceof ButtonComponentDefinition button) {
-                TextDisplayElement textElement = new TextDisplayElement();
+                TextDisplayElement buttonBackground = new TextDisplayElement();
+                ButtonBackgroundRenderSpec backgroundSpec = buildButtonBackgroundRenderSpec(button);
+                applyDisplayData(buttonBackground, billboard(positionMode), backgroundSpec.scale(), new Vector3f());
+                applyTextStyle(
+                        buttonBackground,
+                        backgroundSpec.text(),
+                        backgroundSpec.lineWidth(),
+                        parseArgb(button.backgroundColor()),
+                        false,
+                        backgroundSpec.textOpacity(),
+                        "center"
+                );
+
+                TextDisplayElement labelElement = new TextDisplayElement();
                 applyTextData(
-                        textElement,
+                        labelElement,
                         renderButtonLabel(button.label(), ownerPlayer(server, owner)),
                         buttonLineWidth(button),
-                        parseArgb(button.backgroundColor()),
+                        0x00000000,
                         true,
                         button.opacity(),
                         billboard(positionMode),
@@ -150,7 +165,8 @@ public final class DisplayEntityFactory {
                         "center",
                         new Vector3f()
                 );
-                element = textElement;
+                backgroundElement = buttonBackground;
+                element = labelElement;
                 virtualElement = element;
             } else if (component instanceof TextInputComponentDefinition input) {
                 TextDisplayElement textElement = new TextDisplayElement();
@@ -181,13 +197,30 @@ public final class DisplayEntityFactory {
                 throw new IllegalArgumentException("지원하지 않는 component type: " + component.type());
             }
 
+            if (backgroundElement != null) {
+                positionElement(backgroundElement, holder, position, positionMode, yaw, pitch, false);
+            }
             if (element != null) {
-                positionElement(element, holder, position, positionMode, yaw, pitch, false);
+                Vector3f localOffset = component instanceof ButtonComponentDefinition button
+                        ? buttonLabelLocalOffset(button)
+                        : new Vector3f();
+                positionElement(element, holder, position, positionMode, yaw, pitch, false, localOffset);
             } else if (virtualElement instanceof MapDisplayElement mapElement) {
                 positionMapElement(mapElement, position, positionMode, yaw, pitch);
             }
+            if (backgroundElement != null) {
+                holder.addElement(backgroundElement);
+            }
             holder.addElement(virtualElement);
-            return new WindowComponentRuntime(world.dimension(), component, new Vector3f(), element, canvas, virtualElement);
+            return new WindowComponentRuntime(
+                    world.dimension(),
+                    component,
+                    new Vector3f(),
+                    element,
+                    canvas,
+                    virtualElement,
+                    backgroundElement
+            );
         } catch (Exception exception) {
             throw spawnFailure(owner, component.id(), world, position, exception);
         }
@@ -209,9 +242,17 @@ public final class DisplayEntityFactory {
                             PositionMode positionMode,
                             float yaw,
                             float pitch) {
+        DisplayElement backgroundElement = runtime.backgroundElement();
+        if (backgroundElement != null) {
+            positionElement(backgroundElement, holder, position, positionMode, yaw, pitch, true);
+        }
+
         DisplayElement element = runtime.displayElement();
         if (element != null) {
-            positionElement(element, holder, position, positionMode, yaw, pitch, true);
+            Vector3f localOffset = runtime.definition() instanceof ButtonComponentDefinition button
+                    ? buttonLabelLocalOffset(button)
+                    : new Vector3f();
+            positionElement(element, holder, position, positionMode, yaw, pitch, true, localOffset);
         }
         if (runtime.virtualElement() instanceof MapDisplayElement mapElement) {
             positionMapElement(mapElement, position, positionMode, yaw, pitch);
@@ -229,26 +270,16 @@ public final class DisplayEntityFactory {
                                WindowComponentRuntime runtime,
                                ButtonComponentDefinition button,
                                boolean hovered) {
-        if (!(runtime.displayElement() instanceof TextDisplayElement textElement)) {
+        if (!(runtime.displayElement() instanceof TextDisplayElement labelElement)
+                || !(runtime.backgroundElement() instanceof TextDisplayElement backgroundElement)) {
             return;
         }
-        int background = hovered ? parseArgb(button.hoverColor()) : parseArgb(button.backgroundColor());
-        applyTextStyle(
-                textElement,
-                renderButtonLabel(button.label(), ownerPlayer(server, owner)),
-                buttonLineWidth(button),
-                background,
-                true,
-                button.opacity(),
-                "center"
-        );
-        Vector3f targetScale = runtime.baseScale();
-        if (hovered && button.hoverScale() != 1.0f) {
-            targetScale.mul(button.hoverScale());
-        }
-        textElement.setInterpolationDuration(INTERPOLATION_DURATION);
-        textElement.setScale(targetScale);
-        textElement.startInterpolationIfDirty();
+
+        backgroundElement.setBackground(hovered ? parseArgb(button.hoverColor()) : parseArgb(button.backgroundColor()));
+        labelElement.setText(renderButtonLabel(button.label(), ownerPlayer(server, owner)));
+
+        applyButtonHoverScale(runtime, backgroundElement, button.hoverScale(), hovered);
+        applyButtonHoverScale(runtime, labelElement, button.hoverScale(), hovered);
         runtime.setHovered(hovered);
     }
 
@@ -362,7 +393,25 @@ public final class DisplayEntityFactory {
                                  float yaw,
                                  float pitch,
                                  boolean interpolate) {
-        Vec3 renderPosition = displayRenderPosition(element, worldPosition, positionMode, yaw, pitch);
+        positionElement(element, holder, worldPosition, positionMode, yaw, pitch, interpolate, new Vector3f());
+    }
+
+    private void positionElement(DisplayElement element,
+                                 VirtualWindowHolder holder,
+                                 Vec3 worldPosition,
+                                 PositionMode positionMode,
+                                 float yaw,
+                                 float pitch,
+                                 boolean interpolate,
+                                 Vector3f localOffset) {
+        Vec3 logicalPosition = COORDINATE_TRANSFORMER.toWorld(
+                worldPosition,
+                localOffset == null ? new Vector3f() : localOffset,
+                positionMode,
+                yaw,
+                pitch
+        );
+        Vec3 renderPosition = displayRenderPosition(element, logicalPosition, positionMode, yaw, pitch);
         if (!holder.playerAttached()) {
             element.setOffset(renderPosition.subtract(holder.anchor()));
             element.setYaw(displayYaw(positionMode, yaw));
@@ -672,6 +721,85 @@ public final class DisplayEntityFactory {
         return Direction.getApproximateNearest(normal);
     }
 
+    private static void applyButtonHoverScale(WindowComponentRuntime runtime,
+                                              DisplayElement element,
+                                              float hoverScale,
+                                              boolean hovered) {
+        Vector3f targetScale = runtime.baseScale(element);
+        if (hovered && hoverScale != 1.0f) {
+            targetScale.mul(hoverScale);
+        }
+        element.setInterpolationDuration(INTERPOLATION_DURATION);
+        element.setScale(targetScale);
+        element.startInterpolationIfDirty();
+    }
+
+    static Vector3f buttonLabelLocalOffset(ButtonComponentDefinition button) {
+        float labelHeight = estimatedButtonLabelHeight(button);
+        float verticalOffset = Math.max(0.0f, (button.size().height() - labelHeight) / 2.0f);
+        return new Vector3f(0.0f, verticalOffset, BUTTON_LABEL_Z_OFFSET);
+    }
+
+    private static float estimatedButtonLabelHeight(ButtonComponentDefinition button) {
+        float fontSize = Math.max(button.fontSize(), 0.1f);
+        float availableWidth = Math.max(button.size().width(), TEXT_PIXEL_SCALE * fontSize);
+        int lineCount = estimatedWrappedLineCount(button.label(), fontSize, availableWidth);
+        return lineCount * TEXT_LINE_HEIGHT_PIXELS * TEXT_PIXEL_SCALE * fontSize;
+    }
+
+    private static int estimatedWrappedLineCount(String label, float fontSize, float availableWidth) {
+        if (label == null || label.isEmpty()) {
+            return 1;
+        }
+
+        int lines = 0;
+        for (String explicitLine : label.split("\\n", -1)) {
+            float width = estimateTextUnits(explicitLine) * TEXT_LINE_HEIGHT_PIXELS * TEXT_PIXEL_SCALE * fontSize;
+            lines += Math.max(1, (int) Math.ceil(width / availableWidth));
+        }
+        return Math.max(1, lines);
+    }
+
+    private static float estimateTextUnits(String label) {
+        if (label == null || label.isEmpty()) {
+            return 1.0f;
+        }
+
+        float units = 0.0f;
+        for (int index = 0; index < label.length();) {
+            int codePoint = label.codePointAt(index);
+            units += glyphUnit(codePoint);
+            index += Character.charCount(codePoint);
+        }
+        return Math.max(1.0f, units);
+    }
+
+    private static float glyphUnit(int codePoint) {
+        if (Character.isWhitespace(codePoint)) {
+            return 0.35f;
+        }
+        if (codePoint <= 0x7F && Character.isLetterOrDigit(codePoint)) {
+            return 0.62f;
+        }
+        if (codePoint <= 0x7F) {
+            return 0.5f;
+        }
+        if (codePoint >= 0x1100
+                && (codePoint <= 0x115F
+                || codePoint == 0x2329
+                || codePoint == 0x232A
+                || (codePoint >= 0x2E80 && codePoint <= 0xA4CF)
+                || (codePoint >= 0xAC00 && codePoint <= 0xD7A3)
+                || (codePoint >= 0xF900 && codePoint <= 0xFAFF)
+                || (codePoint >= 0xFE10 && codePoint <= 0xFE19)
+                || (codePoint >= 0xFE30 && codePoint <= 0xFE6F)
+                || (codePoint >= 0xFF00 && codePoint <= 0xFF60)
+                || (codePoint >= 0xFFE0 && codePoint <= 0xFFE6))) {
+            return 1.0f;
+        }
+        return 0.8f;
+    }
+
     static int buttonLineWidth(ButtonComponentDefinition button) {
         float normalizedFontSize = Math.max(button.fontSize(), 0.1f);
         return Math.max(1, Math.round(button.size().width() / (TEXT_PIXEL_SCALE * normalizedFontSize)));
@@ -691,6 +819,32 @@ public final class DisplayEntityFactory {
             case "center", "right" -> normalized;
             default -> "left";
         };
+    }
+
+    static ButtonBackgroundRenderSpec buildButtonBackgroundRenderSpec(ButtonComponentDefinition button) {
+        float targetWidth = button.size().width();
+        float targetHeight = button.size().height();
+        float baseLineHeight = TEXT_PIXEL_SCALE * TEXT_LINE_HEIGHT_PIXELS;
+        int rowCount = Math.max(1, (int) Math.ceil(targetHeight / baseLineHeight));
+        float scaleY = targetHeight / (rowCount * baseLineHeight);
+
+        float spaceWidthAtScaleY = TEXT_PIXEL_SCALE * TEXT_SPACE_ADVANCE_PIXELS * scaleY;
+        int spaceCount = Math.max(1, (int) Math.ceil(targetWidth / spaceWidthAtScaleY));
+        int lineWidth = Math.max(1, Math.round(spaceCount * TEXT_SPACE_ADVANCE_PIXELS));
+        float scaleX = targetWidth / (lineWidth * TEXT_PIXEL_SCALE);
+
+        String row = " ".repeat(spaceCount);
+        StringJoiner joiner = new StringJoiner("\n");
+        for (int index = 0; index < rowCount; index++) {
+            joiner.add(row);
+        }
+
+        return new ButtonBackgroundRenderSpec(
+                Component.literal(joiner.toString()),
+                lineWidth,
+                new Vector3f(scaleX, scaleY, MIN_Z_SCALE),
+                0.0f
+        );
     }
 
     static PanelRenderSpec buildPanelRenderSpec(PanelComponentDefinition panel) {
@@ -713,6 +867,17 @@ public final class DisplayEntityFactory {
                 fontSize,
                 0.0f
         );
+    }
+
+    record ButtonBackgroundRenderSpec(Component text, int lineWidth, Vector3f scale, float textOpacity) {
+        ButtonBackgroundRenderSpec {
+            scale = new Vector3f(scale);
+        }
+
+        @Override
+        public Vector3f scale() {
+            return new Vector3f(this.scale);
+        }
     }
 
     record PanelRenderSpec(Component text, int lineWidth, float fontSize, float textOpacity) {
