@@ -16,7 +16,8 @@ public record ButtonComponentDefinition(
         float hoverScale,
         ButtonPadding padding,
         ButtonHorizontalAlignment horizontalAlignment,
-        ButtonVerticalAlignment verticalAlignment
+        ButtonVerticalAlignment verticalAlignment,
+        ButtonSizing sizing
 ) implements ComponentDefinition {
     public ButtonComponentDefinition(
             String id,
@@ -53,7 +54,7 @@ public record ButtonComponentDefinition(
         this(
                 id, position, size, visible, opacity, label, fontSize, backgroundColor, hoverColor, clickSound,
                 clickType, action, hoverScale, ButtonPadding.zero(), ButtonHorizontalAlignment.CENTER,
-                ButtonVerticalAlignment.CENTER
+                ButtonVerticalAlignment.CENTER, ButtonSizing.fixed()
         );
     }
 
@@ -63,10 +64,11 @@ public record ButtonComponentDefinition(
         padding = padding == null ? ButtonPadding.zero() : padding;
         horizontalAlignment = horizontalAlignment == null ? ButtonHorizontalAlignment.CENTER : horizontalAlignment;
         verticalAlignment = verticalAlignment == null ? ButtonVerticalAlignment.CENTER : verticalAlignment;
-        if (size.width() <= padding.horizontal() * 2.0f) {
+        sizing = sizing == null ? ButtonSizing.fixed() : sizing;
+        if (sizing.width() == ButtonSizeMode.FIXED && size.width() <= padding.horizontal() * 2.0f) {
             throw new IllegalArgumentException("button horizontal padding leaves no content width");
         }
-        if (size.height() <= padding.vertical() * 2.0f) {
+        if (sizing.height() == ButtonSizeMode.FIXED && size.height() <= padding.vertical() * 2.0f) {
             throw new IllegalArgumentException("button vertical padding leaves no content height");
         }
     }
