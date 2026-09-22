@@ -15,6 +15,7 @@ import com.interactivedisplay.core.component.ImageSource;
 import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
@@ -100,6 +101,29 @@ public final class WindowDefinitionParser {
                     parseClickType(getString(component, "clickType", "RIGHT")),
                     parseAction(component.get("action")),
                     getFloat(component, "hoverScale", 1.0f)
+            );
+        }
+
+        if ("text_input".equals(type)) {
+            return new TextInputComponentDefinition(
+                    id,
+                    position,
+                    parseSize(component, 1.0f, 0.35f),
+                    visible,
+                    opacity,
+                    getString(component, "initialValue", ""),
+                    getString(component, "placeholder", ""),
+                    getInt(component, "maxLength", 64),
+                    getFloat(component, "fontSize", 0.4f),
+                    getString(component, "color", "#FFFFFF"),
+                    getString(component, "backgroundColor", "#CC222222"),
+                    getString(component, "hoverColor", "#EE444444"),
+                    getString(component, "clickSound", "minecraft:ui.button.click"),
+                    parseClickType(getString(component, "clickType", "RIGHT")),
+                    getString(component, "dialogTitle", "Text Input"),
+                    getString(component, "dialogLabel", null),
+                    getString(component, "confirmLabel", "Done"),
+                    getString(component, "cancelLabel", "Cancel")
             );
         }
 
