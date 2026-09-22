@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
@@ -73,6 +75,46 @@ class WindowDefinitionParserTest {
 
         assertEquals(ClickType.BOTH, button.clickType());
         assertEquals(1.08f, button.hoverScale(), 0.0001f);
+    }
+
+    @Test
+    void parsesButtonPaddingAndAlignment(@TempDir Path tempDir) throws Exception {
+        Path fixture = tempDir.resolve("button_box.yaml");
+        Files.writeString(fixture, """
+                id: button_box
+                size:
+                  width: 2.0
+                  height: 1.0
+                components:
+                  - id: action
+                    type: button
+                    position:
+                      x: 0.0
+                      y: 0.0
+                      z: 0.0
+                    size:
+                      width: 1.5
+                      height: 0.5
+                    padding:
+                      horizontal: 0.12
+                      vertical: 0.06
+                    alignment:
+                      horizontal: right
+                      vertical: top
+                    label: Action
+                    action:
+                      type: close_window
+                """);
+        JsonNode root = new ConfigDocumentLoader().load(fixture);
+        assertTrue(new SchemaValidator().validate(root, "button_box.yaml").isEmpty());
+
+        WindowDefinition definition = parser(tempDir, new DebugRecorder(10)).parse(root, "button_box.yaml");
+        ButtonComponentDefinition button = (ButtonComponentDefinition) definition.components().getFirst();
+
+        assertEquals(0.12f, button.padding().horizontal(), 0.0001f);
+        assertEquals(0.06f, button.padding().vertical(), 0.0001f);
+        assertEquals(ButtonHorizontalAlignment.RIGHT, button.horizontalAlignment());
+        assertEquals(ButtonVerticalAlignment.TOP, button.verticalAlignment());
     }
 
     @Test
