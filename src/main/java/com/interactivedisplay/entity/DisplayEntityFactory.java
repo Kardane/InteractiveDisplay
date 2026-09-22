@@ -3,7 +3,9 @@ package com.interactivedisplay.entity;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.interactivedisplay.InteractiveDisplay;
+import com.interactivedisplay.core.component.ButtonBoxModel;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ResolvedButtonBox;
 import com.interactivedisplay.core.component.ComponentDefinition;
 import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageType;
@@ -738,94 +740,23 @@ public final class DisplayEntityFactory {
     }
 
     static Vector3f buttonLabelLocalOffset(ButtonComponentDefinition button) {
-        float labelHeight = estimatedButtonLabelHeight(button);
-        float contentHeight = button.size().height() - button.padding().vertical() * 2.0f;
+        ResolvedButtonBox box = ButtonBoxModel.resolve(button);
         float verticalOffset = switch (button.verticalAlignment()) {
             case BOTTOM -> button.padding().vertical();
-            case TOP -> button.size().height() - button.padding().vertical() - labelHeight;
-            case CENTER -> button.padding().vertical() + Math.max(0.0f, (contentHeight - labelHeight) / 2.0f);
+            case TOP -> box.height() - button.padding().vertical() - box.labelHeight();
+            case CENTER -> button.padding().vertical()
+                    + Math.max(0.0f, (box.contentHeight() - box.labelHeight()) / 2.0f);
         };
         verticalOffset = Math.max(button.padding().vertical(), verticalOffset);
         return new Vector3f(0.0f, verticalOffset, BUTTON_LABEL_Z_OFFSET);
     }
 
-    private static float estimatedButtonLabelHeight(ButtonComponentDefinition button) {
-        float fontSize = Math.max(button.fontSize(), 0.1f);
-        float availableWidth = Math.max(buttonContentWidth(button), TEXT_PIXEL_SCALE * fontSize);
-        int lineCount = estimatedWrappedLineCount(button.label(), fontSize, availableWidth);
-        return lineCount * TEXT_LINE_HEIGHT_PIXELS * TEXT_PIXEL_SCALE * fontSize;
-    }
-
-    private static int estimatedWrappedLineCount(String label, float fontSize, float availableWidth) {
-        if (label == null || label.isEmpty()) {
-            return 1;
-        }
-
-        int lines = 0;
-        for (String explicitLine : label.split("\\n", -1)) {
-            float width = estimateTextUnits(explicitLine) * TEXT_LINE_HEIGHT_PIXELS * TEXT_PIXEL_SCALE * fontSize;
-            lines += Math.max(1, (int) Math.ceil(width / availableWidth));
-        }
-        return Math.max(1, lines);
-    }
-
-    private static float estimateTextUnits(String label) {
-        if (label == null || label.isEmpty()) {
-            return 1.0f;
-        }
-
-        float units = 0.0f;
-        for (int index = 0; index < label.length();) {
-            int codePoint = label.codePointAt(index);
-            units += glyphUnit(codePoint);
-            index += Character.charCount(codePoint);
-        }
-        return Math.max(1.0f, units);
-    }
-
-    private static float glyphUnit(int codePoint) {
-        if (Character.isWhitespace(codePoint)) {
-            return 0.35f;
-        }
-        if (isAsciiLetterOrDigit(codePoint)) {
-            return 0.62f;
-        }
-        if (isAsciiPunctuation(codePoint)) {
-            return 0.5f;
-        }
-        if (isWideGlyph(codePoint)) {
-            return 1.0f;
-        }
-        return 0.8f;
-    }
-
-    private static boolean isAsciiLetterOrDigit(int codePoint) {
-        return codePoint <= 0x7F && Character.isLetterOrDigit(codePoint);
-    }
-
-    private static boolean isAsciiPunctuation(int codePoint) {
-        return codePoint <= 0x7F && !Character.isLetterOrDigit(codePoint) && !Character.isWhitespace(codePoint);
-    }
-
-    private static boolean isWideGlyph(int codePoint) {
-        Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
-        return block == Character.UnicodeBlock.HANGUL_SYLLABLES
-                || block == Character.UnicodeBlock.HANGUL_JAMO
-                || block == Character.UnicodeBlock.HANGUL_COMPATIBILITY_JAMO
-                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
-                || block == Character.UnicodeBlock.ENCLOSED_CJK_LETTERS_AND_MONTHS
-                || Character.getType(codePoint) == Character.OTHER_SYMBOL;
-    }
-
     static float buttonContentWidth(ButtonComponentDefinition button) {
-        return button.size().width() - button.padding().horizontal() * 2.0f;
+        return ButtonBoxModel.resolve(button).contentWidth();
     }
 
     static int buttonLineWidth(ButtonComponentDefinition button) {
-        float normalizedFontSize = Math.max(button.fontSize(), 0.1f);
-        return Math.max(1, Math.round(buttonContentWidth(button) / (TEXT_PIXEL_SCALE * normalizedFontSize)));
+        return ButtonBoxModel.lineWidthPixels(button);
     }
 
     static int textInputLineWidth(TextInputComponentDefinition input) {
@@ -845,8 +776,9 @@ public final class DisplayEntityFactory {
     }
 
     static ButtonBackgroundRenderSpec buildButtonBackgroundRenderSpec(ButtonComponentDefinition button) {
-        float targetWidth = button.size().width();
-        float targetHeight = button.size().height();
+        ResolvedButtonBox box = ButtonBoxModel.resolve(button);
+        float targetWidth = box.width();
+        float targetHeight = box.height();
         float baseLineHeight = TEXT_PIXEL_SCALE * TEXT_LINE_HEIGHT_PIXELS;
         int rowCount = Math.max(1, (int) Math.ceil(targetHeight / baseLineHeight));
         float scaleY = targetHeight / (rowCount * baseLineHeight);
