@@ -1,5 +1,7 @@
 package com.interactivedisplay.core.layout;
 
+import com.interactivedisplay.core.component.ButtonBoxModel;
+import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentDefinition;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.window.WindowDefinition;
@@ -54,10 +56,25 @@ public final class MeditateLayoutEngine implements LayoutEngine {
             }
 
             if (layoutMode == LayoutMode.VERTICAL) {
-                cursor += component.size().height() + FLOW_GAP;
+                cursor += resolvedHeight(component) + FLOW_GAP;
             } else if (layoutMode == LayoutMode.HORIZONTAL) {
-                cursor += component.size().width() + FLOW_GAP;
+                cursor += resolvedWidth(component) + FLOW_GAP;
             }
         }
     }
+
+    private static float resolvedWidth(ComponentDefinition component) {
+        if (component instanceof ButtonComponentDefinition button) {
+            return ButtonBoxModel.resolve(button).width();
+        }
+        return component.size().width();
+    }
+
+    private static float resolvedHeight(ComponentDefinition component) {
+        if (component instanceof ButtonComponentDefinition button) {
+            return ButtonBoxModel.resolve(button).height();
+        }
+        return component.size().height();
+    }
+
 }
