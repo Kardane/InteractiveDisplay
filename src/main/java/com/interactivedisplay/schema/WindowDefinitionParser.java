@@ -7,6 +7,8 @@ import com.interactivedisplay.core.animation.AnimationRegistry;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
 import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonSizeMode;
+import com.interactivedisplay.core.component.ButtonSizing;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
@@ -106,7 +108,8 @@ public final class WindowDefinitionParser {
                     getFloat(component, "hoverScale", 1.0f),
                     parseButtonPadding(component.get("padding")),
                     parseButtonHorizontalAlignment(component.get("alignment")),
-                    parseButtonVerticalAlignment(component.get("alignment"))
+                    parseButtonVerticalAlignment(component.get("alignment")),
+                    parseButtonSizing(component.get("sizing"))
             );
         }
 
@@ -320,6 +323,16 @@ public final class WindowDefinitionParser {
                 object.get("x").floatValue(),
                 object.get("y").floatValue(),
                 object.get("z").floatValue()
+        );
+    }
+
+    private static ButtonSizing parseButtonSizing(JsonNode sizing) {
+        if (sizing == null || !sizing.isObject()) {
+            return ButtonSizing.fixed();
+        }
+        return new ButtonSizing(
+                ButtonSizeMode.fromString(getString(sizing, "width", "fixed")),
+                ButtonSizeMode.fromString(getString(sizing, "height", "fixed"))
         );
     }
 
