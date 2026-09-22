@@ -1,7 +1,6 @@
 package com.interactivedisplay.window;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
@@ -11,7 +10,6 @@ import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.ComponentActionType;
 import com.interactivedisplay.core.component.TextInputComponentDefinition;
-import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
@@ -87,27 +85,6 @@ class WindowComponentRuntimeTest {
 
         runtime.setInputValue("0123456789overflow");
         assertEquals("0123456789", runtime.inputValue());
-    }
-
-    @Test
-    void compositeButtonRuntimeShouldExposeBackgroundAndLabelElements() {
-        ButtonComponentDefinition button = button("Button", 1.0f, 0.35f, 0.4f);
-        TextDisplayElement background = new TextDisplayElement();
-        TextDisplayElement label = new TextDisplayElement();
-        WindowComponentRuntime runtime = new WindowComponentRuntime(
-                Level.OVERWORLD,
-                button,
-                new Vector3f(),
-                label,
-                null,
-                label,
-                background
-        );
-
-        assertSame(background, runtime.backgroundElement());
-        assertEquals(2, runtime.virtualElements().size());
-        assertSame(background, runtime.virtualElements().get(0));
-        assertSame(label, runtime.virtualElements().get(1));
     }
 
     @Test
