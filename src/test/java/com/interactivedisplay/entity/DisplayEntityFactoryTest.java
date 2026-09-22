@@ -97,6 +97,28 @@ class DisplayEntityFactoryTest {
     }
 
     @Test
+    void buttonBackgroundRenderSpecShouldMatchConfiguredWorldGeometry() {
+        ButtonComponentDefinition button = button("Button", 2.2f, 0.45f, 0.5f);
+        DisplayEntityFactory.ButtonBackgroundRenderSpec spec = DisplayEntityFactory.buildButtonBackgroundRenderSpec(button);
+        String[] rows = spec.text().getString().split("\\n", -1);
+
+        assertEquals(button.size().width(), spec.lineWidth() * 0.025f * spec.scale().x, 0.0001f);
+        assertEquals(button.size().height(), rows.length * 10.0f * 0.025f * spec.scale().y, 0.0001f);
+        assertEquals(0.0f, spec.textOpacity(), 0.0001f);
+    }
+
+    @Test
+    void buttonLabelOffsetShouldCenterSingleLineTextInsideConfiguredHeight() {
+        ButtonComponentDefinition button = button("Button", 2.2f, 0.45f, 0.5f);
+
+        Vector3f offset = DisplayEntityFactory.buttonLabelLocalOffset(button);
+
+        assertEquals(0.0f, offset.x, 0.0001f);
+        assertEquals(0.1625f, offset.y, 0.0001f);
+        assertEquals(0.001f, offset.z, 0.0001f);
+    }
+
+    @Test
     void buttonLineWidthShouldMatchConfiguredWorldWidthAfterTextScaling() {
         ButtonComponentDefinition button = new ButtonComponentDefinition(
                 "test",
@@ -163,6 +185,23 @@ class DisplayEntityFactoryTest {
         assertEquals(expected.x, actual.x, 0.0001);
         assertEquals(expected.y, actual.y, 0.0001);
         assertEquals(expected.z, actual.z, 0.0001);
+    }
+
+    private static ButtonComponentDefinition button(String label, float width, float height, float fontSize) {
+        return new ButtonComponentDefinition(
+                "test",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(width, height),
+                true,
+                1.0f,
+                label,
+                fontSize,
+                "#AA174A7E",
+                "#EEFFE4A6",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow()
+        );
     }
 
     private static PanelComponentDefinition panel(float width, float height) {
