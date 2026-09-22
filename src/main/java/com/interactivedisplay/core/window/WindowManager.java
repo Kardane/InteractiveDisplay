@@ -38,6 +38,7 @@ public final class WindowManager implements WindowActionExecutor {
     private final WindowStateStore stateStore;
     private final WindowLifecycleCoordinator lifecycleCoordinator;
     private final UiHitResolver uiHitResolver;
+    private final TextInputController textInputController;
     private final Map<String, WindowDefinition> programmaticDefinitions = new ConcurrentHashMap<>();
 
     public WindowManager(MinecraftServer server,
@@ -68,6 +69,7 @@ public final class WindowManager implements WindowActionExecutor {
                 callbackRegistry
         );
         this.uiHitResolver = new UiHitResolver(this.stateStore, transformer);
+        this.textInputController = new TextInputController(server, this.stateStore, entityFactory);
     }
 
     public ReloadWindowResult reloadAll() {
@@ -272,6 +274,7 @@ public final class WindowManager implements WindowActionExecutor {
     }
 
     public void removeAll(UUID owner) {
+        this.textInputController.clear(owner);
         this.lifecycleCoordinator.removeAll(owner);
     }
 
@@ -386,6 +389,15 @@ public final class WindowManager implements WindowActionExecutor {
     @Override
     public ActionExecutionResult executeCallback(UUID owner, String windowId, String componentId, String callbackId) {
         return this.lifecycleCoordinator.executeCallback(owner, windowId, componentId, callbackId);
+    }
+
+    @Override
+    public ActionExecutionResult openTextInput(UUID owner, UiHitResult hitResult) {
+        return this.textInputController.open(owner, hitResult);
+    }
+
+    public boolean handleCustomClickAction(ServerPlayer player, net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket packet) {
+        return this.textInputController.handleCustomClickAction(player, packet);
     }
 
     @Override
