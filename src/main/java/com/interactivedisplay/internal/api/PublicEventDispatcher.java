@@ -15,6 +15,7 @@ public final class PublicEventDispatcher {
     private static final List<Consumer<EventApi.WindowEvent>> WINDOW_OPENED = new CopyOnWriteArrayList<>();
     private static final List<Consumer<EventApi.WindowEvent>> WINDOW_CLOSED = new CopyOnWriteArrayList<>();
     private static final List<Consumer<EventApi.ButtonClickEvent>> BUTTON_CLICKED = new CopyOnWriteArrayList<>();
+    private static final List<Consumer<EventApi.TextInputSubmitEvent>> TEXT_INPUT_SUBMITTED = new CopyOnWriteArrayList<>();
     private static final EventApi API = new EventApi() {
         @Override
         public Subscription onWindowOpened(Consumer<WindowEvent> listener) {
@@ -35,6 +36,13 @@ public final class PublicEventDispatcher {
             Consumer<ButtonClickEvent> safeListener = Objects.requireNonNull(listener, "listener");
             BUTTON_CLICKED.add(safeListener);
             return () -> BUTTON_CLICKED.remove(safeListener);
+        }
+
+        @Override
+        public Subscription onTextInputSubmitted(Consumer<TextInputSubmitEvent> listener) {
+            Consumer<TextInputSubmitEvent> safeListener = Objects.requireNonNull(listener, "listener");
+            TEXT_INPUT_SUBMITTED.add(safeListener);
+            return () -> TEXT_INPUT_SUBMITTED.remove(safeListener);
         }
     };
 
@@ -58,6 +66,16 @@ public final class PublicEventDispatcher {
     public static void fireButtonClicked(UUID ownerId, String internalWindowId, String componentId) {
         EventApi.ButtonClickEvent event = new EventApi.ButtonClickEvent(ownerId, toPublicWindowId(internalWindowId), componentId);
         dispatch(BUTTON_CLICKED, event, "button-clicked");
+    }
+
+    public static void fireTextInputSubmitted(UUID ownerId, String internalWindowId, String componentId, String value) {
+        EventApi.TextInputSubmitEvent event = new EventApi.TextInputSubmitEvent(
+                ownerId,
+                toPublicWindowId(internalWindowId),
+                componentId,
+                value
+        );
+        dispatch(TEXT_INPUT_SUBMITTED, event, "text-input-submitted");
     }
 
     private static <T> void dispatch(List<Consumer<T>> listeners, T event, String eventName) {
