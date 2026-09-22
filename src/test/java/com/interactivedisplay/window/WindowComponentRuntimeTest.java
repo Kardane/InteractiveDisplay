@@ -26,11 +26,12 @@ class WindowComponentRuntimeTest {
     }
 
     @Test
-    void wrappedLabelShouldIncreaseHitHeight() {
+    void buttonHitHeightShouldUseConfiguredHeightRegardlessOfLabelWrapping() {
         WindowComponentRuntime shortRuntime = runtime("닫기", 0.5f, 0.35f);
         WindowComponentRuntime longRuntime = runtime("인터랙티브 디스플레이 닫기", 0.5f, 0.35f);
 
-        assertTrue(longRuntime.hitHalfHeight() > shortRuntime.hitHalfHeight());
+        assertEquals(0.175f, shortRuntime.hitHalfHeight(), 0.0001f);
+        assertEquals(shortRuntime.hitHalfHeight(), longRuntime.hitHalfHeight(), 0.0001f);
     }
 
     @Test
@@ -47,7 +48,7 @@ class WindowComponentRuntimeTest {
         WindowComponentRuntime buttonRuntime = runtime("R1C2", 0.9f, 0.5f, 0.45f);
 
         assertEquals(0.45f, buttonRuntime.hitHalfWidth(), 0.0001f);
-        assertEquals(0.05625f, buttonRuntime.hitHalfHeight(), 0.0001f);
+        assertEquals(0.25f, buttonRuntime.hitHalfHeight(), 0.0001f);
         assertEquals(buttonRuntime.hitHalfHeight(), buttonRuntime.hitCenterLocalPosition().y, 0.0001f);
     }
 
