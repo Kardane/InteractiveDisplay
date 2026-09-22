@@ -1,6 +1,7 @@
 package com.interactivedisplay.window;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
@@ -10,6 +11,7 @@ import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.ComponentActionType;
 import com.interactivedisplay.core.component.TextInputComponentDefinition;
+import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
@@ -88,16 +90,33 @@ class WindowComponentRuntimeTest {
     }
 
     @Test
+    void compositeButtonRuntimeShouldExposeBackgroundAndLabelElements() {
+        ButtonComponentDefinition button = button("Button", 1.0f, 0.35f, 0.4f);
+        TextDisplayElement background = new TextDisplayElement();
+        TextDisplayElement label = new TextDisplayElement();
+        WindowComponentRuntime runtime = new WindowComponentRuntime(
+                Level.OVERWORLD,
+                button,
+                new Vector3f(),
+                label,
+                null,
+                label,
+                background
+        );
+
+        assertSame(background, runtime.backgroundElement());
+        assertEquals(2, runtime.virtualElements().size());
+        assertSame(background, runtime.virtualElements().get(0));
+        assertSame(label, runtime.virtualElements().get(1));
+    }
+
+    @Test
     void runtimeWithoutMaterializedDisplayShouldReportZeroPacketEntities() {
         assertEquals(0, runtime("닫기", 1.0f, 0.35f).entityCount());
     }
 
-    private static WindowComponentRuntime runtime(String label, float width, float height) {
-        return runtime(label, width, height, 1.0f);
-    }
-
-    private static WindowComponentRuntime runtime(String label, float width, float height, float fontSize) {
-        ButtonComponentDefinition button = new ButtonComponentDefinition(
+    private static ButtonComponentDefinition button(String label, float width, float height, float fontSize) {
+        return new ButtonComponentDefinition(
                 "close",
                 new ComponentPosition(0.0f, 0.0f, 0.0f),
                 new ComponentSize(width, height),
@@ -111,6 +130,13 @@ class WindowComponentRuntimeTest {
                 ClickType.RIGHT,
                 ComponentAction.closeWindow()
         );
-        return new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), null, null);
+    }
+
+    private static WindowComponentRuntime runtime(String label, float width, float height) {
+        return runtime(label, width, height, 1.0f);
+    }
+
+    private static WindowComponentRuntime runtime(String label, float width, float height, float fontSize) {
+        return new WindowComponentRuntime(Level.OVERWORLD, button(label, width, height, fontSize), new Vector3f(), null, null);
     }
 }
