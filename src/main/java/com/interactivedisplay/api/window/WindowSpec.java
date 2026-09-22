@@ -107,7 +107,7 @@ public final class WindowSpec {
         }
     }
 
-    public sealed interface ComponentSpec permits TextSpec, ButtonSpec, PanelSpec, ImageSpec {
+    public sealed interface ComponentSpec permits TextSpec, ButtonSpec, TextInputSpec, PanelSpec, ImageSpec {
         String id();
 
         Position position();
@@ -175,6 +175,51 @@ public final class WindowSpec {
             Objects.requireNonNull(action, "action");
             hoverScale = positive(hoverScale, 1.0f);
             opacity = clampOpacity(opacity);
+        }
+    }
+
+    public record TextInputSpec(
+            String id,
+            Position position,
+            Size size,
+            boolean visible,
+            float opacity,
+            String initialValue,
+            String placeholder,
+            int maxLength,
+            float fontSize,
+            String color,
+            String backgroundColor,
+            String hoverColor,
+            String clickSound,
+            Click click,
+            String dialogTitle,
+            String dialogLabel,
+            String confirmLabel,
+            String cancelLabel
+    ) implements ComponentSpec {
+        public TextInputSpec {
+            requireComponentId(id);
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(size, "size");
+            initialValue = initialValue == null ? "" : initialValue;
+            placeholder = placeholder == null ? "" : placeholder;
+            maxLength = Math.max(1, maxLength);
+            fontSize = positive(fontSize, 0.4f);
+            color = color == null ? "#FFFFFF" : color;
+            backgroundColor = backgroundColor == null ? "#CC222222" : backgroundColor;
+            hoverColor = hoverColor == null ? "#EE444444" : hoverColor;
+            click = click == null ? Click.RIGHT : click;
+            dialogTitle = dialogTitle == null || dialogTitle.isBlank() ? "Text Input" : dialogTitle;
+            dialogLabel = dialogLabel == null || dialogLabel.isBlank()
+                    ? (placeholder.isBlank() ? "Value" : placeholder)
+                    : dialogLabel;
+            confirmLabel = confirmLabel == null || confirmLabel.isBlank() ? "Done" : confirmLabel;
+            cancelLabel = cancelLabel == null || cancelLabel.isBlank() ? "Cancel" : cancelLabel;
+            opacity = clampOpacity(opacity);
+            if (initialValue.length() > maxLength) {
+                initialValue = initialValue.substring(0, maxLength);
+            }
         }
     }
 
@@ -312,6 +357,13 @@ public final class WindowSpec {
 
         public Builder button(String id, Consumer<ButtonBuilder> consumer) {
             ButtonBuilder builder = new ButtonBuilder(id);
+            consumer.accept(builder);
+            this.components.add(builder.build());
+            return this;
+        }
+
+        public Builder textInput(String id, Consumer<TextInputBuilder> consumer) {
+            TextInputBuilder builder = new TextInputBuilder(id);
             consumer.accept(builder);
             this.components.add(builder.build());
             return this;
@@ -509,6 +561,113 @@ public final class WindowSpec {
             }
             return new ButtonSpec(this.id, this.position, this.size, this.visible, this.opacity, this.label, this.fontSize,
                     this.backgroundColor, this.hoverColor, this.clickSound, this.click, this.action, this.hoverScale);
+        }
+    }
+
+    public static final class TextInputBuilder {
+        private final String id;
+        private Position position = Position.origin();
+        private Size size = new Size(1.0f, 0.35f);
+        private boolean visible = true;
+        private float opacity = 1.0f;
+        private String initialValue = "";
+        private String placeholder = "";
+        private int maxLength = 64;
+        private float fontSize = 0.4f;
+        private String color = "#FFFFFF";
+        private String backgroundColor = "#CC222222";
+        private String hoverColor = "#EE444444";
+        private String clickSound = "minecraft:ui.button.click";
+        private Click click = Click.RIGHT;
+        private String dialogTitle = "Text Input";
+        private String dialogLabel;
+        private String confirmLabel = "Done";
+        private String cancelLabel = "Cancel";
+
+        private TextInputBuilder(String id) {
+            this.id = id;
+        }
+
+        public TextInputBuilder position(float x, float y, float z) {
+            this.position = new Position(x, y, z);
+            return this;
+        }
+
+        public TextInputBuilder size(float width, float height) {
+            this.size = new Size(width, height);
+            return this;
+        }
+
+        public TextInputBuilder visible(boolean visible) {
+            this.visible = visible;
+            return this;
+        }
+
+        public TextInputBuilder opacity(float opacity) {
+            this.opacity = opacity;
+            return this;
+        }
+
+        public TextInputBuilder initialValue(String initialValue) {
+            this.initialValue = initialValue;
+            return this;
+        }
+
+        public TextInputBuilder placeholder(String placeholder) {
+            this.placeholder = placeholder;
+            return this;
+        }
+
+        public TextInputBuilder maxLength(int maxLength) {
+            this.maxLength = maxLength;
+            return this;
+        }
+
+        public TextInputBuilder fontSize(float fontSize) {
+            this.fontSize = fontSize;
+            return this;
+        }
+
+        public TextInputBuilder color(String color) {
+            this.color = color;
+            return this;
+        }
+
+        public TextInputBuilder background(String normal, String hover) {
+            this.backgroundColor = normal;
+            this.hoverColor = hover;
+            return this;
+        }
+
+        public TextInputBuilder clickSound(String clickSound) {
+            this.clickSound = clickSound;
+            return this;
+        }
+
+        public TextInputBuilder click(Click click) {
+            this.click = click;
+            return this;
+        }
+
+        public TextInputBuilder dialog(String title, String label) {
+            this.dialogTitle = title;
+            this.dialogLabel = label;
+            return this;
+        }
+
+        public TextInputBuilder buttons(String confirmLabel, String cancelLabel) {
+            this.confirmLabel = confirmLabel;
+            this.cancelLabel = cancelLabel;
+            return this;
+        }
+
+        private TextInputSpec build() {
+            return new TextInputSpec(
+                    this.id, this.position, this.size, this.visible, this.opacity,
+                    this.initialValue, this.placeholder, this.maxLength, this.fontSize, this.color,
+                    this.backgroundColor, this.hoverColor, this.clickSound, this.click,
+                    this.dialogTitle, this.dialogLabel, this.confirmLabel, this.cancelLabel
+            );
         }
     }
 
