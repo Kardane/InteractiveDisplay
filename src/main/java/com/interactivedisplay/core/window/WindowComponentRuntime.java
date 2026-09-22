@@ -77,11 +77,11 @@ public final class WindowComponentRuntime {
         );
     }
 
-    public WindowComponentRuntime(ResourceKey<Level> worldKey,
-                                  ComponentDefinition definition,
-                                  Vector3f localPosition,
-                                  RenderedComponent renderedComponent,
-                                  PlayerCanvas mapCanvas) {
+    private WindowComponentRuntime(ResourceKey<Level> worldKey,
+                                   ComponentDefinition definition,
+                                   Vector3f localPosition,
+                                   RenderedComponent renderedComponent,
+                                   PlayerCanvas mapCanvas) {
         this.worldKey = worldKey;
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
@@ -94,6 +94,14 @@ public final class WindowComponentRuntime {
             this.baseScales.put(display, new Vector3f(display.getScale()));
             this.baseTranslations.put(display, new Vector3f(display.getTranslation()));
         }
+    }
+
+    public static WindowComponentRuntime fromRenderedComponent(ResourceKey<Level> worldKey,
+                                                               ComponentDefinition definition,
+                                                               Vector3f localPosition,
+                                                               RenderedComponent renderedComponent,
+                                                               PlayerCanvas mapCanvas) {
+        return new WindowComponentRuntime(worldKey, definition, localPosition, renderedComponent, mapCanvas);
     }
 
     public ResourceKey<Level> worldKey() {
