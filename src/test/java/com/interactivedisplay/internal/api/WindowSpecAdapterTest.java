@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import com.interactivedisplay.api.window.WindowSpec;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonSizeMode;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentActionType;
@@ -65,6 +66,7 @@ class WindowSpecAdapterTest {
                         .hoverScale(1.1f)
                         .padding(0.08f, 0.04f)
                         .alignment(WindowSpec.HorizontalAlignment.RIGHT, WindowSpec.VerticalAlignment.TOP)
+                        .sizing(WindowSpec.ButtonSizeMode.FIXED, WindowSpec.ButtonSizeMode.CONTENT)
                         .click(WindowSpec.Click.BOTH)
                         .action(WindowSpec.Actions.callback(callbackId)))
                 .build();
@@ -130,6 +132,8 @@ class WindowSpecAdapterTest {
         assertEquals(0.04f, button.padding().vertical(), 0.0001f);
         assertEquals(ButtonHorizontalAlignment.RIGHT, button.horizontalAlignment());
         assertEquals(ButtonVerticalAlignment.TOP, button.verticalAlignment());
+        assertEquals(ButtonSizeMode.FIXED, button.sizing().width());
+        assertEquals(ButtonSizeMode.CONTENT, button.sizing().height());
     }
 
     @Test
