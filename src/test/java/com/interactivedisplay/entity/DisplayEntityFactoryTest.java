@@ -102,7 +102,7 @@ class DisplayEntityFactoryTest {
         DisplayEntityFactory.ButtonBackgroundRenderSpec spec = DisplayEntityFactory.buildButtonBackgroundRenderSpec(button);
         String[] rows = spec.text().getString().split("\\n", -1);
 
-        assertEquals(button.size().width(), spec.lineWidth() * 0.025f * spec.scale().x, 0.0001f);
+        assertEquals(button.size().width(), (spec.lineWidth() + 1.0f) * 0.025f * spec.scale().x, 0.0001f);
         assertEquals(button.size().height(), rows.length * 10.0f * 0.025f * spec.scale().y, 0.0001f);
         assertEquals(0.0f, spec.textOpacity(), 0.0001f);
     }
