@@ -29,6 +29,24 @@ public final class ClickHandler {
             return pass(DebugLevel.DEBUG, DebugReason.INTERACTION_NOT_FOUND, playerId, playerName, null, null, null, "선택된 UI hit 없음");
         }
         WindowNavigationContext context = hitResult.navigationContext();
+
+        if (hitResult.action().type() == ComponentActionType.OPEN_TEXT_INPUT) {
+            ActionExecutionResult result = this.actionExecutor.openTextInput(playerId, hitResult);
+            if (!result.success()) {
+                return pass(DebugLevel.WARN, result.reasonCode(), playerId, playerName, hitResult.windowId(), hitResult.componentId(), null, result.message());
+            }
+            ClickHandleResult clickResult = ClickHandleResult.consumed(
+                    playerId,
+                    playerName,
+                    hitResult.windowId(),
+                    hitResult.componentId(),
+                    null,
+                    result.message()
+            );
+            record(DebugLevel.DEBUG, clickResult);
+            return clickResult;
+        }
+
         PublicEventDispatcher.fireButtonClicked(playerId, hitResult.windowId(), hitResult.componentId());
 
         if (hitResult.action().type() == ComponentActionType.CLOSE_WINDOW) {
