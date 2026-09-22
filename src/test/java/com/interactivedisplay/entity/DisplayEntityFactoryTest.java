@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
 import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonSizeMode;
+import com.interactivedisplay.core.component.ButtonSizing;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
@@ -108,6 +110,36 @@ class DisplayEntityFactoryTest {
         assertEquals(button.size().width(), (spec.lineWidth() + 1.0f) * 0.025f * spec.scale().x, 0.0001f);
         assertEquals(button.size().height(), rows.length * 10.0f * 0.025f * spec.scale().y, 0.0001f);
         assertEquals(0.0f, spec.textOpacity(), 0.0001f);
+    }
+
+    @Test
+    void contentSizedButtonBackgroundShouldUseResolvedGeometry() {
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "content",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(9.0f, 9.0f),
+                true,
+                1.0f,
+                "OK",
+                0.4f,
+                "#AA174A7E",
+                "#EEFFE4A6",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                new ButtonPadding(0.1f, 0.05f),
+                ButtonHorizontalAlignment.CENTER,
+                ButtonVerticalAlignment.CENTER,
+                new ButtonSizing(ButtonSizeMode.CONTENT, ButtonSizeMode.CONTENT)
+        );
+
+        DisplayEntityFactory.ButtonBackgroundRenderSpec spec = DisplayEntityFactory.buildButtonBackgroundRenderSpec(button);
+        String[] rows = spec.text().getString().split("\\n", -1);
+
+        assertEquals(0.324f, (spec.lineWidth() + 1.0f) * 0.025f * spec.scale().x, 0.0001f);
+        assertEquals(0.2f, rows.length * 10.0f * 0.025f * spec.scale().y, 0.0001f);
+        assertEquals(12, DisplayEntityFactory.buttonLineWidth(button));
     }
 
     @Test
