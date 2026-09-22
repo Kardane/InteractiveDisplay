@@ -217,7 +217,7 @@ public final class DisplayEntityFactory {
             for (VirtualElement renderedElement : renderedComponent.virtualElements()) {
                 holder.addElement(renderedElement);
             }
-            return new WindowComponentRuntime(
+            return WindowComponentRuntime.fromRenderedComponent(
                     world.dimension(),
                     component,
                     new Vector3f(),
