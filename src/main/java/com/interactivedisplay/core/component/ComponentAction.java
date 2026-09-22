@@ -36,4 +36,8 @@ public record ComponentAction(ComponentActionType type, String target, Integer p
     public static ComponentAction callback(String callbackId) {
         return new ComponentAction(ComponentActionType.CALLBACK, callbackId, null);
     }
+
+    public static ComponentAction openTextInput() {
+        return new ComponentAction(ComponentActionType.OPEN_TEXT_INPUT, null, null);
+    }
 }

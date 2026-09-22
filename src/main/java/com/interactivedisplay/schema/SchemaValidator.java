@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 public final class SchemaValidator {
-    private static final Set<String> COMPONENT_TYPES = Set.of("text", "button", "image", "panel");
+    private static final Set<String> COMPONENT_TYPES = Set.of("text", "button", "text_input", "image", "panel");
     private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "switch_mode_fixed", "switch_mode_player_fixed", "switch_mode_player_view", "toggle_placement_tracking", "run_command", "callback");
     private static final Set<String> IMAGE_TYPES = Set.of("item", "block", "map");
     private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal");
@@ -120,6 +120,25 @@ public final class SchemaValidator {
                 validateOptionalString(component, "clickSound", componentName, errors);
                 validatePositiveOptional(component, "hoverScale", componentName, errors);
                 validateAction(component, componentName, errors);
+                continue;
+            }
+
+            if ("text_input".equals(type)) {
+                validateSize(component, componentName, errors, true);
+                validateOptionalString(component, "initialValue", componentName, errors);
+                validateOptionalString(component, "placeholder", componentName, errors);
+                validatePositiveOptional(component, "maxLength", componentName, errors);
+                validatePositiveOptional(component, "fontSize", componentName, errors);
+                validateOptionalString(component, "clickType", componentName, errors);
+                String clickType = optionalString(component, "clickType");
+                if (clickType != null && !CLICK_TYPES.contains(clickType.toLowerCase())) {
+                    errors.add(componentName + ": clickType must be LEFT, RIGHT, BOTH");
+                }
+                validateOptionalString(component, "clickSound", componentName, errors);
+                validateOptionalString(component, "dialogTitle", componentName, errors);
+                validateOptionalString(component, "dialogLabel", componentName, errors);
+                validateOptionalString(component, "confirmLabel", componentName, errors);
+                validateOptionalString(component, "cancelLabel", componentName, errors);
                 continue;
             }
 

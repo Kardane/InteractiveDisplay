@@ -11,6 +11,7 @@ import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
@@ -61,6 +62,14 @@ final class WindowSpecAdapter {
                     button.id(), position, size, button.visible(), button.opacity(), button.label(), button.fontSize(),
                     button.backgroundColor(), button.hoverColor(), button.clickSound(), ClickType.valueOf(button.click().name()),
                     toAction(button.action()), button.hoverScale()
+            );
+        }
+        if (component instanceof WindowSpec.TextInputSpec input) {
+            return new TextInputComponentDefinition(
+                    input.id(), position, size, input.visible(), input.opacity(),
+                    input.initialValue(), input.placeholder(), input.maxLength(), input.fontSize(), input.color(),
+                    input.backgroundColor(), input.hoverColor(), input.clickSound(), ClickType.valueOf(input.click().name()),
+                    input.dialogTitle(), input.dialogLabel(), input.confirmLabel(), input.cancelLabel()
             );
         }
         if (component instanceof WindowSpec.PanelSpec panel) {

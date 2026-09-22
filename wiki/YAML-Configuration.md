@@ -54,12 +54,37 @@ Supported component types are:
 
 - text
 - button
+- text_input
 - panel
 - image
 
 Image components support item, block, and map image types. MAP components are supported only in FIXED windows.
 
 Panels may contain nested child components in YAML. Programmatic Java WindowSpec currently does not expose the same nested child builder.
+
+## Text input
+
+`text_input` renders as an interactive text field in the display. Clicking it opens Minecraft's native dialog text input and submitting the dialog updates the runtime value for that player.
+
+    - id: search
+      type: text_input
+      position:
+        x: 0.0
+        y: 0.0
+        z: 0.01
+      size:
+        width: 2.0
+        height: 0.35
+      placeholder: "Search..."
+      initialValue: ""
+      maxLength: 64
+      clickType: right
+      dialogTitle: "Search"
+      dialogLabel: "Query"
+      confirmLabel: "Apply"
+      cancelLabel: "Cancel"
+
+The runtime value is player-local and lasts for the lifetime of the active window. Closing and reopening the window resets it to `initialValue`. Submissions are exposed through `EventApi.onTextInputSubmitted`.
 
 ## Buttons and actions
 

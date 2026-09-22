@@ -122,6 +122,20 @@ For programmatic buttons, bind the action:
 
 The same namespaced action can be used from YAML.
 
+## Text input components
+
+Programmatic windows can add a native-dialog-backed text input:
+
+    .textInput("search", input -> input
+            .position(0.0f, 0.0f, 0.01f)
+            .size(2.0f, 0.35f)
+            .placeholder("Search...")
+            .maxLength(64)
+            .dialog("Search", "Query")
+            .buttons("Apply", "Cancel"))
+
+Submitted values are player-local runtime state and are delivered through `onTextInputSubmitted`.
+
 ## Lifecycle events
 
 EventApi supports removable subscriptions:
@@ -134,8 +148,13 @@ EventApi supports removable subscriptions:
         // event.ownerId(), event.windowId(), event.componentId()
     });
 
+    var submitted = registrar.events().onTextInputSubmitted(event -> {
+        // event.ownerId(), event.windowId(), event.componentId(), event.value()
+    });
+
     opened.close();
     clicked.close();
+    submitted.close();
 
 Listener exceptions are isolated. Internal reload and rebuild maintenance does not emit public open/close events.
 

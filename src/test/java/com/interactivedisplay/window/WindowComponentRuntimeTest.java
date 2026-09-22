@@ -8,6 +8,8 @@ import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
+import com.interactivedisplay.core.component.ComponentActionType;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
@@ -47,6 +49,41 @@ class WindowComponentRuntimeTest {
         assertEquals(0.45f, buttonRuntime.hitHalfWidth(), 0.0001f);
         assertEquals(0.05625f, buttonRuntime.hitHalfHeight(), 0.0001f);
         assertEquals(buttonRuntime.hitHalfHeight(), buttonRuntime.hitCenterLocalPosition().y, 0.0001f);
+    }
+
+    @Test
+    void textInputShouldUseConfiguredHitboxAndMaintainRuntimeValue() {
+        TextInputComponentDefinition input = new TextInputComponentDefinition(
+                "search",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(2.0f, 0.4f),
+                true,
+                1.0f,
+                "initial",
+                "Search...",
+                10,
+                0.4f,
+                "#FFFFFF",
+                "#CC222222",
+                "#EE444444",
+                null,
+                ClickType.RIGHT,
+                "Search",
+                "Query",
+                "Done",
+                "Cancel"
+        );
+        WindowComponentRuntime runtime = new WindowComponentRuntime(Level.OVERWORLD, input, new Vector3f(), null, null);
+
+        assertTrue(runtime.interactive());
+        assertEquals(1.0f, runtime.hitHalfWidth(), 0.0001f);
+        assertEquals(0.2f, runtime.hitHalfHeight(), 0.0001f);
+        assertEquals(0.2f, runtime.hitCenterLocalPosition().y, 0.0001f);
+        assertEquals(ComponentActionType.OPEN_TEXT_INPUT, runtime.action().type());
+        assertEquals("initial", runtime.inputValue());
+
+        runtime.setInputValue("0123456789overflow");
+        assertEquals("0123456789", runtime.inputValue());
     }
 
     @Test

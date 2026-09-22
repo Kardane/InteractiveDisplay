@@ -52,6 +52,10 @@ public final class ExampleDisplayIntegration implements InteractiveDisplayEntryp
             // Observe InteractiveDisplay button clicks without touching runtime internals.
         });
 
+        registrar.events().onTextInputSubmitted(event -> {
+            // event.value() contains the submitted native-dialog text.
+        });
+
         registrar.windows().register(
                 WindowSpec.builder(STATUS)
                         .size(3.0f, 1.5f)
@@ -66,6 +70,12 @@ public final class ExampleDisplayIntegration implements InteractiveDisplayEntryp
                                 .size(2.5f, 0.35f)
                                 .content("Hello %player:name%")
                                 .refreshInterval(20))
+                        .textInput("search", input -> input
+                                .position(0.0f, 0.05f, 0.01f)
+                                .size(2.0f, 0.35f)
+                                .placeholder("Search...")
+                                .maxLength(64)
+                                .dialog("Search", "Query"))
                         .button("buy", button -> button
                                 .position(0.0f, -0.20f, 0.01f)
                                 .size(1.2f, 0.35f)

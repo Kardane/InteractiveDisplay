@@ -4,6 +4,7 @@ import com.interactivedisplay.command.InteractiveDisplayCommand;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.ClickHandleResult;
 import com.interactivedisplay.core.interaction.ClickHandler;
@@ -31,6 +32,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -182,6 +184,10 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             if (!button.clickType().allows(clickType == ClickType.LEFT)) {
                 return false;
             }
+        } else if (hitResult.runtime().definition() instanceof TextInputComponentDefinition input) {
+            if (!input.clickType().allows(clickType == ClickType.LEFT)) {
+                return false;
+            }
         } else if (!(clickType == ClickType.RIGHT
                 && player.isShiftKeyDown()
                 && hitResult.runtime().definition() instanceof PanelComponentDefinition)) {
@@ -191,9 +197,14 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         ClickHandleResult result = handler.handle(player.getUUID(), player.getGameProfile().getName(), hitResult);
         if (result.consumed()) {
             rememberConsumedUiClick(player);
-            playButtonSound(player, hitResult);
+            playInteractionSound(player, hitResult);
         }
         return result.consumed();
+    }
+
+    public boolean consumeCustomClickAction(ServerPlayer player, ServerboundCustomClickActionPacket packet) {
+        WindowManager manager = this.windowManager;
+        return manager != null && player != null && packet != null && manager.handleCustomClickAction(player, packet);
     }
 
     public WindowManager windowManager() {
@@ -237,16 +248,21 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         }
     }
 
-    private static void playButtonSound(ServerPlayer player, UiHitResult hitResult) {
-        if (!(hitResult.runtime().definition() instanceof ButtonComponentDefinition button)) {
+    private static void playInteractionSound(ServerPlayer player, UiHitResult hitResult) {
+        String clickSound;
+        if (hitResult.runtime().definition() instanceof ButtonComponentDefinition button) {
+            clickSound = button.clickSound();
+        } else if (hitResult.runtime().definition() instanceof TextInputComponentDefinition input) {
+            clickSound = input.clickSound();
+        } else {
             return;
         }
-        if (button.clickSound() == null || button.clickSound().isBlank()) {
+        if (clickSound == null || clickSound.isBlank()) {
             return;
         }
-        ResourceLocation soundId = ResourceLocation.tryParse(button.clickSound());
+        ResourceLocation soundId = ResourceLocation.tryParse(clickSound);
         if (soundId == null) {
-            LOGGER.warn("[{}] invalid clickSound componentId={} value={}", MOD_ID, hitResult.componentId(), button.clickSound());
+            LOGGER.warn("[{}] invalid clickSound componentId={} value={}", MOD_ID, hitResult.componentId(), clickSound);
             return;
         }
         player.playNotifySound(SoundEvent.createVariableRangeEvent(soundId), SoundSource.PLAYERS, 1.0f, 1.0f);

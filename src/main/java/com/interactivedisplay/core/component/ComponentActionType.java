@@ -8,5 +8,6 @@ public enum ComponentActionType {
     SWITCH_MODE_PLAYER_VIEW,
     TOGGLE_PLACEMENT_TRACKING,
     RUN_COMMAND,
-    CALLBACK
+    CALLBACK,
+    OPEN_TEXT_INPUT
 }

@@ -3,6 +3,7 @@ package com.interactivedisplay.core.window;
 import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import com.interactivedisplay.core.interaction.CommandWhitelist;
 import com.interactivedisplay.core.interaction.UiHitResult;
@@ -427,12 +428,15 @@ final class WindowLifecycleCoordinator {
         }
         for (WindowInstance instance : windows) {
             for (WindowComponentRuntime runtime : instance.runtimes()) {
-                if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
-                    continue;
-                }
                 boolean shouldHover = runtime == hoveredRuntime && instance.worldKey().equals(player.level().dimension());
-                if (runtime.hovered() != shouldHover) {
-                    this.entityFactory.setButtonHover(this.server, player.getUUID(), runtime, button, shouldHover);
+                if (runtime.definition() instanceof ButtonComponentDefinition button) {
+                    if (runtime.hovered() != shouldHover) {
+                        this.entityFactory.setButtonHover(this.server, player.getUUID(), runtime, button, shouldHover);
+                    }
+                } else if (runtime.definition() instanceof TextInputComponentDefinition input) {
+                    if (runtime.hovered() != shouldHover) {
+                        this.entityFactory.setTextInputHover(this.server, player.getUUID(), runtime, input, shouldHover);
+                    }
                 }
             }
         }
@@ -690,11 +694,13 @@ final class WindowLifecycleCoordinator {
     private void clearHover(Collection<WindowInstance> windows) {
         for (WindowInstance instance : windows) {
             for (WindowComponentRuntime runtime : instance.runtimes()) {
-                if (!(runtime.definition() instanceof ButtonComponentDefinition button)) {
+                if (!runtime.hovered()) {
                     continue;
                 }
-                if (runtime.hovered()) {
+                if (runtime.definition() instanceof ButtonComponentDefinition button) {
                     this.entityFactory.setButtonHover(this.server, instance.owner(), runtime, button, false);
+                } else if (runtime.definition() instanceof TextInputComponentDefinition input) {
+                    this.entityFactory.setTextInputHover(this.server, instance.owner(), runtime, input, false);
                 }
             }
         }

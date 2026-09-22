@@ -8,6 +8,7 @@ import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransitionType;
 import com.interactivedisplay.debug.DebugRecorder;
@@ -72,6 +73,49 @@ class WindowDefinitionParserTest {
 
         assertEquals(ClickType.BOTH, button.clickType());
         assertEquals(1.08f, button.hoverScale(), 0.0001f);
+    }
+
+    @Test
+    void parsesTextInputComponent(@TempDir Path tempDir) throws Exception {
+        Path fixture = tempDir.resolve("text_input.yaml");
+        Files.writeString(fixture, """
+                id: input_window
+                size:
+                  width: 2.5
+                  height: 1.0
+                components:
+                  - id: search
+                    type: text_input
+                    position:
+                      x: 0.0
+                      y: 0.0
+                      z: 0.01
+                    size:
+                      width: 2.0
+                      height: 0.35
+                    initialValue: hello
+                    placeholder: Search...
+                    maxLength: 48
+                    clickType: both
+                    dialogTitle: Search
+                    dialogLabel: Query
+                    confirmLabel: Apply
+                    cancelLabel: Back
+                """);
+        JsonNode root = new ConfigDocumentLoader().load(fixture);
+        assertTrue(new SchemaValidator().validate(root, "text_input.yaml").isEmpty());
+
+        WindowDefinition definition = parser(tempDir, new DebugRecorder(10)).parse(root, "text_input.yaml");
+        TextInputComponentDefinition input = (TextInputComponentDefinition) definition.components().getFirst();
+
+        assertEquals("hello", input.initialValue());
+        assertEquals("Search...", input.placeholder());
+        assertEquals(48, input.maxLength());
+        assertEquals(ClickType.BOTH, input.clickType());
+        assertEquals("Search", input.dialogTitle());
+        assertEquals("Query", input.dialogLabel());
+        assertEquals("Apply", input.confirmLabel());
+        assertEquals("Back", input.cancelLabel());
     }
 
     @Test

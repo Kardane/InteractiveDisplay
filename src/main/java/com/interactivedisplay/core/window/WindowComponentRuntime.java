@@ -7,6 +7,7 @@ import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
@@ -33,6 +34,7 @@ public final class WindowComponentRuntime {
     private final Vector3f baseTranslation;
     private PlayerCanvas mapCanvas;
     private boolean hovered;
+    private String inputValue;
     private long lastTextRefreshTick = Long.MIN_VALUE;
     private final List<ScheduledAnimation> activeAnimations = new ArrayList<>();
     private long animationStartTick = Long.MIN_VALUE;
@@ -58,6 +60,7 @@ public final class WindowComponentRuntime {
         this.displayElement = displayElement;
         this.virtualElement = virtualElement;
         this.mapCanvas = mapCanvas;
+        this.inputValue = definition instanceof TextInputComponentDefinition input ? input.initialValue() : null;
         this.baseScale = displayElement == null ? new Vector3f(1.0f) : new Vector3f(displayElement.getScale());
         this.baseTranslation = displayElement == null ? new Vector3f() : new Vector3f(displayElement.getTranslation());
     }
@@ -75,6 +78,7 @@ public final class WindowComponentRuntime {
         this.definition = definition;
         this.localPosition = new Vector3f(localPosition);
         this.hovered = false;
+        this.inputValue = definition instanceof TextInputComponentDefinition input ? input.initialValue() : null;
         this.lastTextRefreshTick = Long.MIN_VALUE;
         if (definition instanceof TextComponentDefinition text && !text.animations().isEmpty()) {
             configureAnimations(text.animations());
@@ -191,13 +195,32 @@ public final class WindowComponentRuntime {
         this.hovered = hovered;
     }
 
+    public String inputValue() {
+        return this.inputValue == null ? "" : this.inputValue;
+    }
+
+    public void setInputValue(String value) {
+        if (!(this.definition instanceof TextInputComponentDefinition input)) {
+            return;
+        }
+        String normalized = value == null ? "" : value;
+        if (normalized.length() > input.maxLength()) {
+            normalized = normalized.substring(0, input.maxLength());
+        }
+        this.inputValue = normalized;
+    }
+
     public boolean interactive() {
-        return this.definition instanceof ButtonComponentDefinition;
+        return this.definition instanceof ButtonComponentDefinition
+                || this.definition instanceof TextInputComponentDefinition;
     }
 
     public float hitHalfWidth() {
         if (this.definition instanceof ButtonComponentDefinition button) {
             return buttonHitWidth(button) / 2.0f;
+        }
+        if (this.definition instanceof TextInputComponentDefinition input) {
+            return input.size().width() / 2.0f;
         }
         return 0.0f;
     }
@@ -205,6 +228,9 @@ public final class WindowComponentRuntime {
     public float hitHalfHeight() {
         if (this.definition instanceof ButtonComponentDefinition button) {
             return buttonHitHeight(button) / 2.0f;
+        }
+        if (this.definition instanceof TextInputComponentDefinition input) {
+            return input.size().height() / 2.0f;
         }
         return 0.0f;
     }
@@ -216,7 +242,8 @@ public final class WindowComponentRuntime {
      */
     public Vector3f hitCenterLocalPosition() {
         Vector3f center = new Vector3f(this.localPosition);
-        if (this.definition instanceof ButtonComponentDefinition) {
+        if (this.definition instanceof ButtonComponentDefinition
+                || this.definition instanceof TextInputComponentDefinition) {
             center.y += this.hitHalfHeight();
         }
         return center;
@@ -229,6 +256,9 @@ public final class WindowComponentRuntime {
     public ComponentAction action() {
         if (this.definition instanceof ButtonComponentDefinition button) {
             return button.action();
+        }
+        if (this.definition instanceof TextInputComponentDefinition) {
+            return ComponentAction.openTextInput();
         }
         return null;
     }

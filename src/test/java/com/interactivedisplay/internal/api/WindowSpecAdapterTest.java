@@ -11,6 +11,7 @@ import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
+import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransitionType;
@@ -161,6 +162,34 @@ class WindowSpecAdapterTest {
         assertEquals(ClickType.LEFT, ((ButtonComponentDefinition) definition.components().get(0)).clickType());
         assertEquals(ClickType.RIGHT, ((ButtonComponentDefinition) definition.components().get(1)).clickType());
         assertEquals(ClickType.BOTH, ((ButtonComponentDefinition) definition.components().get(2)).clickType());
+    }
+
+    @Test
+    void shouldAdaptProgrammaticTextInput() {
+        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "input"))
+                .textInput("search", input -> input
+                        .position(0.1f, 0.2f, 0.01f)
+                        .size(2.0f, 0.4f)
+                        .initialValue("diamond")
+                        .placeholder("Search...")
+                        .maxLength(32)
+                        .fontSize(0.45f)
+                        .background("#CC111111", "#EE333333")
+                        .click(WindowSpec.Click.BOTH)
+                        .dialog("Search", "Query")
+                        .buttons("Apply", "Cancel"))
+                .build();
+
+        WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);
+        TextInputComponentDefinition input = assertInstanceOf(TextInputComponentDefinition.class, definition.components().getFirst());
+
+        assertEquals("diamond", input.initialValue());
+        assertEquals("Search...", input.placeholder());
+        assertEquals(32, input.maxLength());
+        assertEquals(ClickType.BOTH, input.clickType());
+        assertEquals("Search", input.dialogTitle());
+        assertEquals("Query", input.dialogLabel());
+        assertEquals("Apply", input.confirmLabel());
     }
 
     @Test

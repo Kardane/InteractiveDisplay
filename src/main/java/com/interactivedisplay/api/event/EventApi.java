@@ -13,6 +13,8 @@ public interface EventApi {
 
     Subscription onButtonClicked(Consumer<ButtonClickEvent> listener);
 
+    Subscription onTextInputSubmitted(Consumer<TextInputSubmitEvent> listener);
+
     @FunctionalInterface
     interface Subscription extends AutoCloseable {
         @Override
@@ -32,6 +34,15 @@ public interface EventApi {
             Objects.requireNonNull(ownerId, "ownerId");
             Objects.requireNonNull(windowId, "windowId");
             Objects.requireNonNull(componentId, "componentId");
+        }
+    }
+
+    record TextInputSubmitEvent(UUID ownerId, ResourceLocation windowId, String componentId, String value) {
+        public TextInputSubmitEvent {
+            Objects.requireNonNull(ownerId, "ownerId");
+            Objects.requireNonNull(windowId, "windowId");
+            Objects.requireNonNull(componentId, "componentId");
+            value = value == null ? "" : value;
         }
     }
 }
