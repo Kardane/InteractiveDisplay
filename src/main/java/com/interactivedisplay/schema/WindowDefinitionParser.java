@@ -5,6 +5,11 @@ import com.interactivedisplay.core.animation.AnimationDefinition;
 import com.interactivedisplay.core.animation.AnimationInterpolation;
 import com.interactivedisplay.core.animation.AnimationRegistry;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonSizeMode;
+import com.interactivedisplay.core.component.ButtonSizing;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
@@ -100,7 +105,11 @@ public final class WindowDefinitionParser {
                     getString(component, "clickSound", null),
                     parseClickType(getString(component, "clickType", "RIGHT")),
                     parseAction(component.get("action")),
-                    getFloat(component, "hoverScale", 1.0f)
+                    getFloat(component, "hoverScale", 1.0f),
+                    parseButtonPadding(component.get("padding")),
+                    parseButtonHorizontalAlignment(component.get("alignment")),
+                    parseButtonVerticalAlignment(component.get("alignment")),
+                    parseButtonSizing(component.get("sizing"))
             );
         }
 
@@ -315,6 +324,47 @@ public final class WindowDefinitionParser {
                 object.get("y").floatValue(),
                 object.get("z").floatValue()
         );
+    }
+
+    private static ButtonSizing parseButtonSizing(JsonNode sizing) {
+        if (sizing == null || !sizing.isObject()) {
+            return ButtonSizing.fixed();
+        }
+        return new ButtonSizing(
+                ButtonSizeMode.fromString(getString(sizing, "width", "fixed")),
+                ButtonSizeMode.fromString(getString(sizing, "height", "fixed"))
+        );
+    }
+
+    private static ButtonPadding parseButtonPadding(JsonNode padding) {
+        if (padding == null) {
+            return ButtonPadding.zero();
+        }
+        if (padding.isNumber()) {
+            float value = padding.floatValue();
+            return new ButtonPadding(value, value);
+        }
+        if (!padding.isObject()) {
+            return ButtonPadding.zero();
+        }
+        return new ButtonPadding(
+                getFloat(padding, "horizontal", 0.0f),
+                getFloat(padding, "vertical", 0.0f)
+        );
+    }
+
+    private static ButtonHorizontalAlignment parseButtonHorizontalAlignment(JsonNode alignment) {
+        if (alignment == null || !alignment.isObject()) {
+            return ButtonHorizontalAlignment.CENTER;
+        }
+        return ButtonHorizontalAlignment.fromString(getString(alignment, "horizontal", "center"));
+    }
+
+    private static ButtonVerticalAlignment parseButtonVerticalAlignment(JsonNode alignment) {
+        if (alignment == null || !alignment.isObject()) {
+            return ButtonVerticalAlignment.CENTER;
+        }
+        return ButtonVerticalAlignment.fromString(getString(alignment, "vertical", "center"));
     }
 
     private static ClickType parseClickType(String value) {

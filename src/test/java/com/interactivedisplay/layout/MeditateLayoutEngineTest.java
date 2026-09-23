@@ -2,6 +2,14 @@ package com.interactivedisplay.layout;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonSizeMode;
+import com.interactivedisplay.core.component.ButtonSizing;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
+import com.interactivedisplay.core.component.ClickType;
+import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
@@ -38,6 +46,41 @@ class MeditateLayoutEngineTest {
         assertEquals(0.2f, out.get(0).localPosition().y(), 0.0001f);
         assertEquals(-0.1f, out.get(1).localPosition().x(), 0.0001f);
         assertEquals(0.55f, out.get(1).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void flowLayoutShouldAdvanceByResolvedContentSizedButtonBox() {
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "button",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(0.3f, 0.1f),
+                true,
+                1.0f,
+                "ABCDEFGH",
+                0.4f,
+                "#CC222222",
+                "#EE444444",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                new ButtonPadding(0.05f, 0.05f),
+                ButtonHorizontalAlignment.CENTER,
+                ButtonVerticalAlignment.CENTER,
+                new ButtonSizing(ButtonSizeMode.FIXED, ButtonSizeMode.CONTENT)
+        );
+        TextComponentDefinition next = text("next", 0.0f, 0.0f, 0.0f, 1.0f, 0.2f);
+        WindowDefinition window = new WindowDefinition(
+                "vertical-content-button",
+                new ComponentSize(3.0f, 2.0f),
+                WindowOffset.defaults(),
+                LayoutMode.VERTICAL,
+                List.of(button, next)
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(0.45f, out.get(1).localPosition().y(), 0.0001f);
     }
 
     @Test

@@ -13,6 +13,8 @@ public final class SchemaValidator {
     private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal");
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
+    private static final Set<String> BUTTON_VERTICAL_ALIGNMENTS = Set.of("bottom", "center", "top");
+    private static final Set<String> BUTTON_SIZE_MODES = Set.of("fixed", "content");
     private static final Set<String> POSITION_MODES = Set.of("fixed", "player_fixed", "player_view");
     private static final Set<String> TRANSITION_TYPES = Set.of("none", "scale", "slide_up", "slide_down");
     private static final List<String> COLOR_FIELDS = List.of("color", "backgroundColor", "hoverColor", "background");
@@ -119,6 +121,10 @@ public final class SchemaValidator {
                 }
                 validateOptionalString(component, "clickSound", componentName, errors);
                 validatePositiveOptional(component, "hoverScale", componentName, errors);
+                validateButtonPadding(component, componentName, errors);
+                validateButtonAlignment(component, componentName, errors);
+                validateButtonSizing(component, componentName, errors);
+                validateButtonContentArea(component, componentName, errors);
                 validateAction(component, componentName, errors);
                 continue;
             }
@@ -358,6 +364,103 @@ public final class SchemaValidator {
         }
         if (!ALIGNMENTS.contains(element.textValue().toLowerCase())) {
             errors.add(sourceName + ": alignment must be left, center, right");
+        }
+    }
+
+    private static void validateButtonSizing(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode sizing = component.get("sizing");
+        if (sizing == null) {
+            return;
+        }
+        if (!sizing.isObject()) {
+            errors.add(sourceName + ": sizing must be object");
+            return;
+        }
+        validateOptionalString(sizing, "width", sourceName + ".sizing", errors);
+        validateOptionalString(sizing, "height", sourceName + ".sizing", errors);
+        String width = optionalString(sizing, "width");
+        if (width != null && !BUTTON_SIZE_MODES.contains(width.toLowerCase())) {
+            errors.add(sourceName + ".sizing: width must be fixed or content");
+        }
+        String height = optionalString(sizing, "height");
+        if (height != null && !BUTTON_SIZE_MODES.contains(height.toLowerCase())) {
+            errors.add(sourceName + ".sizing: height must be fixed or content");
+        }
+    }
+
+    private static void validateButtonPadding(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode padding = component.get("padding");
+        if (padding == null) {
+            return;
+        }
+        if (padding.isNumber()) {
+            if (padding.floatValue() < 0.0f) {
+                errors.add(sourceName + ": padding must be >= 0");
+            }
+            return;
+        }
+        if (!padding.isObject()) {
+            errors.add(sourceName + ": padding must be a number or object");
+            return;
+        }
+        validateNonNegativeOptional(padding, "horizontal", sourceName + ".padding", errors);
+        validateNonNegativeOptional(padding, "vertical", sourceName + ".padding", errors);
+    }
+
+    private static void validateButtonAlignment(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode alignment = component.get("alignment");
+        if (alignment == null) {
+            return;
+        }
+        if (!alignment.isObject()) {
+            errors.add(sourceName + ": alignment must be object");
+            return;
+        }
+        validateOptionalString(alignment, "horizontal", sourceName + ".alignment", errors);
+        validateOptionalString(alignment, "vertical", sourceName + ".alignment", errors);
+        String horizontal = optionalString(alignment, "horizontal");
+        if (horizontal != null && !ALIGNMENTS.contains(horizontal.toLowerCase())) {
+            errors.add(sourceName + ".alignment: horizontal must be left, center, right");
+        }
+        String vertical = optionalString(alignment, "vertical");
+        if (vertical != null && !BUTTON_VERTICAL_ALIGNMENTS.contains(vertical.toLowerCase())) {
+            errors.add(sourceName + ".alignment: vertical must be bottom, center, top");
+        }
+    }
+
+    private static void validateButtonContentArea(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode size = getObject(component, "size");
+        if (size == null || !size.has("width") || !size.has("height")
+                || !size.get("width").isNumber() || !size.get("height").isNumber()) {
+            return;
+        }
+        JsonNode padding = component.get("padding");
+        float horizontal = 0.0f;
+        float vertical = 0.0f;
+        if (padding != null && padding.isNumber()) {
+            horizontal = padding.floatValue();
+            vertical = padding.floatValue();
+        } else if (padding != null && padding.isObject()) {
+            JsonNode horizontalNode = padding.get("horizontal");
+            JsonNode verticalNode = padding.get("vertical");
+            if (horizontalNode != null && horizontalNode.isNumber()) {
+                horizontal = horizontalNode.floatValue();
+            }
+            if (verticalNode != null && verticalNode.isNumber()) {
+                vertical = verticalNode.floatValue();
+            }
+        }
+        JsonNode sizing = component.get("sizing");
+        String widthMode = sizing != null && sizing.isObject() ? optionalString(sizing, "width") : null;
+        String heightMode = sizing != null && sizing.isObject() ? optionalString(sizing, "height") : null;
+        boolean fixedWidth = widthMode == null || !"content".equalsIgnoreCase(widthMode);
+        boolean fixedHeight = heightMode == null || !"content".equalsIgnoreCase(heightMode);
+
+        if (fixedWidth && horizontal >= 0.0f && size.get("width").floatValue() <= horizontal * 2.0f) {
+            errors.add(sourceName + ": horizontal padding must leave positive content width");
+        }
+        if (fixedHeight && vertical >= 0.0f && size.get("height").floatValue() <= vertical * 2.0f) {
+            errors.add(sourceName + ": vertical padding must leave positive content height");
         }
     }
 

@@ -63,6 +63,23 @@ public final class WindowSpec {
         BOTH
     }
 
+    public enum HorizontalAlignment {
+        LEFT,
+        CENTER,
+        RIGHT
+    }
+
+    public enum VerticalAlignment {
+        BOTTOM,
+        CENTER,
+        TOP
+    }
+
+    public enum ButtonSizeMode {
+        FIXED,
+        CONTENT
+    }
+
     public enum TransitionType {
         NONE,
         SCALE,
@@ -86,6 +103,29 @@ public final class WindowSpec {
             if (width <= 0.0f || height <= 0.0f) {
                 throw new IllegalArgumentException("size must be positive");
             }
+        }
+    }
+
+    public record ButtonSizing(ButtonSizeMode width, ButtonSizeMode height) {
+        public ButtonSizing {
+            width = width == null ? ButtonSizeMode.FIXED : width;
+            height = height == null ? ButtonSizeMode.FIXED : height;
+        }
+
+        public static ButtonSizing fixed() {
+            return new ButtonSizing(ButtonSizeMode.FIXED, ButtonSizeMode.FIXED);
+        }
+    }
+
+    public record ButtonPadding(float horizontal, float vertical) {
+        public ButtonPadding {
+            if (horizontal < 0.0f || vertical < 0.0f) {
+                throw new IllegalArgumentException("button padding must be >= 0");
+            }
+        }
+
+        public static ButtonPadding zero() {
+            return new ButtonPadding(0.0f, 0.0f);
         }
     }
 
@@ -161,8 +201,58 @@ public final class WindowSpec {
             String clickSound,
             Click click,
             ButtonAction action,
-            float hoverScale
+            float hoverScale,
+            ButtonPadding padding,
+            HorizontalAlignment horizontalAlignment,
+            VerticalAlignment verticalAlignment,
+            ButtonSizing sizing
     ) implements ComponentSpec {
+        public ButtonSpec(
+                String id,
+                Position position,
+                Size size,
+                boolean visible,
+                float opacity,
+                String label,
+                float fontSize,
+                String backgroundColor,
+                String hoverColor,
+                String clickSound,
+                Click click,
+                ButtonAction action,
+                float hoverScale
+        ) {
+            this(
+                    id, position, size, visible, opacity, label, fontSize, backgroundColor, hoverColor, clickSound,
+                    click, action, hoverScale, ButtonPadding.zero(), HorizontalAlignment.CENTER, VerticalAlignment.CENTER,
+                    ButtonSizing.fixed()
+            );
+        }
+
+        public ButtonSpec(
+                String id,
+                Position position,
+                Size size,
+                boolean visible,
+                float opacity,
+                String label,
+                float fontSize,
+                String backgroundColor,
+                String hoverColor,
+                String clickSound,
+                Click click,
+                ButtonAction action,
+                float hoverScale,
+                ButtonPadding padding,
+                HorizontalAlignment horizontalAlignment,
+                VerticalAlignment verticalAlignment
+        ) {
+            this(
+                    id, position, size, visible, opacity, label, fontSize, backgroundColor, hoverColor, clickSound,
+                    click, action, hoverScale, padding, horizontalAlignment, verticalAlignment, ButtonSizing.fixed()
+            );
+        }
+
         public ButtonSpec {
             requireComponentId(id);
             Objects.requireNonNull(position, "position");
@@ -174,6 +264,16 @@ public final class WindowSpec {
             click = click == null ? Click.RIGHT : click;
             Objects.requireNonNull(action, "action");
             hoverScale = positive(hoverScale, 1.0f);
+            padding = padding == null ? ButtonPadding.zero() : padding;
+            horizontalAlignment = horizontalAlignment == null ? HorizontalAlignment.CENTER : horizontalAlignment;
+            verticalAlignment = verticalAlignment == null ? VerticalAlignment.CENTER : verticalAlignment;
+            sizing = sizing == null ? ButtonSizing.fixed() : sizing;
+            if (sizing.width() == ButtonSizeMode.FIXED && size.width() <= padding.horizontal() * 2.0f) {
+                throw new IllegalArgumentException("button horizontal padding must leave positive content width");
+            }
+            if (sizing.height() == ButtonSizeMode.FIXED && size.height() <= padding.vertical() * 2.0f) {
+                throw new IllegalArgumentException("button vertical padding must leave positive content height");
+            }
             opacity = clampOpacity(opacity);
         }
     }
@@ -494,6 +594,10 @@ public final class WindowSpec {
         private Click click = Click.RIGHT;
         private ButtonAction action;
         private float hoverScale = 1.0f;
+        private ButtonPadding padding = ButtonPadding.zero();
+        private HorizontalAlignment horizontalAlignment = HorizontalAlignment.CENTER;
+        private VerticalAlignment verticalAlignment = VerticalAlignment.CENTER;
+        private ButtonSizing sizing = ButtonSizing.fixed();
 
         private ButtonBuilder(String id) {
             this.id = id;
@@ -555,12 +659,29 @@ public final class WindowSpec {
             return this;
         }
 
+        public ButtonBuilder padding(float horizontal, float vertical) {
+            this.padding = new ButtonPadding(horizontal, vertical);
+            return this;
+        }
+
+        public ButtonBuilder alignment(HorizontalAlignment horizontal, VerticalAlignment vertical) {
+            this.horizontalAlignment = Objects.requireNonNull(horizontal, "horizontal");
+            this.verticalAlignment = Objects.requireNonNull(vertical, "vertical");
+            return this;
+        }
+
+        public ButtonBuilder sizing(ButtonSizeMode width, ButtonSizeMode height) {
+            this.sizing = new ButtonSizing(width, height);
+            return this;
+        }
+
         private ButtonSpec build() {
             if (this.action == null) {
                 throw new IllegalStateException("button action is required: " + this.id);
             }
             return new ButtonSpec(this.id, this.position, this.size, this.visible, this.opacity, this.label, this.fontSize,
-                    this.backgroundColor, this.hoverColor, this.clickSound, this.click, this.action, this.hoverScale);
+                    this.backgroundColor, this.hoverColor, this.clickSound, this.click, this.action, this.hoverScale,
+                    this.padding, this.horizontalAlignment, this.verticalAlignment, this.sizing);
         }
     }
 

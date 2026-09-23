@@ -4,6 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonSizeMode;
+import com.interactivedisplay.core.component.ButtonSizing;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
@@ -26,11 +31,12 @@ class WindowComponentRuntimeTest {
     }
 
     @Test
-    void wrappedLabelShouldIncreaseHitHeight() {
+    void buttonHitHeightShouldUseConfiguredHeightRegardlessOfLabelWrapping() {
         WindowComponentRuntime shortRuntime = runtime("닫기", 0.5f, 0.35f);
         WindowComponentRuntime longRuntime = runtime("인터랙티브 디스플레이 닫기", 0.5f, 0.35f);
 
-        assertTrue(longRuntime.hitHalfHeight() > shortRuntime.hitHalfHeight());
+        assertEquals(0.175f, shortRuntime.hitHalfHeight(), 0.0001f);
+        assertEquals(shortRuntime.hitHalfHeight(), longRuntime.hitHalfHeight(), 0.0001f);
     }
 
     @Test
@@ -47,8 +53,37 @@ class WindowComponentRuntimeTest {
         WindowComponentRuntime buttonRuntime = runtime("R1C2", 0.9f, 0.5f, 0.45f);
 
         assertEquals(0.45f, buttonRuntime.hitHalfWidth(), 0.0001f);
-        assertEquals(0.05625f, buttonRuntime.hitHalfHeight(), 0.0001f);
+        assertEquals(0.25f, buttonRuntime.hitHalfHeight(), 0.0001f);
         assertEquals(buttonRuntime.hitHalfHeight(), buttonRuntime.hitCenterLocalPosition().y, 0.0001f);
+    }
+
+    @Test
+    void contentSizedButtonHitboxShouldUseResolvedBox() {
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "content",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(0.3f, 0.1f),
+                true,
+                1.0f,
+                "ABCDEFGH",
+                0.4f,
+                "#CC222222",
+                "#EE444444",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                new ButtonPadding(0.05f, 0.05f),
+                ButtonHorizontalAlignment.CENTER,
+                ButtonVerticalAlignment.CENTER,
+                new ButtonSizing(ButtonSizeMode.FIXED, ButtonSizeMode.CONTENT)
+        );
+        WindowComponentRuntime runtime =
+                new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), null, null);
+
+        assertEquals(0.15f, runtime.hitHalfWidth(), 0.0001f);
+        assertEquals(0.2f, runtime.hitHalfHeight(), 0.0001f);
+        assertEquals(0.2f, runtime.hitCenterLocalPosition().y, 0.0001f);
     }
 
     @Test
@@ -91,12 +126,8 @@ class WindowComponentRuntimeTest {
         assertEquals(0, runtime("닫기", 1.0f, 0.35f).entityCount());
     }
 
-    private static WindowComponentRuntime runtime(String label, float width, float height) {
-        return runtime(label, width, height, 1.0f);
-    }
-
-    private static WindowComponentRuntime runtime(String label, float width, float height, float fontSize) {
-        ButtonComponentDefinition button = new ButtonComponentDefinition(
+    private static ButtonComponentDefinition button(String label, float width, float height, float fontSize) {
+        return new ButtonComponentDefinition(
                 "close",
                 new ComponentPosition(0.0f, 0.0f, 0.0f),
                 new ComponentSize(width, height),
@@ -110,6 +141,13 @@ class WindowComponentRuntimeTest {
                 ClickType.RIGHT,
                 ComponentAction.closeWindow()
         );
-        return new WindowComponentRuntime(Level.OVERWORLD, button, new Vector3f(), null, null);
+    }
+
+    private static WindowComponentRuntime runtime(String label, float width, float height) {
+        return runtime(label, width, height, 1.0f);
+    }
+
+    private static WindowComponentRuntime runtime(String label, float width, float height, float fontSize) {
+        return new WindowComponentRuntime(Level.OVERWORLD, button(label, width, height, fontSize), new Vector3f(), null, null);
     }
 }

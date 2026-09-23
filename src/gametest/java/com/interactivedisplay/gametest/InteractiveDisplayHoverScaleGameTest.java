@@ -53,22 +53,37 @@ public final class InteractiveDisplayHoverScaleGameTest implements CustomTestMet
             helper.assertTrue(runtime != null && runtime.displayElement() instanceof TextDisplayElement,
                     Component.literal("hover-scale fixture runtime missing"));
             TextDisplayElement element = (TextDisplayElement) runtime.displayElement();
+            helper.assertTrue(runtime.backgroundElement() instanceof TextDisplayElement,
+                    Component.literal("hover-scale fixture background runtime missing"));
+            TextDisplayElement background = (TextDisplayElement) runtime.backgroundElement();
+            helper.assertTrue(runtime.renderedComponent().displayElements().size() == 2,
+                    Component.literal("button render bundle should contain two display elements"));
+            helper.assertTrue(runtime.renderedComponent().primaryDisplay() == element,
+                    Component.literal("button render bundle primary display mismatch"));
+            helper.assertTrue(runtime.renderedComponent().backgroundDisplay() == background,
+                    Component.literal("button render bundle background display mismatch"));
             Vector3f baseScale = runtime.baseScale();
+            Vector3f backgroundBaseScale = runtime.baseScale(background);
             Vector3f baseTranslation = new Vector3f(element.getTranslation());
+            Vector3f backgroundBaseTranslation = new Vector3f(background.getTranslation());
 
             helper.assertTrue(manager.findUiHit(player) != null,
                     Component.literal("hover-scale fixture is not raycastable"));
             manager.tick();
             helper.assertTrue(runtime.hovered(), Component.literal("hover enter was not detected"));
-            assertVector(helper, element.getScale(), new Vector3f(baseScale).mul(1.5f), "hover enter scale");
-            assertVector(helper, element.getTranslation(), baseTranslation, "hover enter translation drift");
+            assertVector(helper, element.getScale(), new Vector3f(baseScale).mul(1.5f), "hover enter label scale");
+            assertVector(helper, background.getScale(), new Vector3f(backgroundBaseScale).mul(1.5f), "hover enter background scale");
+            assertVector(helper, element.getTranslation(), baseTranslation, "hover enter label translation drift");
+            assertVector(helper, background.getTranslation(), backgroundBaseTranslation, "hover enter background translation drift");
 
             player.setYRot(180.0f);
             player.setYHeadRot(180.0f);
             manager.tick();
             helper.assertTrue(!runtime.hovered(), Component.literal("hover exit was not detected"));
-            assertVector(helper, element.getScale(), baseScale, "hover exit scale restore");
-            assertVector(helper, element.getTranslation(), baseTranslation, "hover exit translation drift");
+            assertVector(helper, element.getScale(), baseScale, "hover exit label scale restore");
+            assertVector(helper, background.getScale(), backgroundBaseScale, "hover exit background scale restore");
+            assertVector(helper, element.getTranslation(), baseTranslation, "hover exit label translation drift");
+            assertVector(helper, background.getTranslation(), backgroundBaseTranslation, "hover exit background translation drift");
         } finally {
             manager.removeWindow(player.getUUID(), id);
             VirtualWindowHolder.destroyAllPending(server);

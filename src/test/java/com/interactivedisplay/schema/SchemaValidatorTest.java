@@ -146,6 +146,71 @@ class SchemaValidatorTest {
     }
 
     @Test
+    void buttonPaddingAndAlignmentShouldBeValidated() {
+        JsonNode valid = parse("""
+                id: menu
+                size:
+                  width: 3.0
+                  height: 2.0
+                components:
+                  - id: action
+                    type: button
+                    position: { x: 0.0, y: 0.0, z: 0.0 }
+                    size: { width: 1.5, height: 0.5 }
+                    padding: { horizontal: 0.1, vertical: 0.05 }
+                    alignment: { horizontal: left, vertical: top }
+                    sizing: { width: fixed, height: content }
+                    label: Action
+                    action: { type: close_window }
+                """);
+        assertTrue(this.validator.validate(valid, "valid.yaml").isEmpty());
+
+        JsonNode invalid = parse("""
+                id: menu
+                size:
+                  width: 3.0
+                  height: 2.0
+                components:
+                  - id: action
+                    type: button
+                    position: { x: 0.0, y: 0.0, z: 0.0 }
+                    size: { width: 0.4, height: 0.3 }
+                    padding: { horizontal: 0.25, vertical: -0.1 }
+                    alignment: { horizontal: stretch, vertical: middle }
+                    sizing: { width: auto, height: grow }
+                    label: Action
+                    action: { type: close_window }
+                """);
+        List<String> errors = this.validator.validate(invalid, "invalid.yaml");
+
+        assertTrue(errors.stream().anyMatch(message -> message.contains("vertical must be >= 0")));
+        assertTrue(errors.stream().anyMatch(message -> message.contains("horizontal must be left, center, right")));
+        assertTrue(errors.stream().anyMatch(message -> message.contains("vertical must be bottom, center, top")));
+        assertTrue(errors.stream().anyMatch(message -> message.contains("width must be fixed or content")));
+        assertTrue(errors.stream().anyMatch(message -> message.contains("height must be fixed or content")));
+        assertTrue(errors.stream().anyMatch(message -> message.contains("positive content width")));
+    }
+
+    @Test
+    void contentSizedAxesShouldNotRequireConfiguredSizeToContainPadding() {
+        JsonNode root = parse("""
+                id: menu
+                size: { width: 3.0, height: 2.0 }
+                components:
+                  - id: action
+                    type: button
+                    position: { x: 0.0, y: 0.0, z: 0.0 }
+                    size: { width: 0.1, height: 0.1 }
+                    sizing: { width: content, height: content }
+                    padding: { horizontal: 0.2, vertical: 0.2 }
+                    label: Action
+                    action: { type: close_window }
+                """);
+
+        assertTrue(this.validator.validate(root, "content.yaml").isEmpty());
+    }
+
+    @Test
     void runCommandPermissionLevelShouldBeValidated() {
         JsonNode root = parse("""
                 id: menu

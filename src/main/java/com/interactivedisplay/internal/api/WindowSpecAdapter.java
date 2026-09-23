@@ -2,6 +2,11 @@ package com.interactivedisplay.internal.api;
 
 import com.interactivedisplay.api.window.WindowSpec;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonSizeMode;
+import com.interactivedisplay.core.component.ButtonSizing;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentDefinition;
@@ -61,7 +66,14 @@ final class WindowSpecAdapter {
             return new ButtonComponentDefinition(
                     button.id(), position, size, button.visible(), button.opacity(), button.label(), button.fontSize(),
                     button.backgroundColor(), button.hoverColor(), button.clickSound(), ClickType.valueOf(button.click().name()),
-                    toAction(button.action()), button.hoverScale()
+                    toAction(button.action()), button.hoverScale(),
+                    new ButtonPadding(button.padding().horizontal(), button.padding().vertical()),
+                    ButtonHorizontalAlignment.valueOf(button.horizontalAlignment().name()),
+                    ButtonVerticalAlignment.valueOf(button.verticalAlignment().name()),
+                    new ButtonSizing(
+                            ButtonSizeMode.valueOf(button.sizing().width().name()),
+                            ButtonSizeMode.valueOf(button.sizing().height().name())
+                    )
             );
         }
         if (component instanceof WindowSpec.TextInputSpec input) {

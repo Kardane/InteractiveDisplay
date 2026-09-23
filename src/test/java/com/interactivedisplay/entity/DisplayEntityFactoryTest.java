@@ -5,6 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
+import com.interactivedisplay.core.component.ButtonPadding;
+import com.interactivedisplay.core.component.ButtonSizeMode;
+import com.interactivedisplay.core.component.ButtonSizing;
+import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
 import com.interactivedisplay.core.component.ComponentPosition;
@@ -97,6 +102,58 @@ class DisplayEntityFactoryTest {
     }
 
     @Test
+    void buttonBackgroundRenderSpecShouldMatchConfiguredWorldGeometry() {
+        ButtonComponentDefinition button = button("Button", 2.2f, 0.45f, 0.5f);
+        DisplayEntityFactory.ButtonBackgroundRenderSpec spec = DisplayEntityFactory.buildButtonBackgroundRenderSpec(button);
+        String[] rows = spec.text().getString().split("\\n", -1);
+
+        assertEquals(button.size().width(), (spec.lineWidth() + 1.0f) * 0.025f * spec.scale().x, 0.0001f);
+        assertEquals(button.size().height(), rows.length * 10.0f * 0.025f * spec.scale().y, 0.0001f);
+        assertEquals(0.0f, spec.textOpacity(), 0.0001f);
+    }
+
+    @Test
+    void contentSizedButtonBackgroundShouldUseResolvedGeometry() {
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "content",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(9.0f, 9.0f),
+                true,
+                1.0f,
+                "OK",
+                0.4f,
+                "#AA174A7E",
+                "#EEFFE4A6",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                new ButtonPadding(0.1f, 0.05f),
+                ButtonHorizontalAlignment.CENTER,
+                ButtonVerticalAlignment.CENTER,
+                new ButtonSizing(ButtonSizeMode.CONTENT, ButtonSizeMode.CONTENT)
+        );
+
+        DisplayEntityFactory.ButtonBackgroundRenderSpec spec = DisplayEntityFactory.buildButtonBackgroundRenderSpec(button);
+        String[] rows = spec.text().getString().split("\\n", -1);
+
+        assertEquals(0.324f, (spec.lineWidth() + 1.0f) * 0.025f * spec.scale().x, 0.0001f);
+        assertEquals(0.2f, rows.length * 10.0f * 0.025f * spec.scale().y, 0.0001f);
+        assertEquals(12, DisplayEntityFactory.buttonLineWidth(button));
+    }
+
+    @Test
+    void buttonLabelOffsetShouldCenterSingleLineTextInsideConfiguredHeight() {
+        ButtonComponentDefinition button = button("Button", 2.2f, 0.45f, 0.5f);
+
+        Vector3f offset = DisplayEntityFactory.buttonLabelLocalOffset(button);
+
+        assertEquals(0.0f, offset.x, 0.0001f);
+        assertEquals(0.1625f, offset.y, 0.0001f);
+        assertEquals(0.001f, offset.z, 0.0001f);
+    }
+
+    @Test
     void buttonLineWidthShouldMatchConfiguredWorldWidthAfterTextScaling() {
         ButtonComponentDefinition button = new ButtonComponentDefinition(
                 "test",
@@ -117,6 +174,44 @@ class DisplayEntityFactoryTest {
 
         assertEquals(80, lineWidth);
         assertEquals(button.size().width(), lineWidth * 0.025f * button.fontSize(), 0.0001f);
+    }
+
+    @Test
+    void buttonPaddingShouldReduceLabelLineWidthWithoutChangingOuterBackground() {
+        ButtonComponentDefinition button = button(
+                "Button", 0.9f, 0.5f, 0.5f,
+                new ButtonPadding(0.1f, 0.05f),
+                ButtonHorizontalAlignment.LEFT,
+                ButtonVerticalAlignment.BOTTOM
+        );
+
+        assertEquals(0.7f, DisplayEntityFactory.buttonContentWidth(button), 0.0001f);
+        assertEquals(56, DisplayEntityFactory.buttonLineWidth(button));
+
+        DisplayEntityFactory.ButtonBackgroundRenderSpec background =
+                DisplayEntityFactory.buildButtonBackgroundRenderSpec(button);
+        assertEquals(button.size().width(), (background.lineWidth() + 1.0f) * 0.025f * background.scale().x, 0.0001f);
+    }
+
+    @Test
+    void buttonVerticalAlignmentShouldPositionLabelInsidePadding() {
+        ButtonPadding padding = new ButtonPadding(0.1f, 0.05f);
+        ButtonComponentDefinition bottom = button(
+                "Button", 2.2f, 0.45f, 0.5f, padding,
+                ButtonHorizontalAlignment.CENTER, ButtonVerticalAlignment.BOTTOM
+        );
+        ButtonComponentDefinition center = button(
+                "Button", 2.2f, 0.45f, 0.5f, padding,
+                ButtonHorizontalAlignment.CENTER, ButtonVerticalAlignment.CENTER
+        );
+        ButtonComponentDefinition top = button(
+                "Button", 2.2f, 0.45f, 0.5f, padding,
+                ButtonHorizontalAlignment.CENTER, ButtonVerticalAlignment.TOP
+        );
+
+        assertEquals(0.05f, DisplayEntityFactory.buttonLabelLocalOffset(bottom).y, 0.0001f);
+        assertEquals(0.1625f, DisplayEntityFactory.buttonLabelLocalOffset(center).y, 0.0001f);
+        assertEquals(0.275f, DisplayEntityFactory.buttonLabelLocalOffset(top).y, 0.0001f);
     }
 
     @Test
@@ -163,6 +258,50 @@ class DisplayEntityFactoryTest {
         assertEquals(expected.x, actual.x, 0.0001);
         assertEquals(expected.y, actual.y, 0.0001);
         assertEquals(expected.z, actual.z, 0.0001);
+    }
+
+    private static ButtonComponentDefinition button(String label, float width, float height, float fontSize) {
+        return new ButtonComponentDefinition(
+                "test",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(width, height),
+                true,
+                1.0f,
+                label,
+                fontSize,
+                "#AA174A7E",
+                "#EEFFE4A6",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow()
+        );
+    }
+
+    private static ButtonComponentDefinition button(String label,
+                                                            float width,
+                                                            float height,
+                                                            float fontSize,
+                                                            ButtonPadding padding,
+                                                            ButtonHorizontalAlignment horizontalAlignment,
+                                                            ButtonVerticalAlignment verticalAlignment) {
+        return new ButtonComponentDefinition(
+                "test",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(width, height),
+                true,
+                1.0f,
+                label,
+                fontSize,
+                "#AA174A7E",
+                "#EEFFE4A6",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                padding,
+                horizontalAlignment,
+                verticalAlignment
+        );
     }
 
     private static PanelComponentDefinition panel(float width, float height) {

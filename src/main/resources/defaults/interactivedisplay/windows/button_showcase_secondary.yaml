@@ -76,6 +76,15 @@ components:
       height: 0.42
     label: "뒤로"
     fontSize: 0.32
+    sizing:
+      width: content
+      height: content
+    padding:
+      horizontal: 0.12
+      vertical: 0.06
+    alignment:
+      horizontal: center
+      vertical: center
     clickType: both
     hoverScale: 1.05
     backgroundColor: "#CC5C3D24"
@@ -93,8 +102,17 @@ components:
     size:
       width: 1.7
       height: 0.42
-    label: "캘리브레이션"
+    label: "캘리브레이션\n샘플 열기"
     fontSize: 0.3
+    sizing:
+      width: fixed
+      height: content
+    padding:
+      horizontal: 0.08
+      vertical: 0.04
+    alignment:
+      horizontal: center
+      vertical: center
     clickType: both
     hoverScale: 1.05
     backgroundColor: "#CC3D244C"
