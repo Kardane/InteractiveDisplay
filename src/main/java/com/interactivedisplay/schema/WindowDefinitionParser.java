@@ -12,9 +12,12 @@ import com.interactivedisplay.core.component.ButtonSizing;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
+import com.interactivedisplay.core.component.ComponentAnchor;
 import com.interactivedisplay.core.component.ComponentDefinition;
+import com.interactivedisplay.core.component.ComponentMargin;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
+import com.interactivedisplay.core.component.ComponentSizeMode;
 import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageSource;
 import com.interactivedisplay.core.component.ImageType;
@@ -70,7 +73,7 @@ public final class WindowDefinitionParser {
     private ComponentDefinition parseComponent(JsonNode component, String sourceName) throws IOException, InterruptedException {
         String type = component.get("type").textValue();
         String id = component.get("id").textValue();
-        ComponentPosition position = parsePosition(component.get("position"));
+        ComponentPosition position = parsePosition(component);
         boolean visible = getBoolean(component, "visible", true);
         float opacity = getFloat(component, "opacity", 1.0f);
 
@@ -343,21 +346,79 @@ public final class WindowDefinitionParser {
 
     private static ComponentSize parseSize(JsonNode object, float defaultWidth, float defaultHeight) {
         JsonNode sizeObject = object.get("size");
-        if (sizeObject != null && sizeObject.isObject()) {
-            return new ComponentSize(sizeObject.get("width").floatValue(), sizeObject.get("height").floatValue());
-        }
+        ParsedSizeAxis width = sizeObject != null && sizeObject.isObject()
+                ? parseSizeAxis(sizeObject.get("width"), defaultWidth)
+                : parseSizeAxis(object.get("width"), defaultWidth);
+        ParsedSizeAxis height = sizeObject != null && sizeObject.isObject()
+                ? parseSizeAxis(sizeObject.get("height"), defaultHeight)
+                : parseSizeAxis(object.get("height"), defaultHeight);
+
+        JsonNode minSize = object.get("minSize");
+        JsonNode maxSize = object.get("maxSize");
         return new ComponentSize(
-                getFloat(object, "width", defaultWidth),
-                getFloat(object, "height", defaultHeight)
+                width.value(),
+                height.value(),
+                width.mode(),
+                height.mode(),
+                getConstraint(minSize, "width", 0.0f),
+                getConstraint(maxSize, "width", Float.POSITIVE_INFINITY),
+                getConstraint(minSize, "height", 0.0f),
+                getConstraint(maxSize, "height", Float.POSITIVE_INFINITY)
         );
     }
 
-    private static ComponentPosition parsePosition(JsonNode object) {
+    private static ParsedSizeAxis parseSizeAxis(JsonNode value, float fallback) {
+        if (value == null || value.isNull()) {
+            return new ParsedSizeAxis(fallback, ComponentSizeMode.FIXED);
+        }
+        if (value.isTextual() && "fill".equalsIgnoreCase(value.textValue())) {
+            return new ParsedSizeAxis(fallback, ComponentSizeMode.FILL);
+        }
+        return new ParsedSizeAxis(value.floatValue(), ComponentSizeMode.FIXED);
+    }
+
+    private static float getConstraint(JsonNode object, String key, float fallback) {
+        if (object == null || !object.isObject()) {
+            return fallback;
+        }
+        JsonNode value = object.get(key);
+        return value == null ? fallback : value.floatValue();
+    }
+
+    private static ComponentPosition parsePosition(JsonNode component) {
+        JsonNode position = component.get("position");
+        float x = position != null && position.isObject() ? getFloat(position, "x", 0.0f) : 0.0f;
+        float y = position != null && position.isObject() ? getFloat(position, "y", 0.0f) : 0.0f;
+        float z = position != null && position.isObject() ? getFloat(position, "z", 0.0f) : 0.0f;
         return new ComponentPosition(
-                object.get("x").floatValue(),
-                object.get("y").floatValue(),
-                object.get("z").floatValue()
+                x,
+                y,
+                z,
+                ComponentAnchor.fromString(getString(component, "anchor", null)),
+                parseMargin(component.get("margin"))
         );
+    }
+
+    private static ComponentMargin parseMargin(JsonNode margin) {
+        if (margin == null || margin.isNull()) {
+            return ComponentMargin.zero();
+        }
+        if (margin.isNumber()) {
+            float value = margin.floatValue();
+            return new ComponentMargin(value, value, value, value);
+        }
+        if (!margin.isObject()) {
+            return ComponentMargin.zero();
+        }
+        return new ComponentMargin(
+                getFloat(margin, "top", 0.0f),
+                getFloat(margin, "right", 0.0f),
+                getFloat(margin, "bottom", 0.0f),
+                getFloat(margin, "left", 0.0f)
+        );
+    }
+
+    private record ParsedSizeAxis(float value, ComponentSizeMode mode) {
     }
 
     private static ButtonSizing parseButtonSizing(JsonNode sizing) {
