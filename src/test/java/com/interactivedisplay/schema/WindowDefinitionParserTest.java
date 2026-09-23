@@ -10,6 +10,8 @@ import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
 import com.interactivedisplay.core.component.ButtonSizeMode;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
+import com.interactivedisplay.core.component.ComponentAnchor;
+import com.interactivedisplay.core.component.ComponentSizeMode;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.component.TextInputComponentDefinition;
@@ -288,6 +290,42 @@ class WindowDefinitionParserTest {
                     runtime.hitCenterLocalPosition().y, 0.0001f);
             assertEquals(position.z, runtime.hitCenterLocalPosition().z, 0.0001f);
         }
+    }
+
+    @Test
+    void parsesAnchorsFillMarginsAndSizeConstraints(@TempDir Path tempDir) throws Exception {
+        Path fixture = tempDir.resolve("bounds.yaml");
+        Files.writeString(fixture, """
+                id: bounds
+                size: { width: 4.0, height: 3.0 }
+                components:
+                  - id: close
+                    type: button
+                    anchor: top-right
+                    margin: { top: 0.1, right: 0.2 }
+                    size: { width: fill, height: 0.3 }
+                    minSize: { width: 0.8 }
+                    maxSize: { width: 2.5, height: 0.5 }
+                    label: Close
+                    action: { type: close_window }
+                """);
+
+        JsonNode root = new ConfigDocumentLoader().load(fixture);
+        assertTrue(new SchemaValidator().validate(root, "bounds.yaml").isEmpty());
+
+        WindowDefinition definition = parser(tempDir, new DebugRecorder(10)).parse(root, "bounds.yaml");
+        ButtonComponentDefinition button = (ButtonComponentDefinition) definition.components().getFirst();
+
+        assertEquals(ComponentAnchor.TOP_RIGHT, button.position().anchor());
+        assertEquals(0.1f, button.position().margin().top(), 0.0001f);
+        assertEquals(0.2f, button.position().margin().right(), 0.0001f);
+        assertEquals(ComponentSizeMode.FILL, button.size().widthMode());
+        assertEquals(ComponentSizeMode.FIXED, button.size().heightMode());
+        assertEquals(0.8f, button.size().minWidth(), 0.0001f);
+        assertEquals(2.5f, button.size().maxWidth(), 0.0001f);
+        assertEquals(0.5f, button.size().maxHeight(), 0.0001f);
+        assertEquals(0.0f, button.position().x(), 0.0001f);
+        assertEquals(0.0f, button.position().y(), 0.0001f);
     }
 
     private static WindowDefinitionParser parser(Path tempDir, DebugRecorder recorder) {
