@@ -406,10 +406,14 @@ public final class WindowSpec {
             horizontalAlignment = horizontalAlignment == null ? HorizontalAlignment.CENTER : horizontalAlignment;
             verticalAlignment = verticalAlignment == null ? VerticalAlignment.CENTER : verticalAlignment;
             sizing = sizing == null ? ButtonSizing.fixed() : sizing;
-            if (sizing.width() == ButtonSizeMode.FIXED && size.width() <= padding.horizontal() * 2.0f) {
+            if (sizing.width() == ButtonSizeMode.FIXED
+                    && size.widthMode() == SizeMode.FIXED
+                    && size.width() <= padding.horizontal() * 2.0f) {
                 throw new IllegalArgumentException("button horizontal padding must leave positive content width");
             }
-            if (sizing.height() == ButtonSizeMode.FIXED && size.height() <= padding.vertical() * 2.0f) {
+            if (sizing.height() == ButtonSizeMode.FIXED
+                    && size.heightMode() == SizeMode.FIXED
+                    && size.height() <= padding.vertical() * 2.0f) {
                 throw new IllegalArgumentException("button vertical padding must leave positive content height");
             }
             opacity = clampOpacity(opacity);
