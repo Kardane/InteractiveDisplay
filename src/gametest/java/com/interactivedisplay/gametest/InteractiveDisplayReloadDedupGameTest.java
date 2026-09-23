@@ -44,7 +44,7 @@ public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMe
             helper.assertTrue(manager.loadedGroupIds().contains(SECOND_GROUP_ID), Component.literal("second QA group was not loaded"));
 
             var mainOpened = manager.createWindow(player, "main_menu", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
-            var galleryOpened = manager.createWindow(player, "gallery", PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
+            var galleryOpened = manager.createWindow(player, "display_showcase", PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
             var groupOpened = manager.createGroup(player, "menu_group", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
             var secondGroupOpened = manager.createGroup(player, SECOND_GROUP_ID, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
             helper.assertTrue(mainOpened.success(), Component.literal("main_menu open failed before reload dedup test: " + mainOpened.message()));
@@ -53,7 +53,7 @@ public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMe
             helper.assertTrue(secondGroupOpened.success(), Component.literal("second group open failed before reload dedup test: " + secondGroupOpened.message()));
 
             WindowInstance mainBefore = manager.findActiveWindow(owner, "main_menu");
-            WindowInstance galleryBefore = manager.findActiveWindow(owner, "gallery");
+            WindowInstance galleryBefore = manager.findActiveWindow(owner, "display_showcase");
             WindowGroupInstance groupBefore = manager.findActiveGroup(owner, "menu_group");
             WindowGroupInstance secondGroupBefore = manager.findActiveGroup(owner, SECOND_GROUP_ID);
             helper.assertTrue(mainBefore != null && galleryBefore != null && groupBefore != null && secondGroupBefore != null,
@@ -93,7 +93,7 @@ public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMe
             }
 
             WindowInstance mainAfter = manager.findActiveWindow(owner, "main_menu");
-            WindowInstance galleryAfter = manager.findActiveWindow(owner, "gallery");
+            WindowInstance galleryAfter = manager.findActiveWindow(owner, "display_showcase");
             WindowGroupInstance groupAfter = manager.findActiveGroup(owner, "menu_group");
             WindowGroupInstance secondGroupAfter = manager.findActiveGroup(owner, SECOND_GROUP_ID);
             helper.assertTrue(mainAfter != null && galleryAfter != null && groupAfter != null && secondGroupAfter != null,
@@ -136,10 +136,10 @@ public final class InteractiveDisplayReloadDedupGameTest implements CustomTestMe
     private static String secondGroupYaml() {
         return """
                 id: qa_reload_group
-                initialWindowId: main_menu2
+                initialWindowId: sample_index
                 defaultMode: player_fixed
                 windows:
-                  - windowId: main_menu2
+                  - windowId: sample_index
                     offset:
                       forward: 2.0
                       horizontal: -0.75

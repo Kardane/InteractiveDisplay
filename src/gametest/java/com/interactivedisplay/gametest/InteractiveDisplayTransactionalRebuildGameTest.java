@@ -6,6 +6,8 @@ import com.interactivedisplay.api.event.EventApi;
 import com.interactivedisplay.core.positioning.PositionMode;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.entity.VirtualWindowHolder;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.fabricmc.loader.api.FabricLoader;
@@ -39,7 +42,9 @@ public final class InteractiveDisplayTransactionalRebuildGameTest implements Cus
 
         Files.createDirectories(windows);
         Files.createDirectories(images);
-        helper.assertTrue(Files.isRegularFile(sourceImage), Component.literal("bundled sample_local.png is missing"));
+        BufferedImage fixtureImage = new BufferedImage(8, 8, BufferedImage.TYPE_INT_ARGB);
+        fixtureImage.setRGB(0, 0, Color.WHITE.getRGB());
+        ImageIO.write(fixtureImage, "png", sourceImage.toFile());
 
         try {
             Files.copy(sourceImage, imageFile, StandardCopyOption.REPLACE_EXISTING);

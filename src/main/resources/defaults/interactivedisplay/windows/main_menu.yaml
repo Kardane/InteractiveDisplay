@@ -42,12 +42,27 @@ components:
       z: 0.01
     width: 2.6
     height: 0.45
-    content: "기본 텍스트와 버튼 샘플 · 자세한 예시는 sample_index"
+    content: "기본 텍스트와 버튼"
     fontSize: 0.5
     refreshInterval: 20
     alignment: center
     color: "#E8E8E8"
     background: "#00000000"
+  - id: samples
+    type: button
+    position:
+      x: 0.0
+      y: -0.35
+      z: 0.02
+    size:
+      width: 1.8
+      height: 0.35
+    label: "샘플 목록"
+    fontSize: 0.3
+    clickType: both
+    action:
+      type: open_window
+      target: sample_index
   - id: close
     type: button
     position:

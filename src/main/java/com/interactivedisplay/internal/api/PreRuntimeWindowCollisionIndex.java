@@ -9,9 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 
 final class PreRuntimeWindowCollisionIndex {
     private static final Set<String> BUILT_IN_WINDOW_IDS = Set.of(
-            "main_menu",
-            "main_menu2",
-            "gallery"
+            "main_menu"
     );
 
     private final Path windowsDir;

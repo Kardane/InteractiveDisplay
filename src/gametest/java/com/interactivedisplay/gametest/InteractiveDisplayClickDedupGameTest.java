@@ -116,31 +116,15 @@ public final class InteractiveDisplayClickDedupGameTest implements CustomTestMet
 
     @SuppressWarnings("removal")
     @GameTest
-    public void textInputShowcaseShouldSpawnWithBracketedPlaceholder(GameTestHelper helper) {
-        var manager = InteractiveDisplay.instance().windowManager();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-
-        var opened = manager.createWindow(player, "text_input_showcase", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
-        helper.assertTrue(opened.success(), Component.literal("text input showcase failed to spawn: " + opened.message()));
-        helper.assertTrue(manager.findActiveWindow(player.getUUID(), "text_input_showcase").runtime("nickname") != null,
-                Component.literal("nickname input is missing"));
-
-        manager.removeWindow(player.getUUID(), "text_input_showcase");
-        VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
-        helper.succeed();
-    }
-
-    @SuppressWarnings("removal")
-    @GameTest
     public void groupPlacementCommitShouldKeepCurrentWindowAndRuntimes(GameTestHelper helper) {
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setYRot(0.0f);
         player.setXRot(0.0f);
 
-        var opened = manager.createGroup(player, "sample_group", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+        var opened = manager.createGroup(player, "menu_group", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
         helper.assertTrue(opened.success(), Component.literal("sample group failed to open: " + opened.message()));
-        var group = manager.findActiveGroup(player.getUUID(), "sample_group");
+        var group = manager.findActiveGroup(player.getUUID(), "menu_group");
         var window = group.currentWindow();
         var runtime = window.runtime("title");
         var context = new WindowNavigationContext(window.windowId(), group.groupId(), PositionMode.PLAYER_FIXED,
@@ -152,47 +136,12 @@ public final class InteractiveDisplayClickDedupGameTest implements CustomTestMet
         player.setXRot(15.0f);
         helper.assertTrue(manager.togglePlacementTracking(player.getUUID(), context).success(),
                 Component.literal("group placement tracking did not commit"));
-        helper.assertTrue(manager.findActiveGroup(player.getUUID(), "sample_group") == group,
+        helper.assertTrue(manager.findActiveGroup(player.getUUID(), "menu_group") == group,
                 Component.literal("placement commit recreated the group"));
         helper.assertTrue(group.currentWindow() == window && window.runtime("title") == runtime,
                 Component.literal("placement commit recreated the group window or runtime"));
 
-        manager.removeGroup(player.getUUID(), "sample_group");
-        VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
-        helper.succeed();
-    }
-
-    @SuppressWarnings("removal")
-    @GameTest
-    public void placementCommitShouldNotRestartTextAnimation(GameTestHelper helper) {
-        var manager = InteractiveDisplay.instance().windowManager();
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setYRot(0.0f);
-        player.setXRot(0.0f);
-        String windowId = "text_animation_typewriter";
-
-        var opened = manager.createWindow(player, windowId, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
-        helper.assertTrue(opened.success(), Component.literal("animated window failed to open: " + opened.message()));
-        var window = manager.findActiveWindow(player.getUUID(), windowId);
-        var animatedText = window.runtime("animated_text");
-        long animationGeneration = animatedText.animationGeneration();
-        helper.assertTrue(animatedText.activeAnimationCount() > 0,
-                Component.literal("typewriter animation was not configured"));
-        var context = new WindowNavigationContext(windowId, null, PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
-
-        helper.assertTrue(manager.togglePlacementTracking(player.getUUID(), context).success(),
-                Component.literal("animated window placement did not start"));
-        player.setYRot(20.0f);
-        helper.assertTrue(manager.togglePlacementTracking(player.getUUID(), context).success(),
-                Component.literal("animated window placement did not commit"));
-        helper.assertTrue(manager.findActiveWindow(player.getUUID(), windowId) == window,
-                Component.literal("animated window was recreated"));
-        helper.assertTrue(window.runtime("animated_text") == animatedText
-                        && animatedText.animationGeneration() == animationGeneration
-                        && animatedText.activeAnimationCount() > 0,
-                Component.literal("typewriter animation restarted on placement commit"));
-
-        manager.removeWindow(player.getUUID(), windowId);
+        manager.removeGroup(player.getUUID(), "menu_group");
         VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
         helper.succeed();
     }

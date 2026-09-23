@@ -8,9 +8,6 @@ import com.interactivedisplay.debug.DebugEventType;
 import com.interactivedisplay.debug.DebugLevel;
 import com.interactivedisplay.debug.DebugReason;
 import com.interactivedisplay.debug.DebugRecorder;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -21,33 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import javax.imageio.ImageIO;
 
 public final class SchemaLoader {
     private static final String DEFAULT_RESOURCE_ROOT = "/defaults/interactivedisplay/";
     private static final String DEFAULT_WINDOW_FILE = "main_menu.yaml";
-    private static final String DEFAULT_MAIN_MENU2_FILE = "main_menu2.yaml";
-    private static final String DEFAULT_GALLERY_FILE = "gallery.yaml";
-    private static final String DEFAULT_ANIMATION_SHOWCASE_FILE = "animation_showcase.yaml";
     private static final String DEFAULT_SAMPLE_INDEX_FILE = "sample_index.yaml";
-    private static final String DEFAULT_BUTTON_CALIBRATION_FILE = "button_calibration.yaml";
     private static final String DEFAULT_DISPLAY_SHOWCASE_FILE = "display_showcase.yaml";
-    private static final String DEFAULT_MAP_SHOWCASE_FILE = "map_showcase.yaml";
-    private static final String DEFAULT_BUTTON_SHOWCASE_FILE = "button_showcase.yaml";
-    private static final String DEFAULT_BUTTON_SHOWCASE_SECONDARY_FILE = "button_showcase_secondary.yaml";
-    private static final String DEFAULT_TEXT_ANIMATION_SHOWCASE_FILE = "text_animation_showcase.yaml";
-    private static final String DEFAULT_TEXT_ANIMATION_TYPEWRITER_FILE = "text_animation_typewriter.yaml";
-    private static final String DEFAULT_TEXT_ANIMATION_LINEAR_FILE = "text_animation_fade_linear.yaml";
-    private static final String DEFAULT_TEXT_ANIMATION_SMOOTH_FILE = "text_animation_fade_smooth.yaml";
-    private static final String DEFAULT_TEXT_ANIMATION_CUT_FILE = "text_animation_fade_cut.yaml";
-    private static final String DEFAULT_WINDOW_MODE_CONVERSION_FILE = "window_mode_conversion.yaml";
-    private static final String DEFAULT_TEXT_INPUT_SHOWCASE_FILE = "text_input_showcase.yaml";
     private static final String DEFAULT_GROUP_FILE = "menu_group.yaml";
-    private static final String DEFAULT_SAMPLE_GROUP_FILE = "sample_group.yaml";
-    private static final String DEFAULT_BUTTON_SHOWCASE_GROUP_FILE = "button_showcase_group.yaml";
-    private static final String DEFAULT_TEXT_ANIMATION_GROUP_FILE = "text_animation_group.yaml";
-    private static final String DEFAULT_REMOTE_EXAMPLE_FILE = "gallery_remote.example.yaml.disabled";
-    private static final String DEFAULT_SAMPLE_IMAGE = "sample_local.png";
 
     private final Path configRoot;
     private final Path windowsDir;
@@ -329,28 +306,9 @@ public final class SchemaLoader {
 
     private void ensureDefaultAssets() throws IOException {
         copyDefaultResource("windows/" + DEFAULT_WINDOW_FILE);
-        copyDefaultResource("windows/" + DEFAULT_MAIN_MENU2_FILE);
-        copyDefaultResource("windows/" + DEFAULT_GALLERY_FILE);
-        copyDefaultResource("windows/" + DEFAULT_ANIMATION_SHOWCASE_FILE);
         copyDefaultResource("windows/" + DEFAULT_SAMPLE_INDEX_FILE);
-        copyDefaultResource("windows/" + DEFAULT_BUTTON_CALIBRATION_FILE);
         copyDefaultResource("windows/" + DEFAULT_DISPLAY_SHOWCASE_FILE);
-        copyDefaultResource("windows/" + DEFAULT_MAP_SHOWCASE_FILE);
-        copyDefaultResource("windows/" + DEFAULT_BUTTON_SHOWCASE_FILE);
-        copyDefaultResource("windows/" + DEFAULT_BUTTON_SHOWCASE_SECONDARY_FILE);
-        copyDefaultResource("windows/" + DEFAULT_TEXT_ANIMATION_SHOWCASE_FILE);
-        copyDefaultResource("windows/" + DEFAULT_TEXT_ANIMATION_TYPEWRITER_FILE);
-        copyDefaultResource("windows/" + DEFAULT_TEXT_ANIMATION_LINEAR_FILE);
-        copyDefaultResource("windows/" + DEFAULT_TEXT_ANIMATION_SMOOTH_FILE);
-        copyDefaultResource("windows/" + DEFAULT_TEXT_ANIMATION_CUT_FILE);
-        copyDefaultResource("windows/" + DEFAULT_WINDOW_MODE_CONVERSION_FILE);
-        copyDefaultResource("windows/" + DEFAULT_TEXT_INPUT_SHOWCASE_FILE);
-        copyDefaultResource("windows/" + DEFAULT_REMOTE_EXAMPLE_FILE);
         copyDefaultResource("groups/" + DEFAULT_GROUP_FILE);
-        copyDefaultResource("groups/" + DEFAULT_SAMPLE_GROUP_FILE);
-        copyDefaultResource("groups/" + DEFAULT_BUTTON_SHOWCASE_GROUP_FILE);
-        copyDefaultResource("groups/" + DEFAULT_TEXT_ANIMATION_GROUP_FILE);
-        ensureSampleImage();
     }
 
     private void copyDefaultResource(String relativePath) throws IOException {
@@ -366,24 +324,6 @@ public final class SchemaLoader {
             }
             Files.copy(input, target);
         }
-    }
-
-    private void ensureSampleImage() throws IOException {
-        Path imagePath = this.imagesDir.resolve(DEFAULT_SAMPLE_IMAGE);
-        if (Files.exists(imagePath)) {
-            return;
-        }
-
-        BufferedImage image = new BufferedImage(128, 128, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = image.createGraphics();
-        graphics.setColor(new Color(26, 83, 92));
-        graphics.fillRect(0, 0, 128, 128);
-        graphics.setColor(new Color(255, 255, 255, 200));
-        graphics.fillOval(24, 24, 80, 80);
-        graphics.setColor(new Color(11, 34, 50));
-        graphics.drawString("ID", 56, 68);
-        graphics.dispose();
-        ImageIO.write(image, "png", imagePath.toFile());
     }
 
     private boolean isYamlFile(Path path) {

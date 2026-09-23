@@ -31,35 +31,19 @@ class SchemaLoaderDebugTest {
         assertFalse(result.hasErrors());
         for (String relativePath : new String[]{
                 "windows/main_menu.yaml",
-                "windows/main_menu2.yaml",
-                "windows/gallery.yaml",
-                "windows/animation_showcase.yaml",
                 "windows/sample_index.yaml",
-                "windows/button_calibration.yaml",
                 "windows/display_showcase.yaml",
-                "windows/map_showcase.yaml",
-                "windows/button_showcase.yaml",
-                "windows/button_showcase_secondary.yaml",
-                "windows/text_animation_showcase.yaml",
-                "windows/text_animation_typewriter.yaml",
-                "windows/text_animation_fade_linear.yaml",
-                "windows/text_animation_fade_smooth.yaml",
-                "windows/text_animation_fade_cut.yaml",
-                "windows/window_mode_conversion.yaml",
-                "windows/text_input_showcase.yaml",
-                "windows/gallery_remote.example.yaml.disabled",
-                "groups/menu_group.yaml",
-                "groups/sample_group.yaml",
-                "groups/button_showcase_group.yaml",
-                "groups/text_animation_group.yaml",
-                "images/sample_local.png"
+                "groups/menu_group.yaml"
         }) {
             assertTrue(Files.exists(configRoot.resolve(relativePath)), relativePath);
         }
+        assertFalse(Files.exists(configRoot.resolve("windows/button_showcase.yaml")));
+        assertFalse(Files.exists(configRoot.resolve("groups/sample_group.yaml")));
+        assertFalse(Files.exists(configRoot.resolve("images/sample_local.png")));
     }
 
     @Test
-    void defaultWindowShouldContainBackgroundTitleContentAndClose(@TempDir Path tempDir) throws Exception {
+    void defaultWindowShouldContainBackgroundTitleSampleButtonAndClose(@TempDir Path tempDir) throws Exception {
         DebugRecorder recorder = new DebugRecorder(10);
         SchemaLoader loader = new SchemaLoader(tempDir, new SchemaValidator(), recorder);
 
@@ -70,22 +54,24 @@ class SchemaLoaderDebugTest {
         JsonNode components = root.get("components");
 
         assertFalse(result.hasErrors());
-        assertEquals(4, components.size());
+        assertEquals(5, components.size());
         assertEquals("background", components.get(0).get("id").textValue());
         assertEquals("panel", components.get(0).get("type").textValue());
         assertEquals("title", components.get(1).get("id").textValue());
         assertEquals("content", components.get(2).get("id").textValue());
-        assertEquals("close", components.get(3).get("id").textValue());
+        assertEquals("samples", components.get(3).get("id").textValue());
+        assertEquals("sample_index", components.get(3).get("action").get("target").textValue());
+        assertEquals("close", components.get(4).get("id").textValue());
         assertTrue(components.get(0).get("backgroundColor").textValue().startsWith("#88"));
         assertEquals(0.7f, components.get(1).get("fontSize").floatValue());
         assertEquals(0.5f, components.get(2).get("fontSize").floatValue());
         assertTrue(components.get(1).get("position").get("y").floatValue()
                 > components.get(2).get("position").get("y").floatValue());
-        assertEquals("#CC992222", components.get(3).get("backgroundColor").textValue());
-        assertEquals("☒", components.get(3).get("label").textValue());
-        assertEquals(1.0f, components.get(3).get("fontSize").floatValue());
-        assertEquals("minecraft:ui.button.click", components.get(3).get("clickSound").textValue());
-        assertEquals(0.45f, components.get(3).get("size").get("width").floatValue());
+        assertEquals("#CC992222", components.get(4).get("backgroundColor").textValue());
+        assertEquals("☒", components.get(4).get("label").textValue());
+        assertEquals(1.0f, components.get(4).get("fontSize").floatValue());
+        assertEquals("minecraft:ui.button.click", components.get(4).get("clickSound").textValue());
+        assertEquals(0.45f, components.get(4).get("size").get("width").floatValue());
     }
 
     @Test

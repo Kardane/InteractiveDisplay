@@ -21,12 +21,12 @@ public final class InteractiveDisplayDisconnectCleanupGameTest implements Custom
 
         helper.assertTrue(player.connection != null, Component.literal("mock player has no play connection"));
 
-        var windowOpen = manager.createWindow(player, "main_menu2", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
+        var windowOpen = manager.createWindow(player, "sample_index", PositionMode.PLAYER_FIXED, null, 0.0f, 0.0f);
         helper.assertTrue(windowOpen.success(), Component.literal("disconnect fixture window failed to open: " + windowOpen.message()));
         var groupOpen = manager.createGroup(player, "menu_group", PositionMode.PLAYER_VIEW, null, 0.0f, 0.0f);
         helper.assertTrue(groupOpen.success(), Component.literal("disconnect fixture group failed to open: " + groupOpen.message()));
 
-        var standalone = manager.findActiveWindow(player.getUUID(), "main_menu2");
+        var standalone = manager.findActiveWindow(player.getUUID(), "sample_index");
         var group = manager.findActiveGroup(player.getUUID(), "menu_group");
         helper.assertTrue(standalone != null && group != null,
                 Component.literal("disconnect fixture did not create both standalone and group runtime"));
@@ -40,7 +40,7 @@ public final class InteractiveDisplayDisconnectCleanupGameTest implements Custom
         ServerPlayConnectionEvents.DISCONNECT.invoker().onPlayDisconnect(player.connection, server);
         VirtualWindowHolder.destroyAllPending(server);
 
-        helper.assertTrue(manager.findActiveWindow(player.getUUID(), "main_menu2") == null,
+        helper.assertTrue(manager.findActiveWindow(player.getUUID(), "sample_index") == null,
                 Component.literal("standalone window remained active after DISCONNECT event"));
         helper.assertTrue(manager.findActiveGroup(player.getUUID(), "menu_group") == null,
                 Component.literal("group remained active after DISCONNECT event"));

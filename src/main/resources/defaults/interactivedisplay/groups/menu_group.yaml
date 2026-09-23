@@ -10,11 +10,11 @@ windows:
     orbit:
       yaw: 0.0
       pitch: 0.0
-  - windowId: gallery
+  - windowId: sample_index
     offset:
       forward: 2.0
-      horizontal: 0.75
+      horizontal: 0.0
       vertical: 0.5
     orbit:
-      yaw: 25.0
+      yaw: 0.0
       pitch: 0.0

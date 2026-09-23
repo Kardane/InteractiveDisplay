@@ -45,19 +45,9 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
 
         Set<String> windows = mod.windowManager().loadedWindowIds();
         helper.assertTrue(windows.contains("main_menu"), Component.literal("default main_menu window was not loaded"));
-        helper.assertTrue(windows.contains("main_menu2"), Component.literal("default main_menu2 window was not loaded"));
-        helper.assertTrue(windows.contains("gallery"), Component.literal("default gallery window was not loaded"));
         helper.assertTrue(windows.contains("sample_index"), Component.literal("sample_index was not loaded"));
-        helper.assertTrue(windows.contains("button_calibration"), Component.literal("button_calibration was not loaded"));
         helper.assertTrue(windows.contains("display_showcase"), Component.literal("display_showcase was not loaded"));
-        helper.assertTrue(windows.contains("button_showcase"), Component.literal("button_showcase was not loaded"));
-        helper.assertTrue(windows.contains("text_animation_showcase"), Component.literal("text_animation_showcase was not loaded"));
-        helper.assertTrue(windows.contains("window_mode_conversion"), Component.literal("window_mode_conversion was not loaded"));
-        helper.assertTrue(windows.contains("text_input_showcase"), Component.literal("text_input_showcase was not loaded"));
         helper.assertTrue(mod.windowManager().loadedGroupIds().contains("menu_group"), Component.literal("default menu_group was not loaded"));
-        helper.assertTrue(mod.windowManager().loadedGroupIds().contains("sample_group"), Component.literal("default sample_group was not loaded"));
-        helper.assertTrue(mod.windowManager().loadedGroupIds().contains("button_showcase_group"), Component.literal("default button_showcase_group was not loaded"));
-        helper.assertTrue(mod.windowManager().loadedGroupIds().contains("text_animation_group"), Component.literal("default text_animation_group was not loaded"));
         helper.assertTrue(mod.windowManager().brokenWindowIds().isEmpty(), Component.literal("default windows contain broken definitions: " + mod.windowManager().brokenWindowIds()));
         helper.assertTrue(mod.windowManager().brokenGroupIds().isEmpty(), Component.literal("default groups contain broken definitions: " + mod.windowManager().brokenGroupIds()));
         helper.succeed();
@@ -86,7 +76,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         InteractiveDisplayApi api = InteractiveDisplayApi.get();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ResourceLocation main = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu");
-        ResourceLocation second = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu2");
+        ResourceLocation second = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "sample_index");
         ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "menu_group");
 
         List<EventApi.WindowEvent> opened = new ArrayList<>();
@@ -100,10 +90,10 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
 
             int closedBeforeCloseAll = closed.size();
             helper.assertTrue(api.windows().open(player, main, WindowOpenOptions.playerFixed()).success(), Component.literal("main_menu did not open before closeAll"));
-            helper.assertTrue(api.windows().open(player, second, WindowOpenOptions.playerFixed()).success(), Component.literal("main_menu2 did not open before closeAll"));
+            helper.assertTrue(api.windows().open(player, second, WindowOpenOptions.playerFixed()).success(), Component.literal("sample_index did not open before closeAll"));
             api.windows().closeAll(player);
             helper.assertFalse(api.windows().isOpen(player, main), Component.literal("main_menu remained open after closeAll"));
-            helper.assertFalse(api.windows().isOpen(player, second), Component.literal("main_menu2 remained open after closeAll"));
+            helper.assertFalse(api.windows().isOpen(player, second), Component.literal("sample_index remained open after closeAll"));
             helper.assertTrue(closed.size() == closedBeforeCloseAll + 2, Component.literal("closeAll did not emit one close event per active window"));
 
             int openedBeforeGroup = opened.size();

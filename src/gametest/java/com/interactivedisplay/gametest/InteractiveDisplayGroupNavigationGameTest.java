@@ -82,31 +82,31 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
             var internalNav = clickHandler.handle(
                     player.getUUID(),
                     player.getGameProfile().getName(),
-                    hit("main_menu", "menu_group", group.baseAnchor(), group.baseYaw(), group.basePitch(), "gallery")
+                    hit("main_menu", "menu_group", group.baseAnchor(), group.baseYaw(), group.basePitch(), "samples")
             );
             helper.assertTrue(internalNav.consumed(), Component.literal("group internal open_window navigation was not consumed"));
 
             var navigatedGroup = manager.findActiveGroup(player.getUUID(), "menu_group");
-            helper.assertTrue(navigatedGroup != null && "gallery".equals(navigatedGroup.currentWindowId()),
-                    Component.literal("group internal navigation did not switch current window to gallery"));
-            helper.assertTrue(manager.findActiveWindow(player.getUUID(), "gallery") == null,
-                    Component.literal("group internal navigation incorrectly created gallery as standalone"));
-            assertNavigationEvents(helper, opened, closed, openedBeforeInternalNav, closedBeforeInternalNav, "main_menu", "gallery");
+            helper.assertTrue(navigatedGroup != null && "sample_index".equals(navigatedGroup.currentWindowId()),
+                    Component.literal("group internal navigation did not switch current window to sample_index"));
+            helper.assertTrue(manager.findActiveWindow(player.getUUID(), "sample_index") == null,
+                    Component.literal("group internal navigation incorrectly created sample_index as standalone"));
+            assertNavigationEvents(helper, opened, closed, openedBeforeInternalNav, closedBeforeInternalNav, "main_menu", "sample_index");
 
-            // main_menu2 is not a menu_group entry. open_window must leave the group and create a standalone window.
+            // display_showcase is not a menu_group entry. open_window must leave the group and create a standalone window.
             int openedBeforeStandalone = opened.size();
             int closedBeforeStandalone = closed.size();
             var standaloneNav = clickHandler.handle(
                     player.getUUID(),
                     player.getGameProfile().getName(),
-                    hit("gallery", "menu_group", navigatedGroup.baseAnchor(), navigatedGroup.baseYaw(), navigatedGroup.basePitch(), "main_menu2")
+                    hit("sample_index", "menu_group", navigatedGroup.baseAnchor(), navigatedGroup.baseYaw(), navigatedGroup.basePitch(), "display")
             );
             helper.assertTrue(standaloneNav.consumed(), Component.literal("group-to-standalone open_window navigation was not consumed"));
             helper.assertTrue(manager.findActiveGroup(player.getUUID(), "menu_group") == null,
                     Component.literal("group remained active after navigation to non-group window"));
-            helper.assertTrue(manager.findActiveWindow(player.getUUID(), "main_menu2") != null,
-                    Component.literal("group-to-standalone navigation did not create main_menu2 standalone"));
-            assertNavigationEvents(helper, opened, closed, openedBeforeStandalone, closedBeforeStandalone, "gallery", "main_menu2");
+            helper.assertTrue(manager.findActiveWindow(player.getUUID(), "display_showcase") != null,
+                    Component.literal("group-to-standalone navigation did not create display_showcase standalone"));
+            assertNavigationEvents(helper, opened, closed, openedBeforeStandalone, closedBeforeStandalone, "sample_index", "display_showcase");
         } finally {
             manager.removeAll(player.getUUID());
             VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
