@@ -23,6 +23,7 @@ import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.layout.LayoutOptions;
 import com.interactivedisplay.core.layout.ItemAlignment;
+import com.interactivedisplay.core.layout.OverflowPolicy;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransition;
@@ -41,10 +42,10 @@ final class WindowSpecAdapter {
         }
         return new WindowDefinition(
                 PublicIdCodec.toInternalWindowId(spec.id()),
-                new ComponentSize(spec.size().width(), spec.size().height()),
+                componentSize(spec.size()),
                 new WindowOffset(spec.offset().forward(), spec.offset().horizontal(), spec.offset().vertical()),
                 layoutOptions(spec.layout(), spec.gap(), spec.columns(), spec.rowGap(), spec.columnGap(),
-                        spec.justifyItems(), spec.alignItems()),
+                        spec.justifyItems(), spec.alignItems(), spec.overflow()),
                 List.copyOf(components),
                 new WindowTransition(
                         spec.transition().duration(),
@@ -67,16 +68,7 @@ final class WindowSpecAdapter {
                         component.position().margin().left()
                 )
         );
-        ComponentSize size = new ComponentSize(
-                component.size().width(),
-                component.size().height(),
-                ComponentSizeMode.valueOf(component.size().widthMode().name()),
-                ComponentSizeMode.valueOf(component.size().heightMode().name()),
-                component.size().minWidth(),
-                component.size().maxWidth(),
-                component.size().minHeight(),
-                component.size().maxHeight()
-        );
+        ComponentSize size = componentSize(component.size());
 
         if (component instanceof WindowSpec.TextSpec text) {
             return new TextComponentDefinition(
@@ -110,7 +102,7 @@ final class WindowSpecAdapter {
             return new PanelComponentDefinition(
                     panel.id(), position, size, panel.visible(), panel.opacity(), panel.backgroundColor(), panel.padding(),
                     layoutOptions(panel.layout(), panel.gap(), panel.columns(), panel.rowGap(), panel.columnGap(),
-                            panel.justifyItems(), panel.alignItems()), List.of()
+                            panel.justifyItems(), panel.alignItems(), panel.overflow()), List.of()
             );
         }
         if (component instanceof WindowSpec.ImageSpec image) {
@@ -122,13 +114,27 @@ final class WindowSpecAdapter {
         throw new IllegalArgumentException("unsupported public component: " + component.getClass().getName());
     }
 
+    private static ComponentSize componentSize(WindowSpec.Size size) {
+        return new ComponentSize(
+                size.width(),
+                size.height(),
+                ComponentSizeMode.valueOf(size.widthMode().name()),
+                ComponentSizeMode.valueOf(size.heightMode().name()),
+                size.minWidth(),
+                size.maxWidth(),
+                size.minHeight(),
+                size.maxHeight()
+        );
+    }
+
     private static LayoutOptions layoutOptions(WindowSpec.Layout layout,
                                                float gap,
                                                int columns,
                                                float rowGap,
                                                float columnGap,
                                                WindowSpec.ItemAlignment justifyItems,
-                                               WindowSpec.ItemAlignment alignItems) {
+                                               WindowSpec.ItemAlignment alignItems,
+                                               WindowSpec.Overflow overflow) {
         return new LayoutOptions(
                 LayoutMode.valueOf(layout.name()),
                 gap,
@@ -136,7 +142,8 @@ final class WindowSpecAdapter {
                 rowGap,
                 columnGap,
                 ItemAlignment.valueOf(justifyItems.name()),
-                ItemAlignment.valueOf(alignItems.name())
+                ItemAlignment.valueOf(alignItems.name()),
+                OverflowPolicy.valueOf(overflow.name())
         );
     }
 
