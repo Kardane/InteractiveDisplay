@@ -89,10 +89,14 @@ public record ButtonComponentDefinition(
         horizontalAlignment = horizontalAlignment == null ? ButtonHorizontalAlignment.CENTER : horizontalAlignment;
         verticalAlignment = verticalAlignment == null ? ButtonVerticalAlignment.CENTER : verticalAlignment;
         sizing = sizing == null ? ButtonSizing.fixed() : sizing;
-        if (sizing.width() == ButtonSizeMode.FIXED && size.width() <= padding.horizontal() * 2.0f) {
+        if (sizing.width() == ButtonSizeMode.FIXED
+                && size.widthMode() == ComponentSizeMode.FIXED
+                && size.width() <= padding.horizontal() * 2.0f) {
             throw new IllegalArgumentException("button horizontal padding leaves no content width");
         }
-        if (sizing.height() == ButtonSizeMode.FIXED && size.height() <= padding.vertical() * 2.0f) {
+        if (sizing.height() == ButtonSizeMode.FIXED
+                && size.heightMode() == ComponentSizeMode.FIXED
+                && size.height() <= padding.vertical() * 2.0f) {
             throw new IllegalArgumentException("button vertical padding leaves no content height");
         }
     }
