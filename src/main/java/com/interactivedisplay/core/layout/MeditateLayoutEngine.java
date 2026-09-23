@@ -87,16 +87,9 @@ public final class MeditateLayoutEngine implements LayoutEngine {
             };
 
             Vector3f position = applyParentPlacement(original, resolved, legacyPosition, parentBounds);
-            ComponentDefinition placed = withPosition(resolved, new ComponentPosition(
-                    position.x,
-                    position.y,
-                    position.z,
-                    original.position().anchor(),
-                    original.position().margin()
-            ));
-            out.add(new LayoutComponent(placed, position));
+            out.add(new LayoutComponent(resolved, position));
 
-            if (placed instanceof PanelComponentDefinition panel) {
+            if (resolved instanceof PanelComponentDefinition panel) {
                 LayoutBounds panelBounds = new LayoutBounds(
                         position.x,
                         position.y,
@@ -311,45 +304,6 @@ public final class MeditateLayoutEngine implements LayoutEngine {
         if (component instanceof ImageComponentDefinition image) {
             return new ImageComponentDefinition(
                     image.id(), image.position(), size, image.visible(), image.opacity(),
-                    image.imageType(), image.value(), image.scale(), image.source()
-            );
-        }
-        throw new IllegalArgumentException("unsupported component type: " + component.getClass().getName());
-    }
-
-    private static ComponentDefinition withPosition(ComponentDefinition component, ComponentPosition position) {
-        if (component instanceof TextComponentDefinition text) {
-            return new TextComponentDefinition(
-                    text.id(), position, text.size(), text.visible(), text.opacity(), text.content(), text.fontSize(),
-                    text.color(), text.alignment(), text.lineWidth(), text.shadow(), text.background(),
-                    text.refreshInterval(), text.animations()
-            );
-        }
-        if (component instanceof ButtonComponentDefinition button) {
-            return new ButtonComponentDefinition(
-                    button.id(), position, button.size(), button.visible(), button.opacity(), button.label(),
-                    button.fontSize(), button.backgroundColor(), button.hoverColor(), button.clickSound(),
-                    button.clickType(), button.action(), button.hoverScale(), button.padding(),
-                    button.horizontalAlignment(), button.verticalAlignment(), button.sizing()
-            );
-        }
-        if (component instanceof TextInputComponentDefinition input) {
-            return new TextInputComponentDefinition(
-                    input.id(), position, input.size(), input.visible(), input.opacity(),
-                    input.initialValue(), input.placeholder(), input.maxLength(), input.fontSize(), input.color(),
-                    input.backgroundColor(), input.hoverColor(), input.clickSound(), input.clickType(),
-                    input.dialogTitle(), input.dialogLabel(), input.confirmLabel(), input.cancelLabel()
-            );
-        }
-        if (component instanceof PanelComponentDefinition panel) {
-            return new PanelComponentDefinition(
-                    panel.id(), position, panel.size(), panel.visible(), panel.opacity(), panel.backgroundColor(),
-                    panel.padding(), panel.layoutOptions(), panel.children()
-            );
-        }
-        if (component instanceof ImageComponentDefinition image) {
-            return new ImageComponentDefinition(
-                    image.id(), position, image.size(), image.visible(), image.opacity(),
                     image.imageType(), image.value(), image.scale(), image.source()
             );
         }
