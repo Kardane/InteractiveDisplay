@@ -20,6 +20,7 @@ public final class WindowSpec {
     private final float columnGap;
     private final ItemAlignment justifyItems;
     private final ItemAlignment alignItems;
+    private final Overflow overflow;
     private final List<ComponentSpec> components;
     private final Transition transition;
 
@@ -34,6 +35,7 @@ public final class WindowSpec {
         this.columnGap = builder.columnGap;
         this.justifyItems = builder.justifyItems;
         this.alignItems = builder.alignItems;
+        this.overflow = builder.overflow;
         this.components = List.copyOf(builder.components);
         this.transition = builder.transition;
     }
@@ -80,6 +82,10 @@ public final class WindowSpec {
 
     public ItemAlignment alignItems() {
         return this.alignItems;
+    }
+
+    public Overflow overflow() {
+        return this.overflow;
     }
 
     public List<ComponentSpec> components() {
@@ -153,7 +159,13 @@ public final class WindowSpec {
 
     public enum SizeMode {
         FIXED,
-        FILL
+        FILL,
+        AUTO
+    }
+
+    public enum Overflow {
+        VISIBLE,
+        ERROR
     }
 
     public record Margin(float top, float right, float bottom, float left) {
@@ -233,6 +245,14 @@ public final class WindowSpec {
 
         public Size fillHeight() {
             return new Size(width, height, widthMode, SizeMode.FILL, minWidth, maxWidth, minHeight, maxHeight);
+        }
+
+        public Size autoWidth() {
+            return new Size(width, height, SizeMode.AUTO, heightMode, minWidth, maxWidth, minHeight, maxHeight);
+        }
+
+        public Size autoHeight() {
+            return new Size(width, height, widthMode, SizeMode.AUTO, minWidth, maxWidth, minHeight, maxHeight);
         }
 
         public Size withMin(float width, float height) {
@@ -479,8 +499,29 @@ public final class WindowSpec {
             float rowGap,
             float columnGap,
             ItemAlignment justifyItems,
-            ItemAlignment alignItems
+            ItemAlignment alignItems,
+            Overflow overflow
     ) implements ComponentSpec {
+        public PanelSpec(
+                String id,
+                Position position,
+                Size size,
+                boolean visible,
+                float opacity,
+                String backgroundColor,
+                float padding,
+                Layout layout,
+                float gap,
+                int columns,
+                float rowGap,
+                float columnGap,
+                ItemAlignment justifyItems,
+                ItemAlignment alignItems
+        ) {
+            this(id, position, size, visible, opacity, backgroundColor, padding, layout,
+                    gap, columns, rowGap, columnGap, justifyItems, alignItems, Overflow.VISIBLE);
+        }
+
         public PanelSpec(
                 String id,
                 Position position,
@@ -496,7 +537,7 @@ public final class WindowSpec {
                 float columnGap
         ) {
             this(id, position, size, visible, opacity, backgroundColor, padding, layout,
-                    gap, columns, rowGap, columnGap, ItemAlignment.START, ItemAlignment.START);
+                    gap, columns, rowGap, columnGap, ItemAlignment.START, ItemAlignment.START, Overflow.VISIBLE);
         }
 
         public PanelSpec(
@@ -511,7 +552,7 @@ public final class WindowSpec {
         ) {
             this(id, position, size, visible, opacity, backgroundColor, padding, layout,
                     DEFAULT_LAYOUT_GAP, DEFAULT_GRID_COLUMNS, DEFAULT_LAYOUT_GAP, DEFAULT_LAYOUT_GAP,
-                    ItemAlignment.START, ItemAlignment.START);
+                    ItemAlignment.START, ItemAlignment.START, Overflow.VISIBLE);
         }
 
         public PanelSpec {
@@ -527,6 +568,7 @@ public final class WindowSpec {
             columnGap = nonNegativeFinite(columnGap, "columnGap");
             justifyItems = justifyItems == null ? ItemAlignment.START : justifyItems;
             alignItems = alignItems == null ? ItemAlignment.START : alignItems;
+            overflow = overflow == null ? Overflow.VISIBLE : overflow;
             opacity = clampOpacity(opacity);
         }
     }
@@ -614,6 +656,7 @@ public final class WindowSpec {
         private float columnGap = DEFAULT_LAYOUT_GAP;
         private ItemAlignment justifyItems = ItemAlignment.START;
         private ItemAlignment alignItems = ItemAlignment.START;
+        private Overflow overflow = Overflow.VISIBLE;
         private final List<ComponentSpec> components = new ArrayList<>();
         private Transition transition = Transition.none();
 
@@ -623,6 +666,26 @@ public final class WindowSpec {
 
         public Builder size(float width, float height) {
             this.size = new Size(width, height);
+            return this;
+        }
+
+        public Builder autoWidth() {
+            this.size = this.size.autoWidth();
+            return this;
+        }
+
+        public Builder autoHeight() {
+            this.size = this.size.autoHeight();
+            return this;
+        }
+
+        public Builder minSize(float width, float height) {
+            this.size = this.size.withMin(width, height);
+            return this;
+        }
+
+        public Builder maxSize(float width, float height) {
+            this.size = this.size.withMax(width, height);
             return this;
         }
 
@@ -656,6 +719,11 @@ public final class WindowSpec {
 
         public Builder alignItems(ItemAlignment alignment) {
             this.alignItems = Objects.requireNonNull(alignment, "alignment");
+            return this;
+        }
+
+        public Builder overflow(Overflow overflow) {
+            this.overflow = Objects.requireNonNull(overflow, "overflow");
             return this;
         }
 
@@ -757,6 +825,16 @@ public final class WindowSpec {
 
         public TextBuilder fillHeight() {
             this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public TextBuilder autoWidth() {
+            this.size = this.size.autoWidth();
+            return this;
+        }
+
+        public TextBuilder autoHeight() {
+            this.size = this.size.autoHeight();
             return this;
         }
 
@@ -876,6 +954,16 @@ public final class WindowSpec {
 
         public ButtonBuilder fillHeight() {
             this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public ButtonBuilder autoWidth() {
+            this.size = this.size.autoWidth();
+            return this;
+        }
+
+        public ButtonBuilder autoHeight() {
+            this.size = this.size.autoHeight();
             return this;
         }
 
@@ -1015,6 +1103,16 @@ public final class WindowSpec {
             return this;
         }
 
+        public TextInputBuilder autoWidth() {
+            this.size = this.size.autoWidth();
+            return this;
+        }
+
+        public TextInputBuilder autoHeight() {
+            this.size = this.size.autoHeight();
+            return this;
+        }
+
         public TextInputBuilder minSize(float width, float height) {
             this.size = this.size.withMin(width, height);
             return this;
@@ -1113,6 +1211,7 @@ public final class WindowSpec {
         private float columnGap = DEFAULT_LAYOUT_GAP;
         private ItemAlignment justifyItems = ItemAlignment.START;
         private ItemAlignment alignItems = ItemAlignment.START;
+        private Overflow overflow = Overflow.VISIBLE;
 
         private PanelBuilder(String id) {
             this.id = id;
@@ -1145,6 +1244,16 @@ public final class WindowSpec {
 
         public PanelBuilder fillHeight() {
             this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public PanelBuilder autoWidth() {
+            this.size = this.size.autoWidth();
+            return this;
+        }
+
+        public PanelBuilder autoHeight() {
+            this.size = this.size.autoHeight();
             return this;
         }
 
@@ -1206,10 +1315,15 @@ public final class WindowSpec {
             return this;
         }
 
+        public PanelBuilder overflow(Overflow overflow) {
+            this.overflow = Objects.requireNonNull(overflow, "overflow");
+            return this;
+        }
+
         private PanelSpec build() {
             return new PanelSpec(this.id, this.position, this.size, this.visible, this.opacity,
                     this.backgroundColor, this.padding, this.layout, this.gap, this.columns,
-                    this.rowGap, this.columnGap, this.justifyItems, this.alignItems);
+                    this.rowGap, this.columnGap, this.justifyItems, this.alignItems, this.overflow);
         }
     }
 
@@ -1256,6 +1370,16 @@ public final class WindowSpec {
 
         public ImageBuilder fillHeight() {
             this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public ImageBuilder autoWidth() {
+            this.size = this.size.autoWidth();
+            return this;
+        }
+
+        public ImageBuilder autoHeight() {
+            this.size = this.size.autoHeight();
             return this;
         }
 

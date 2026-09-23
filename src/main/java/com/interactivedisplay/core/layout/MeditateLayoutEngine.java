@@ -2,8 +2,8 @@ package com.interactivedisplay.core.layout;
 
 import com.interactivedisplay.core.component.ButtonBoxModel;
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonSizeMode;
 import com.interactivedisplay.core.component.ButtonSizing;
-import com.interactivedisplay.core.component.ComponentAnchor;
 import com.interactivedisplay.core.component.ComponentDefinition;
 import com.interactivedisplay.core.component.ComponentMargin;
 import com.interactivedisplay.core.component.ComponentPosition;
@@ -21,11 +21,29 @@ import org.joml.Vector3f;
 public final class MeditateLayoutEngine implements LayoutEngine {
     private static final float PANEL_CHILD_Z_OFFSET = 0.01f;
     private static final float MIN_LAYOUT_SIZE = 0.0001f;
+    private static final float BOUNDS_EPSILON = 0.0001f;
 
     @Override
     public List<LayoutComponent> calculate(WindowDefinition definition) {
+        MeasuredSize measuredContent = measureContainer(definition.components(), definition.layoutOptions());
+        ComponentSize configuredWindowSize = definition.size();
+        float windowWidth = resolveContainerAxis(
+                configuredWindowSize.widthMode(),
+                configuredWindowSize.width(),
+                measuredContent.width(),
+                configuredWindowSize.minWidth(),
+                configuredWindowSize.maxWidth()
+        );
+        float windowHeight = resolveContainerAxis(
+                configuredWindowSize.heightMode(),
+                configuredWindowSize.height(),
+                measuredContent.height(),
+                configuredWindowSize.minHeight(),
+                configuredWindowSize.maxHeight()
+        );
+
         List<LayoutComponent> layout = new ArrayList<>();
-        LayoutBounds windowBounds = LayoutBounds.centered(definition.size().width(), definition.size().height());
+        LayoutBounds windowBounds = LayoutBounds.centered(windowWidth, windowHeight);
         layoutComponents(
                 definition.components(),
                 definition.layoutOptions(),
@@ -87,6 +105,7 @@ public final class MeditateLayoutEngine implements LayoutEngine {
             };
 
             Vector3f position = applyParentPlacement(original, resolved, legacyPosition, parentBounds);
+            validateOverflow(layoutOptions, resolved, position, parentBounds);
             out.add(new LayoutComponent(resolved, position));
 
             if (resolved instanceof PanelComponentDefinition panel) {
@@ -119,6 +138,155 @@ public final class MeditateLayoutEngine implements LayoutEngine {
         }
     }
 
+    private static MeasuredSize measureContainer(List<ComponentDefinition> components, LayoutOptions layoutOptions) {
+        if (components.isEmpty()) {
+            return new MeasuredSize(MIN_LAYOUT_SIZE, MIN_LAYOUT_SIZE);
+        }
+
+        List<MeasuredSize> measured = new ArrayList<>(components.size());
+        for (ComponentDefinition component : components) {
+            measured.add(measureComponent(component));
+        }
+
+        return switch (layoutOptions.mode()) {
+            case VERTICAL -> measureVertical(components, measured, layoutOptions.gap());
+            case HORIZONTAL -> measureHorizontal(components, measured, layoutOptions.gap());
+            case GRID -> measureGrid(components, measured, layoutOptions);
+            case ABSOLUTE -> measureAbsolute(components, measured);
+        };
+    }
+
+    private static MeasuredSize measureComponent(ComponentDefinition component) {
+        if (component instanceof PanelComponentDefinition panel) {
+            MeasuredSize content = measureContainer(panel.children(), panel.layoutOptions());
+            float desiredWidth = content.width() + panel.padding() * 2.0f;
+            float desiredHeight = content.height() + panel.padding() * 2.0f;
+            return new MeasuredSize(
+                    resolveIntrinsicAxis(panel.size().widthMode(), panel.size().width(), desiredWidth,
+                            panel.size().minWidth(), panel.size().maxWidth()),
+                    resolveIntrinsicAxis(panel.size().heightMode(), panel.size().height(), desiredHeight,
+                            panel.size().minHeight(), panel.size().maxHeight())
+            );
+        }
+
+        if (component instanceof ButtonComponentDefinition button) {
+            return measureButton(button);
+        }
+
+        ComponentSize configured = component.size();
+        return new MeasuredSize(
+                resolveIntrinsicAxis(configured.widthMode(), configured.width(), configured.width(),
+                        configured.minWidth(), configured.maxWidth()),
+                resolveIntrinsicAxis(configured.heightMode(), configured.height(), configured.height(),
+                        configured.minHeight(), configured.maxHeight())
+        );
+    }
+
+    private static MeasuredSize measureButton(ButtonComponentDefinition button) {
+        ComponentSize configured = button.size();
+        ButtonSizeMode widthSizing = switch (configured.widthMode()) {
+            case AUTO -> ButtonSizeMode.CONTENT;
+            case FILL -> ButtonSizeMode.FIXED;
+            case FIXED -> button.sizing().width();
+        };
+        ButtonSizeMode heightSizing = switch (configured.heightMode()) {
+            case AUTO -> ButtonSizeMode.CONTENT;
+            case FILL -> ButtonSizeMode.FIXED;
+            case FIXED -> button.sizing().height();
+        };
+        ButtonComponentDefinition intrinsic = copyButton(
+                button,
+                configured.resolved(configured.width(), configured.height()),
+                new ButtonSizing(widthSizing, heightSizing)
+        );
+        var box = ButtonBoxModel.resolve(intrinsic);
+        return new MeasuredSize(
+                clamp(box.width(), configured.minWidth(), configured.maxWidth()),
+                clamp(box.height(), configured.minHeight(), configured.maxHeight())
+        );
+    }
+
+    private static MeasuredSize measureVertical(List<ComponentDefinition> components,
+                                                List<MeasuredSize> measured,
+                                                float gap) {
+        float width = MIN_LAYOUT_SIZE;
+        float height = 0.0f;
+        for (int index = 0; index < components.size(); index++) {
+            ComponentMargin margin = components.get(index).position().margin();
+            MeasuredSize child = measured.get(index);
+            width = Math.max(width, child.width() + margin.horizontal());
+            height += child.height() + margin.vertical();
+            if (index > 0) {
+                height += gap;
+            }
+        }
+        return new MeasuredSize(width, Math.max(MIN_LAYOUT_SIZE, height));
+    }
+
+    private static MeasuredSize measureHorizontal(List<ComponentDefinition> components,
+                                                  List<MeasuredSize> measured,
+                                                  float gap) {
+        float width = 0.0f;
+        float height = MIN_LAYOUT_SIZE;
+        for (int index = 0; index < components.size(); index++) {
+            ComponentMargin margin = components.get(index).position().margin();
+            MeasuredSize child = measured.get(index);
+            width += child.width() + margin.horizontal();
+            height = Math.max(height, child.height() + margin.vertical());
+            if (index > 0) {
+                width += gap;
+            }
+        }
+        return new MeasuredSize(Math.max(MIN_LAYOUT_SIZE, width), height);
+    }
+
+    private static MeasuredSize measureGrid(List<ComponentDefinition> components,
+                                            List<MeasuredSize> measured,
+                                            LayoutOptions options) {
+        int columns = options.columns();
+        int rows = (int) ((components.size() + (long) columns - 1L) / columns);
+        float[] widths = new float[Math.min(columns, components.size())];
+        float[] heights = new float[rows];
+        for (int index = 0; index < components.size(); index++) {
+            ComponentMargin margin = components.get(index).position().margin();
+            MeasuredSize child = measured.get(index);
+            int column = index % columns;
+            int row = index / columns;
+            widths[column] = Math.max(widths[column], child.width() + margin.horizontal());
+            heights[row] = Math.max(heights[row], child.height() + margin.vertical());
+        }
+
+        float width = sum(widths) + Math.max(0, widths.length - 1) * options.columnGap();
+        float height = sum(heights) + Math.max(0, heights.length - 1) * options.rowGap();
+        return new MeasuredSize(Math.max(MIN_LAYOUT_SIZE, width), Math.max(MIN_LAYOUT_SIZE, height));
+    }
+
+    private static MeasuredSize measureAbsolute(List<ComponentDefinition> components,
+                                                List<MeasuredSize> measured) {
+        float width = MIN_LAYOUT_SIZE;
+        float height = MIN_LAYOUT_SIZE;
+        for (int index = 0; index < components.size(); index++) {
+            ComponentDefinition component = components.get(index);
+            MeasuredSize child = measured.get(index);
+            ComponentMargin margin = component.position().margin();
+            if (component.position().anchored()) {
+                width = Math.max(width, child.width() + margin.horizontal());
+                height = Math.max(height, child.height() + margin.vertical());
+                continue;
+            }
+
+            float halfWidthExtent = Math.abs(component.position().x())
+                    + child.width() / 2.0f
+                    + margin.horizontal() / 2.0f;
+            float lower = component.position().y() - margin.bottom();
+            float upper = component.position().y() + child.height() + margin.top();
+            float halfHeightExtent = Math.max(Math.abs(lower), Math.abs(upper));
+            width = Math.max(width, halfWidthExtent * 2.0f);
+            height = Math.max(height, halfHeightExtent * 2.0f);
+        }
+        return new MeasuredSize(width, height);
+    }
+
     private static ComponentDefinition resolveComponent(ComponentDefinition component, LayoutBounds parentBounds) {
         ComponentMargin margin = component.position().margin();
         float availableWidth = Math.max(MIN_LAYOUT_SIZE, parentBounds.width() - margin.horizontal());
@@ -126,47 +294,99 @@ public final class MeditateLayoutEngine implements LayoutEngine {
         ComponentSize configured = component.size();
 
         if (component instanceof ButtonComponentDefinition button) {
-            float width;
-            if (configured.widthMode() == ComponentSizeMode.FILL) {
-                width = configured.resolveWidth(availableWidth);
-            } else {
-                width = clamp(
-                        ButtonBoxModel.resolve(button).width(),
-                        configured.minWidth(),
-                        configured.maxWidth()
-                );
-            }
-
-            ButtonComponentDefinition widthResolved = copyButton(
-                    button,
-                    configured.resolved(width, configured.height()),
-                    new ButtonSizing(
-                            com.interactivedisplay.core.component.ButtonSizeMode.FIXED,
-                            button.sizing().height()
-                    )
-            );
-
-            float height;
-            if (configured.heightMode() == ComponentSizeMode.FILL) {
-                height = configured.resolveHeight(availableHeight);
-            } else {
-                height = clamp(
-                        ButtonBoxModel.resolve(widthResolved).height(),
-                        configured.minHeight(),
-                        configured.maxHeight()
-                );
-            }
-
-            return copyButton(
-                    button,
-                    configured.resolved(width, height),
-                    ButtonSizing.fixed()
-            );
+            return resolveButton(button, availableWidth, availableHeight);
         }
 
-        float width = configured.resolveWidth(availableWidth);
-        float height = configured.resolveHeight(availableHeight);
+        if (component instanceof PanelComponentDefinition panel) {
+            MeasuredSize measuredContent = measureContainer(panel.children(), panel.layoutOptions());
+            float autoWidth = measuredContent.width() + panel.padding() * 2.0f;
+            float autoHeight = measuredContent.height() + panel.padding() * 2.0f;
+            float width = resolveArrangedAxis(configured.widthMode(), configured.width(), autoWidth, availableWidth,
+                    configured.minWidth(), configured.maxWidth());
+            float height = resolveArrangedAxis(configured.heightMode(), configured.height(), autoHeight, availableHeight,
+                    configured.minHeight(), configured.maxHeight());
+            return withSize(panel, configured.resolved(width, height));
+        }
+
+        float width = resolveArrangedAxis(configured.widthMode(), configured.width(), configured.width(), availableWidth,
+                configured.minWidth(), configured.maxWidth());
+        float height = resolveArrangedAxis(configured.heightMode(), configured.height(), configured.height(), availableHeight,
+                configured.minHeight(), configured.maxHeight());
         return withSize(component, configured.resolved(width, height));
+    }
+
+    private static ButtonComponentDefinition resolveButton(ButtonComponentDefinition button,
+                                                           float availableWidth,
+                                                           float availableHeight) {
+        ComponentSize configured = button.size();
+
+        float width;
+        if (configured.widthMode() == ComponentSizeMode.FILL) {
+            width = clamp(availableWidth, configured.minWidth(), configured.maxWidth());
+        } else {
+            ButtonSizeMode widthSizing = configured.widthMode() == ComponentSizeMode.AUTO
+                    ? ButtonSizeMode.CONTENT
+                    : button.sizing().width();
+            ButtonSizeMode provisionalHeightSizing = configured.heightMode() == ComponentSizeMode.AUTO
+                    ? ButtonSizeMode.CONTENT
+                    : button.sizing().height();
+            ButtonComponentDefinition widthMeasure = copyButton(
+                    button,
+                    configured.resolved(configured.width(), configured.height()),
+                    new ButtonSizing(widthSizing, provisionalHeightSizing)
+            );
+            width = clamp(ButtonBoxModel.resolve(widthMeasure).width(), configured.minWidth(), configured.maxWidth());
+        }
+
+        ButtonSizeMode heightSizing = configured.heightMode() == ComponentSizeMode.AUTO
+                ? ButtonSizeMode.CONTENT
+                : button.sizing().height();
+        ButtonComponentDefinition widthResolved = copyButton(
+                button,
+                configured.resolved(width, configured.height()),
+                new ButtonSizing(ButtonSizeMode.FIXED, heightSizing)
+        );
+
+        float height = configured.heightMode() == ComponentSizeMode.FILL
+                ? clamp(availableHeight, configured.minHeight(), configured.maxHeight())
+                : clamp(ButtonBoxModel.resolve(widthResolved).height(), configured.minHeight(), configured.maxHeight());
+
+        return copyButton(button, configured.resolved(width, height), ButtonSizing.fixed());
+    }
+
+    private static float resolveContainerAxis(ComponentSizeMode mode,
+                                              float configured,
+                                              float measured,
+                                              float minimum,
+                                              float maximum) {
+        return switch (mode) {
+            case AUTO -> clamp(measured, minimum, maximum);
+            case FIXED, FILL -> clamp(configured, minimum, maximum);
+        };
+    }
+
+    private static float resolveIntrinsicAxis(ComponentSizeMode mode,
+                                              float configured,
+                                              float measured,
+                                              float minimum,
+                                              float maximum) {
+        return switch (mode) {
+            case AUTO -> clamp(measured, minimum, maximum);
+            case FIXED, FILL -> clamp(configured, minimum, maximum);
+        };
+    }
+
+    private static float resolveArrangedAxis(ComponentSizeMode mode,
+                                             float configured,
+                                             float measured,
+                                             float available,
+                                             float minimum,
+                                             float maximum) {
+        return switch (mode) {
+            case AUTO -> clamp(measured, minimum, maximum);
+            case FILL -> clamp(available, minimum, maximum);
+            case FIXED -> clamp(configured, minimum, maximum);
+        };
     }
 
     private static Vector3f applyParentPlacement(ComponentDefinition original,
@@ -211,6 +431,28 @@ public final class MeditateLayoutEngine implements LayoutEngine {
                 ? parentBounds.bottom() + margin.bottom() + position.y()
                 : legacyPosition.y;
         return new Vector3f(x, y, legacyPosition.z);
+    }
+
+    private static void validateOverflow(LayoutOptions options,
+                                         ComponentDefinition component,
+                                         Vector3f position,
+                                         LayoutBounds parentBounds) {
+        if (options.overflow() != OverflowPolicy.ERROR) {
+            return;
+        }
+        LayoutBounds componentBounds = new LayoutBounds(
+                position.x,
+                position.y,
+                resolvedWidth(component),
+                resolvedHeight(component)
+        );
+        if (!parentBounds.contains(componentBounds, BOUNDS_EPSILON)) {
+            throw new IllegalArgumentException(
+                    "layout overflow: component " + component.id()
+                            + " bounds=" + componentBounds
+                            + " parent=" + parentBounds
+            );
+        }
     }
 
     private static boolean configuredFillWidth(ComponentDefinition component) {
@@ -262,6 +504,14 @@ public final class MeditateLayoutEngine implements LayoutEngine {
             heights[row] = Math.max(heights[row], resolvedHeight(components.get(index)));
         }
         return heights;
+    }
+
+    private static float sum(float[] values) {
+        float total = 0.0f;
+        for (float value : values) {
+            total += value;
+        }
+        return total;
     }
 
     private static float resolvedWidth(ComponentDefinition component) {
@@ -319,5 +569,12 @@ public final class MeditateLayoutEngine implements LayoutEngine {
                 button.clickType(), button.action(), button.hoverScale(), button.padding(),
                 button.horizontalAlignment(), button.verticalAlignment(), sizing
         );
+    }
+
+    private record MeasuredSize(float width, float height) {
+        private MeasuredSize {
+            width = Math.max(MIN_LAYOUT_SIZE, width);
+            height = Math.max(MIN_LAYOUT_SIZE, height);
+        }
     }
 }

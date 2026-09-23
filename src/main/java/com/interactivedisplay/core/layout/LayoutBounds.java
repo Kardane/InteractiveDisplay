@@ -35,4 +35,11 @@ public record LayoutBounds(float centerX, float bottom, float width, float heigh
         float innerHeight = Math.max(0.0001f, height - padding * 2.0f);
         return new LayoutBounds(centerX, bottom + padding, innerWidth, innerHeight);
     }
+
+    public boolean contains(LayoutBounds other, float epsilon) {
+        return other.left() >= left() - epsilon
+                && other.right() <= right() + epsilon
+                && other.bottom() >= bottom - epsilon
+                && other.top() <= top() + epsilon;
+    }
 }

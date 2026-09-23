@@ -27,6 +27,7 @@ import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.ItemAlignment;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.layout.LayoutOptions;
+import com.interactivedisplay.core.layout.OverflowPolicy;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransition;
@@ -195,7 +196,8 @@ public final class WindowDefinitionParser {
                 getFloat(layout, "rowGap", defaults.rowGap()),
                 getFloat(layout, "columnGap", defaults.columnGap()),
                 parseItemAlignment(layout, "justifyItems", defaults.justifyItems()),
-                parseItemAlignment(layout, "alignItems", defaults.alignItems())
+                parseItemAlignment(layout, "alignItems", defaults.alignItems()),
+                OverflowPolicy.fromString(getString(layout, "overflow", defaults.overflow().serializedName()))
         );
     }
 
@@ -371,8 +373,13 @@ public final class WindowDefinitionParser {
         if (value == null || value.isNull()) {
             return new ParsedSizeAxis(fallback, ComponentSizeMode.FIXED);
         }
-        if (value.isTextual() && "fill".equalsIgnoreCase(value.textValue())) {
-            return new ParsedSizeAxis(fallback, ComponentSizeMode.FILL);
+        if (value.isTextual()) {
+            if ("fill".equalsIgnoreCase(value.textValue())) {
+                return new ParsedSizeAxis(fallback, ComponentSizeMode.FILL);
+            }
+            if ("auto".equalsIgnoreCase(value.textValue())) {
+                return new ParsedSizeAxis(fallback, ComponentSizeMode.AUTO);
+            }
         }
         return new ParsedSizeAxis(value.floatValue(), ComponentSizeMode.FIXED);
     }

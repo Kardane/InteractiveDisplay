@@ -7,7 +7,8 @@ public record LayoutOptions(
         float rowGap,
         float columnGap,
         ItemAlignment justifyItems,
-        ItemAlignment alignItems
+        ItemAlignment alignItems,
+        OverflowPolicy overflow
 ) {
     public static final float DEFAULT_GAP = 0.05f;
     public static final int DEFAULT_COLUMNS = 1;
@@ -22,10 +23,21 @@ public record LayoutOptions(
         requireNonNegativeFinite(columnGap, "columnGap");
         justifyItems = justifyItems == null ? ItemAlignment.START : justifyItems;
         alignItems = alignItems == null ? ItemAlignment.START : alignItems;
+        overflow = overflow == null ? OverflowPolicy.VISIBLE : overflow;
     }
 
     public LayoutOptions(LayoutMode mode, float gap, int columns, float rowGap, float columnGap) {
-        this(mode, gap, columns, rowGap, columnGap, ItemAlignment.START, ItemAlignment.START);
+        this(mode, gap, columns, rowGap, columnGap, ItemAlignment.START, ItemAlignment.START, OverflowPolicy.VISIBLE);
+    }
+
+    public LayoutOptions(LayoutMode mode,
+                         float gap,
+                         int columns,
+                         float rowGap,
+                         float columnGap,
+                         ItemAlignment justifyItems,
+                         ItemAlignment alignItems) {
+        this(mode, gap, columns, rowGap, columnGap, justifyItems, alignItems, OverflowPolicy.VISIBLE);
     }
 
     public static LayoutOptions defaults(LayoutMode mode) {
@@ -36,7 +48,8 @@ public record LayoutOptions(
                 DEFAULT_GAP,
                 DEFAULT_GAP,
                 ItemAlignment.START,
-                ItemAlignment.START
+                ItemAlignment.START,
+                OverflowPolicy.VISIBLE
         );
     }
 

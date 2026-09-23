@@ -309,8 +309,47 @@ class SchemaValidatorTest {
 
         assertTrue(errors.stream().anyMatch(error -> error.contains("anchor must be")));
         assertTrue(errors.stream().anyMatch(error -> error.contains("margin") && error.contains("top")));
-        assertTrue(errors.stream().anyMatch(error -> error.contains("width must be a positive number or fill")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("width must be a positive number, fill, or auto")));
         assertTrue(errors.stream().anyMatch(error -> error.contains("minSize.width must be <= maxSize.width")));
+    }
+
+    @Test
+    void autoSizingAndOverflowPolicyShouldValidate() {
+        JsonNode valid = parse("""
+                id: auto_window
+                size: { width: auto, height: auto }
+                minSize: { width: 1.0, height: 0.8 }
+                layout:
+                  type: absolute
+                  overflow: error
+                components:
+                  - id: panel
+                    type: panel
+                    size: { width: auto, height: auto }
+                    layout:
+                      type: vertical
+                      overflow: visible
+                    children: []
+                """);
+        assertTrue(this.validator.validate(valid, "auto_window.yaml").isEmpty());
+
+        JsonNode invalid = parse("""
+                id: invalid_auto
+                size: { width: fill, height: auto }
+                layout:
+                  type: absolute
+                  overflow: clip
+                components:
+                  - id: bad
+                    type: panel
+                    size: { width: stretch, height: auto }
+                    children: []
+                """);
+        List<String> errors = this.validator.validate(invalid, "invalid_auto.yaml");
+
+        assertTrue(errors.stream().anyMatch(error -> error.contains("size: width must be a positive number or auto")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("overflow must be visible or error")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("positive number, fill, or auto")));
     }
 
     @Test

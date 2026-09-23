@@ -1,6 +1,7 @@
 package com.interactivedisplay.layout;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
 import com.interactivedisplay.core.component.ButtonBoxModel;
@@ -23,6 +24,7 @@ import com.interactivedisplay.core.layout.ItemAlignment;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.layout.LayoutOptions;
 import com.interactivedisplay.core.layout.MeditateLayoutEngine;
+import com.interactivedisplay.core.layout.OverflowPolicy;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
 import java.util.List;
@@ -602,6 +604,224 @@ class MeditateLayoutEngineTest {
         assertEquals(-1.5f, out.get(0).localPosition().y(), 0.0001f);
         assertEquals(0.0f, out.get(1).localPosition().x(), 0.0001f);
         assertEquals(-0.25f, out.get(1).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void autoPanelShouldMeasureVerticalChildrenAndPadding() {
+        TextComponentDefinition first = text("first", 0.0f, 0.0f, 0.0f, 0.5f, 0.2f);
+        TextComponentDefinition second = text("second", 0.0f, 0.0f, 0.0f, 1.0f, 0.3f);
+        ComponentSize autoSize = new ComponentSize(
+                1.0f,
+                1.0f,
+                ComponentSizeMode.AUTO,
+                ComponentSizeMode.AUTO,
+                0.0f,
+                Float.POSITIVE_INFINITY,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        PanelComponentDefinition panel = new PanelComponentDefinition(
+                "auto-panel",
+                new ComponentPosition(0.0f, -1.0f, 0.0f),
+                autoSize,
+                true,
+                1.0f,
+                "#22000000",
+                0.1f,
+                new LayoutOptions(LayoutMode.VERTICAL, 0.05f, 1, 0.05f, 0.05f),
+                List.of(first, second)
+        );
+        WindowDefinition window = new WindowDefinition(
+                "auto-panel-window",
+                new ComponentSize(4.0f, 3.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(panel)
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(1.2f, out.getFirst().definition().size().width(), 0.0001f);
+        assertEquals(0.75f, out.getFirst().definition().size().height(), 0.0001f);
+        assertEquals(-0.9f, out.get(1).localPosition().y(), 0.0001f);
+        assertEquals(-0.65f, out.get(2).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void autoWindowShouldMeasureAbsoluteContentBeforeApplyingAnchor() {
+        TextComponentDefinition content = text("content", 0.0f, -0.2f, 0.0f, 2.0f, 0.4f);
+        TextComponentDefinition close = new TextComponentDefinition(
+                "close",
+                new ComponentPosition(0.0f, 0.0f, 0.01f, ComponentAnchor.TOP_RIGHT, ComponentMargin.zero()),
+                new ComponentSize(0.2f, 0.2f),
+                true,
+                1.0f,
+                "x",
+                1.0f,
+                "#fff",
+                "center",
+                100,
+                false,
+                "#00000000"
+        );
+        ComponentSize autoWindow = new ComponentSize(
+                1.0f,
+                1.0f,
+                ComponentSizeMode.AUTO,
+                ComponentSizeMode.AUTO,
+                0.0f,
+                Float.POSITIVE_INFINITY,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        WindowDefinition window = new WindowDefinition(
+                "auto-window",
+                autoWindow,
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(content, close)
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+        LayoutComponent anchored = out.get(1);
+
+        assertEquals(0.9f, anchored.localPosition().x(), 0.0001f);
+        assertEquals(0.0f, anchored.localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void autoButtonShouldUseIntrinsicContentBoxAndThenFreezeGeometry() {
+        ComponentSize autoSize = new ComponentSize(
+                0.1f,
+                0.1f,
+                ComponentSizeMode.AUTO,
+                ComponentSizeMode.AUTO,
+                0.0f,
+                Float.POSITIVE_INFINITY,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "auto-button",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                autoSize,
+                true,
+                1.0f,
+                "Automatic",
+                0.4f,
+                "#CC222222",
+                "#EE444444",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                new ButtonPadding(0.1f, 0.05f),
+                ButtonHorizontalAlignment.CENTER,
+                ButtonVerticalAlignment.CENTER,
+                ButtonSizing.fixed()
+        );
+        WindowDefinition window = new WindowDefinition(
+                "auto-button-window",
+                new ComponentSize(4.0f, 2.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(button)
+        );
+
+        ButtonComponentDefinition resolved = (ButtonComponentDefinition)
+                new MeditateLayoutEngine().calculate(window).getFirst().definition();
+
+        assertEquals(ComponentSizeMode.FIXED, resolved.size().widthMode());
+        assertEquals(ComponentSizeMode.FIXED, resolved.size().heightMode());
+        assertEquals(ButtonSizeMode.FIXED, resolved.sizing().width());
+        assertEquals(ButtonSizeMode.FIXED, resolved.sizing().height());
+        assertEquals(resolved.size().width(), ButtonBoxModel.resolve(resolved).width(), 0.0001f);
+        assertEquals(resolved.size().height(), ButtonBoxModel.resolve(resolved).height(), 0.0001f);
+    }
+
+    @Test
+    void fillChildInsideAutoPanelShouldUseIntrinsicFallbackDuringMeasure() {
+        ComponentSize fillChildSize = new ComponentSize(
+                0.5f,
+                0.2f,
+                ComponentSizeMode.FILL,
+                ComponentSizeMode.FIXED,
+                1.2f,
+                Float.POSITIVE_INFINITY,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        TextComponentDefinition child = new TextComponentDefinition(
+                "fill-child",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                fillChildSize,
+                true,
+                1.0f,
+                "child",
+                1.0f,
+                "#fff",
+                "left",
+                100,
+                false,
+                "#00000000"
+        );
+        ComponentSize autoPanelSize = new ComponentSize(
+                1.0f,
+                1.0f,
+                ComponentSizeMode.AUTO,
+                ComponentSizeMode.AUTO,
+                0.0f,
+                Float.POSITIVE_INFINITY,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        PanelComponentDefinition panel = new PanelComponentDefinition(
+                "auto-fill-panel",
+                new ComponentPosition(0.0f, -0.5f, 0.0f),
+                autoPanelSize,
+                true,
+                1.0f,
+                "#22000000",
+                0.1f,
+                LayoutMode.VERTICAL,
+                List.of(child)
+        );
+        WindowDefinition window = new WindowDefinition(
+                "auto-fill-window",
+                new ComponentSize(4.0f, 3.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(panel)
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(1.4f, out.getFirst().definition().size().width(), 0.0001f);
+        assertEquals(1.2f, out.get(1).definition().size().width(), 0.0001f);
+    }
+
+    @Test
+    void errorOverflowPolicyShouldRejectChildOutsideParentBounds() {
+        TextComponentDefinition child = text("outside", 2.0f, 0.0f, 0.0f, 1.0f, 0.2f);
+        WindowDefinition window = new WindowDefinition(
+                "overflow",
+                new ComponentSize(1.0f, 1.0f),
+                WindowOffset.defaults(),
+                new LayoutOptions(
+                        LayoutMode.ABSOLUTE,
+                        0.05f,
+                        1,
+                        0.05f,
+                        0.05f,
+                        ItemAlignment.START,
+                        ItemAlignment.START,
+                        OverflowPolicy.ERROR
+                ),
+                List.of(child),
+                null
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> new MeditateLayoutEngine().calculate(window));
     }
 
     private static TextComponentDefinition text(String id, float x, float y, float z, float width, float height) {

@@ -149,7 +149,9 @@ WindowSpec.builder(STATUS)
 
 `.fillWidth()` and `.fillHeight()` use the available parent content bounds. For nested panels, panel padding is excluded before child constraints are resolved. Use `.minSize(width, height)` and `.maxSize(width, height)` to clamp resolved sizes. Anchors support the nine combinations from `TOP_LEFT` through `BOTTOM_RIGHT`; `position(x, y, z)` remains an additional anchor-relative offset.
 
-General content-driven `auto` sizing is intentionally deferred to a future measure/arrange layout pass.
+Auto sizing is available through `.autoWidth()` and `.autoHeight()` on Window and component builders. Window/Panel auto axes are measured from child extents; Button auto axes reuse the intrinsic button content box. A fill child inside an auto parent contributes its configured/minimum fallback during measurement and expands during arrangement.
+
+Use `.overflow(WindowSpec.Overflow.ERROR)` on a Window or Panel layout to fail when a child resolves outside the parent content bounds. `VISIBLE` remains the default. Renderer-level clipping is intentionally not exposed because Minecraft Display entities do not provide a reliable parent clipping primitive.
 
 ## Open a window at runtime
 
