@@ -327,10 +327,13 @@ public final class MeditateLayoutEngine implements LayoutEngine {
             ButtonSizeMode widthSizing = configured.widthMode() == ComponentSizeMode.AUTO
                     ? ButtonSizeMode.CONTENT
                     : button.sizing().width();
+            ButtonSizeMode provisionalHeightSizing = configured.heightMode() == ComponentSizeMode.AUTO
+                    ? ButtonSizeMode.CONTENT
+                    : button.sizing().height();
             ButtonComponentDefinition widthMeasure = copyButton(
                     button,
                     configured.resolved(configured.width(), configured.height()),
-                    new ButtonSizing(widthSizing, button.sizing().height())
+                    new ButtonSizing(widthSizing, provisionalHeightSizing)
             );
             width = clamp(ButtonBoxModel.resolve(widthMeasure).width(), configured.minWidth(), configured.maxWidth());
         }
