@@ -309,7 +309,7 @@ class SchemaValidatorTest {
 
         assertTrue(errors.stream().anyMatch(error -> error.contains("anchor must be")));
         assertTrue(errors.stream().anyMatch(error -> error.contains("margin") && error.contains("top")));
-        assertTrue(errors.stream().anyMatch(error -> error.contains("width must be a positive number or fill")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("width must be a positive number, fill, or auto")));
         assertTrue(errors.stream().anyMatch(error -> error.contains("minSize.width must be <= maxSize.width")));
     }
 
