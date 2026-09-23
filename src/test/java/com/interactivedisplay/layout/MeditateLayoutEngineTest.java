@@ -449,6 +449,59 @@ class MeditateLayoutEngineTest {
     }
 
     @Test
+    void fillButtonShouldFreezeResolvedBoxForRendererAndHitGeometry() {
+        ComponentSize fill = new ComponentSize(
+                1.0f,
+                0.4f,
+                ComponentSizeMode.FILL,
+                ComponentSizeMode.FIXED,
+                0.0f,
+                Float.POSITIVE_INFINITY,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "fill-button",
+                new ComponentPosition(
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        ComponentAnchor.CENTER,
+                        new ComponentMargin(0.0f, 0.2f, 0.0f, 0.2f)
+                ),
+                fill,
+                true,
+                1.0f,
+                "Fill",
+                0.4f,
+                "#CC222222",
+                "#EE444444",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                new ButtonPadding(0.1f, 0.05f),
+                ButtonHorizontalAlignment.CENTER,
+                ButtonVerticalAlignment.CENTER,
+                ButtonSizing.fixed()
+        );
+        WindowDefinition window = new WindowDefinition(
+                "fill-button-window",
+                new ComponentSize(4.0f, 2.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(button)
+        );
+
+        ButtonComponentDefinition resolved = (ButtonComponentDefinition)
+                new MeditateLayoutEngine().calculate(window).getFirst().definition();
+
+        assertEquals(3.6f, resolved.size().width(), 0.0001f);
+        assertEquals(3.6f, ButtonBoxModel.resolve(resolved).width(), 0.0001f);
+        assertEquals(ButtonSizeMode.FIXED, resolved.sizing().width());
+    }
+
+    @Test
     void panelChildAnchorShouldUsePaddedContentBounds() {
         TextComponentDefinition child = new TextComponentDefinition(
                 "child",
