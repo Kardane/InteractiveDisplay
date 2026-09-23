@@ -10,6 +10,8 @@ import com.interactivedisplay.core.component.ButtonSizeMode;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentActionType;
+import com.interactivedisplay.core.component.ComponentAnchor;
+import com.interactivedisplay.core.component.ComponentSizeMode;
 import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
@@ -160,6 +162,33 @@ class WindowSpecAdapterTest {
                 definition.layoutOptions().justifyItems());
         assertEquals(com.interactivedisplay.core.layout.ItemAlignment.END,
                 definition.layoutOptions().alignItems());
+    }
+
+    @Test
+    void shouldAdaptAnchorsFillAndConstraints() {
+        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "bounds"))
+                .button("close", button -> button
+                        .size(0.5f, 0.3f)
+                        .fillWidth()
+                        .minSize(0.8f, 0.2f)
+                        .maxSize(2.5f, 0.6f)
+                        .anchor(WindowSpec.Anchor.TOP_RIGHT)
+                        .margin(0.1f, 0.2f, 0.0f, 0.0f)
+                        .label("Close")
+                        .action(WindowSpec.Actions.close()))
+                .build();
+
+        WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);
+        ButtonComponentDefinition button = (ButtonComponentDefinition) definition.components().getFirst();
+
+        assertEquals(ComponentAnchor.TOP_RIGHT, button.position().anchor());
+        assertEquals(0.1f, button.position().margin().top(), 0.0001f);
+        assertEquals(0.2f, button.position().margin().right(), 0.0001f);
+        assertEquals(ComponentSizeMode.FILL, button.size().widthMode());
+        assertEquals(ComponentSizeMode.FIXED, button.size().heightMode());
+        assertEquals(0.8f, button.size().minWidth(), 0.0001f);
+        assertEquals(2.5f, button.size().maxWidth(), 0.0001f);
+        assertEquals(0.6f, button.size().maxHeight(), 0.0001f);
     }
 
     @Test
