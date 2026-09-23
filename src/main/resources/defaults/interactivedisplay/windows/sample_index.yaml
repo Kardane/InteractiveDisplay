@@ -32,38 +32,56 @@ components:
     color: "#79D9FF"
     alignment: center
     background: "#00000000"
-  - id: display
-    type: button
-    position:
-      x: 0.0
-      y: 0.0
-      z: 0.03
-    size:
-      width: 2.8
-      height: 0.48
-    label: "Display Showcase"
-    fontSize: 0.34
-    clickType: both
-    hoverScale: 1.05
-    action:
-      type: open_window
-      target: display_showcase
-  - id: menu
-    type: button
+  - id: menu_grid
+    type: panel
     position:
       x: 0.0
       y: -0.62
-      z: 0.03
+      z: 0.02
     size:
-      width: 2.8
-      height: 0.48
-    label: "기본 창"
-    fontSize: 0.34
-    clickType: both
-    hoverScale: 1.05
-    action:
-      type: open_window
-      target: main_menu
+      width: 3.2
+      height: 1.1
+    backgroundColor: "#00000000"
+    layout:
+      type: grid
+      columns: 1
+      rowGap: 0.14
+      columnGap: 0.0
+      justifyItems: center
+      alignItems: center
+    children:
+      - id: menu
+        type: button
+        position:
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        size:
+          width: 2.8
+          height: 0.48
+        label: "기본 창"
+        fontSize: 0.34
+        clickType: both
+        hoverScale: 1.05
+        action:
+          type: open_window
+          target: main_menu
+      - id: display
+        type: button
+        position:
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        size:
+          width: 2.8
+          height: 0.48
+        label: "Display Showcase"
+        fontSize: 0.34
+        clickType: both
+        hoverScale: 1.05
+        action:
+          type: open_window
+          target: display_showcase
   - id: close
     type: button
     position:

@@ -29,6 +29,7 @@ class WindowSpecAdapterTest {
                 .size(3.0f, 1.5f)
                 .offset(2.5f, 0.25f, 0.4f)
                 .layout(WindowSpec.Layout.VERTICAL)
+                .gap(0.08f)
                 .transition(6, WindowSpec.TransitionType.SCALE, WindowSpec.TransitionType.SLIDE_DOWN)
                 .text("balance", text -> text
                         .position(0.1f, 0.35f, 0.01f)
@@ -47,6 +48,7 @@ class WindowSpecAdapterTest {
                         .background("#99000000")
                         .padding(0.15f)
                         .layout(WindowSpec.Layout.HORIZONTAL)
+                        .gap(0.11f)
                         .opacity(0.65f))
                 .item("icon", ResourceLocation.withDefaultNamespace("diamond"), image -> image
                         .position(-0.8f, 0.0f, 0.02f)
@@ -77,6 +79,7 @@ class WindowSpecAdapterTest {
         assertEquals(3.0f, definition.size().width());
         assertEquals(2.5f, definition.offset().forward());
         assertEquals(LayoutMode.VERTICAL, definition.layoutMode());
+        assertEquals(0.08f, definition.layoutOptions().gap(), 0.0001f);
         assertEquals(6, definition.transition().duration());
         assertEquals(WindowTransitionType.SCALE, definition.transition().enter());
         assertEquals(WindowTransitionType.SLIDE_DOWN, definition.transition().exit());
@@ -102,6 +105,7 @@ class WindowSpecAdapterTest {
         assertEquals("#99000000", panel.backgroundColor());
         assertEquals(0.15f, panel.padding());
         assertEquals(LayoutMode.HORIZONTAL, panel.layoutMode());
+        assertEquals(0.11f, panel.layoutOptions().gap(), 0.0001f);
         assertEquals(0.65f, panel.opacity());
 
         ImageComponentDefinition item = assertInstanceOf(ImageComponentDefinition.class, definition.components().get(2));
@@ -134,6 +138,28 @@ class WindowSpecAdapterTest {
         assertEquals(ButtonVerticalAlignment.TOP, button.verticalAlignment());
         assertEquals(ButtonSizeMode.FIXED, button.sizing().width());
         assertEquals(ButtonSizeMode.CONTENT, button.sizing().height());
+    }
+
+    @Test
+    void shouldAdaptPublicGridLayoutOptions() {
+        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("economy", "grid"))
+                .grid(2, 0.1f, 0.2f)
+                .justifyItems(WindowSpec.ItemAlignment.CENTER)
+                .alignItems(WindowSpec.ItemAlignment.END)
+                .button("first", button -> button.label("First").action(WindowSpec.Actions.close()))
+                .button("second", button -> button.label("Second").action(WindowSpec.Actions.close()))
+                .build();
+
+        WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);
+
+        assertEquals(LayoutMode.GRID, definition.layoutMode());
+        assertEquals(2, definition.layoutOptions().columns());
+        assertEquals(0.1f, definition.layoutOptions().rowGap(), 0.0001f);
+        assertEquals(0.2f, definition.layoutOptions().columnGap(), 0.0001f);
+        assertEquals(com.interactivedisplay.core.layout.ItemAlignment.CENTER,
+                definition.layoutOptions().justifyItems());
+        assertEquals(com.interactivedisplay.core.layout.ItemAlignment.END,
+                definition.layoutOptions().alignItems());
     }
 
     @Test

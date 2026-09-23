@@ -10,22 +10,25 @@ import java.util.List;
 import org.joml.Vector3f;
 
 public final class MeditateLayoutEngine implements LayoutEngine {
-    private static final float FLOW_GAP = 0.05f;
     private static final float PANEL_CHILD_Z_OFFSET = 0.01f;
 
     @Override
     public List<LayoutComponent> calculate(WindowDefinition definition) {
         List<LayoutComponent> layout = new ArrayList<>();
-        layoutComponents(definition.components(), definition.layoutMode(), new Vector3f(), layout);
+        layoutComponents(definition.components(), definition.layoutOptions(), new Vector3f(), layout);
         return layout;
     }
 
     private static void layoutComponents(List<ComponentDefinition> components,
-                                         LayoutMode layoutMode,
+                                         LayoutOptions layoutOptions,
                                          Vector3f origin,
                                          List<LayoutComponent> out) {
+        LayoutMode layoutMode = layoutOptions.mode();
+        float[] columnWidths = layoutMode == LayoutMode.GRID ? columnWidths(components, layoutOptions.columns()) : null;
+        float[] rowHeights = layoutMode == LayoutMode.GRID ? rowHeights(components, layoutOptions.columns()) : null;
         float cursor = 0.0f;
-        for (ComponentDefinition component : components) {
+        for (int index = 0; index < components.size(); index++) {
+            ComponentDefinition component = components.get(index);
             Vector3f position = switch (layoutMode) {
                 case VERTICAL -> new Vector3f(
                         origin.x + component.position().x(),
@@ -42,6 +45,14 @@ public final class MeditateLayoutEngine implements LayoutEngine {
                         origin.y + component.position().y(),
                         origin.z + component.position().z()
                 );
+                case GRID -> gridPosition(
+                        component,
+                        index,
+                        layoutOptions,
+                        columnWidths,
+                        rowHeights,
+                        origin
+                );
             };
 
             out.add(new LayoutComponent(component, position));
@@ -52,15 +63,57 @@ public final class MeditateLayoutEngine implements LayoutEngine {
                         position.y + panel.padding(),
                         position.z + PANEL_CHILD_Z_OFFSET
                 );
-                layoutComponents(panel.children(), panel.layoutMode(), childOrigin, out);
+                layoutComponents(panel.children(), panel.layoutOptions(), childOrigin, out);
             }
 
             if (layoutMode == LayoutMode.VERTICAL) {
-                cursor += resolvedHeight(component) + FLOW_GAP;
+                cursor += resolvedHeight(component) + layoutOptions.gap();
             } else if (layoutMode == LayoutMode.HORIZONTAL) {
-                cursor += resolvedWidth(component) + FLOW_GAP;
+                cursor += resolvedWidth(component) + layoutOptions.gap();
             }
         }
+    }
+
+    private static Vector3f gridPosition(ComponentDefinition component,
+                                         int index,
+                                         LayoutOptions layoutOptions,
+                                         float[] columnWidths,
+                                         float[] rowHeights,
+                                         Vector3f origin) {
+        int row = index / layoutOptions.columns();
+        int column = index % layoutOptions.columns();
+        float x = layoutOptions.justifyItems().offset(columnWidths[column], resolvedWidth(component));
+        for (int priorColumn = 0; priorColumn < column; priorColumn++) {
+            x += columnWidths[priorColumn] + layoutOptions.columnGap();
+        }
+        float y = layoutOptions.alignItems().offset(rowHeights[row], resolvedHeight(component));
+        for (int priorRow = 0; priorRow < row; priorRow++) {
+            y += rowHeights[priorRow] + layoutOptions.rowGap();
+        }
+        return new Vector3f(
+                origin.x + x + component.position().x(),
+                origin.y + y + component.position().y(),
+                origin.z + component.position().z()
+        );
+    }
+
+    private static float[] columnWidths(List<ComponentDefinition> components, int columns) {
+        float[] widths = new float[Math.min(columns, components.size())];
+        for (int index = 0; index < components.size(); index++) {
+            int column = index % columns;
+            widths[column] = Math.max(widths[column], resolvedWidth(components.get(index)));
+        }
+        return widths;
+    }
+
+    private static float[] rowHeights(List<ComponentDefinition> components, int columns) {
+        int rows = (int) ((components.size() + (long) columns - 1L) / columns);
+        float[] heights = new float[rows];
+        for (int index = 0; index < components.size(); index++) {
+            int row = index / columns;
+            heights[row] = Math.max(heights[row], resolvedHeight(components.get(index)));
+        }
+        return heights;
     }
 
     private static float resolvedWidth(ComponentDefinition component) {

@@ -30,11 +30,23 @@ class ConsumerApiCompileTest {
                         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "status");
                         WindowSpec spec = WindowSpec.builder(id)
                                 .size(2.0f, 1.0f)
+                                .layout(WindowSpec.Layout.VERTICAL)
+                                .gap(0.08f)
                                 .text("status", text -> text
                                         .content("Status: online")
                                         .fontSize(0.4f))
                                 .build();
                         registrar.windows().register(spec);
+
+                        WindowSpec grid = WindowSpec.builder(
+                                        ResourceLocation.fromNamespaceAndPath("example", "grid"))
+                                .grid(2, 0.1f, 0.2f)
+                                .justifyItems(WindowSpec.ItemAlignment.CENTER)
+                                .alignItems(WindowSpec.ItemAlignment.END)
+                                .button("first", button -> button.label("First")
+                                        .action(WindowSpec.Actions.close()))
+                                .build();
+                        registrar.windows().register(grid);
                     }
                 }
                 """;

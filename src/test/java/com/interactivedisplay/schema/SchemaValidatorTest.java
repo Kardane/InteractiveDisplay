@@ -105,6 +105,69 @@ class SchemaValidatorTest {
     }
 
     @Test
+    void gridAndFlowLayoutObjectsShouldValidate() {
+        JsonNode root = parse("""
+                id: grid_window
+                size: { width: 4.0, height: 3.0 }
+                layout:
+                  type: grid
+                  columns: 2
+                  rowGap: 0.1
+                  columnGap: 0.2
+                  justifyItems: center
+                  alignItems: end
+                components:
+                  - id: flow_panel
+                    type: panel
+                    position: { x: 0.0, y: 0.0, z: 0.0 }
+                    size: { width: 2.0, height: 1.0 }
+                    layout: { type: vertical, gap: 0.08 }
+                    children: []
+                """);
+
+        assertTrue(this.validator.validate(root, "grid.yaml").isEmpty());
+    }
+
+    @Test
+    void invalidGridLayoutOptionsShouldBeRejected() {
+        JsonNode root = parse("""
+                id: invalid_grid
+                size: { width: 4.0, height: 3.0 }
+                layout:
+                  type: grid
+                  columns: 0
+                  rowGap: -0.1
+                  columnGap: too_wide
+                components: []
+                """);
+
+        List<String> errors = this.validator.validate(root, "invalid_grid.yaml");
+
+        assertTrue(errors.stream().anyMatch(error -> error.contains("columns must be a positive integer")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("rowGap must be a finite non-negative number")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("columnGap must be a finite non-negative number")));
+    }
+
+    @Test
+    void invalidGridItemAlignmentShouldBeRejected() {
+        JsonNode root = parse("""
+                id: invalid_alignment
+                size: { width: 4.0, height: 3.0 }
+                layout:
+                  type: grid
+                  columns: 2
+                  justifyItems: fill
+                  alignItems: 3
+                components: []
+                """);
+
+        List<String> errors = this.validator.validate(root, "invalid_alignment.yaml");
+
+        assertTrue(errors.stream().anyMatch(error -> error.contains("justifyItems must be start, center, or end")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("alignItems must be string")));
+    }
+
+    @Test
     void invalidWindowShouldReportActionAndImageErrors() {
         JsonNode root = parse("""
                 id: bad

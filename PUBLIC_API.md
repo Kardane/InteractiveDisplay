@@ -102,6 +102,29 @@ public final class ExampleDisplayIntegration implements InteractiveDisplayEntryp
 
 Public API window, group, callback, and action IDs are namespaced. `interactivedisplay:main_menu` and `interactivedisplay:main_group` adapt to legacy built-in IDs without changing existing YAML/command compatibility. IDs from other namespaces stay canonical, for example `example:status` or `economy:shop_group`.
 
+## Container layout
+
+Vertical and horizontal layouts keep the existing `0.05` gap by default. Grid row and column gaps also default to `0.05`. Set a custom flow gap with `.gap(...)`, or use `.grid(columns, rowGap, columnGap)` for row-major placement. For example:
+
+```java
+WindowSpec.builder(STATUS)
+        .layout(WindowSpec.Layout.VERTICAL)
+        .gap(0.08f)
+        .text("title", title -> title.content("Status"))
+        .build();
+
+WindowSpec.builder(STATUS)
+        .grid(2, 0.1f, 0.2f)
+        .justifyItems(WindowSpec.ItemAlignment.CENTER)
+        .alignItems(WindowSpec.ItemAlignment.CENTER)
+        .button("first", first -> first.label("First").action(WindowSpec.Actions.close()))
+        .button("second", second -> second.label("Second").action(WindowSpec.Actions.close()))
+        .button("third", third -> third.label("Third").action(WindowSpec.Actions.close()))
+        .build();
+```
+
+Grid tracks use each component's resolved width and height. `justifyItems` and `alignItems` accept `START`, `CENTER`, or `END`; both default to `START`. Children fill rows from left to right; `position.x` and `position.y` remain additional offsets from their assigned cells.
+
 ## Open a window at runtime
 
 ```java

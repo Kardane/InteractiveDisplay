@@ -7,10 +7,19 @@ import java.util.function.Consumer;
 import net.minecraft.resources.ResourceLocation;
 
 public final class WindowSpec {
+    private static final float DEFAULT_LAYOUT_GAP = 0.05f;
+    private static final int DEFAULT_GRID_COLUMNS = 1;
+
     private final ResourceLocation id;
     private final Size size;
     private final Offset offset;
     private final Layout layout;
+    private final float gap;
+    private final int columns;
+    private final float rowGap;
+    private final float columnGap;
+    private final ItemAlignment justifyItems;
+    private final ItemAlignment alignItems;
     private final List<ComponentSpec> components;
     private final Transition transition;
 
@@ -19,6 +28,12 @@ public final class WindowSpec {
         this.size = builder.size;
         this.offset = builder.offset;
         this.layout = builder.layout;
+        this.gap = builder.gap;
+        this.columns = builder.columns;
+        this.rowGap = builder.rowGap;
+        this.columnGap = builder.columnGap;
+        this.justifyItems = builder.justifyItems;
+        this.alignItems = builder.alignItems;
         this.components = List.copyOf(builder.components);
         this.transition = builder.transition;
     }
@@ -43,6 +58,30 @@ public final class WindowSpec {
         return this.layout;
     }
 
+    public float gap() {
+        return this.gap;
+    }
+
+    public int columns() {
+        return this.columns;
+    }
+
+    public float rowGap() {
+        return this.rowGap;
+    }
+
+    public float columnGap() {
+        return this.columnGap;
+    }
+
+    public ItemAlignment justifyItems() {
+        return this.justifyItems;
+    }
+
+    public ItemAlignment alignItems() {
+        return this.alignItems;
+    }
+
     public List<ComponentSpec> components() {
         return this.components;
     }
@@ -54,7 +93,14 @@ public final class WindowSpec {
     public enum Layout {
         ABSOLUTE,
         VERTICAL,
-        HORIZONTAL
+        HORIZONTAL,
+        GRID
+    }
+
+    public enum ItemAlignment {
+        START,
+        CENTER,
+        END
     }
 
     public enum Click {
@@ -331,8 +377,47 @@ public final class WindowSpec {
             float opacity,
             String backgroundColor,
             float padding,
-            Layout layout
+            Layout layout,
+            float gap,
+            int columns,
+            float rowGap,
+            float columnGap,
+            ItemAlignment justifyItems,
+            ItemAlignment alignItems
     ) implements ComponentSpec {
+        public PanelSpec(
+                String id,
+                Position position,
+                Size size,
+                boolean visible,
+                float opacity,
+                String backgroundColor,
+                float padding,
+                Layout layout,
+                float gap,
+                int columns,
+                float rowGap,
+                float columnGap
+        ) {
+            this(id, position, size, visible, opacity, backgroundColor, padding, layout,
+                    gap, columns, rowGap, columnGap, ItemAlignment.START, ItemAlignment.START);
+        }
+
+        public PanelSpec(
+                String id,
+                Position position,
+                Size size,
+                boolean visible,
+                float opacity,
+                String backgroundColor,
+                float padding,
+                Layout layout
+        ) {
+            this(id, position, size, visible, opacity, backgroundColor, padding, layout,
+                    DEFAULT_LAYOUT_GAP, DEFAULT_GRID_COLUMNS, DEFAULT_LAYOUT_GAP, DEFAULT_LAYOUT_GAP,
+                    ItemAlignment.START, ItemAlignment.START);
+        }
+
         public PanelSpec {
             requireComponentId(id);
             Objects.requireNonNull(position, "position");
@@ -340,6 +425,12 @@ public final class WindowSpec {
             backgroundColor = backgroundColor == null ? "#88000000" : backgroundColor;
             padding = Math.max(0.0f, padding);
             layout = layout == null ? Layout.ABSOLUTE : layout;
+            gap = nonNegativeFinite(gap, "gap");
+            columns = positiveColumns(columns);
+            rowGap = nonNegativeFinite(rowGap, "rowGap");
+            columnGap = nonNegativeFinite(columnGap, "columnGap");
+            justifyItems = justifyItems == null ? ItemAlignment.START : justifyItems;
+            alignItems = alignItems == null ? ItemAlignment.START : alignItems;
             opacity = clampOpacity(opacity);
         }
     }
@@ -421,6 +512,12 @@ public final class WindowSpec {
         private Size size = new Size(3.0f, 2.0f);
         private Offset offset = Offset.defaults();
         private Layout layout = Layout.ABSOLUTE;
+        private float gap = DEFAULT_LAYOUT_GAP;
+        private int columns = DEFAULT_GRID_COLUMNS;
+        private float rowGap = DEFAULT_LAYOUT_GAP;
+        private float columnGap = DEFAULT_LAYOUT_GAP;
+        private ItemAlignment justifyItems = ItemAlignment.START;
+        private ItemAlignment alignItems = ItemAlignment.START;
         private final List<ComponentSpec> components = new ArrayList<>();
         private Transition transition = Transition.none();
 
@@ -440,6 +537,29 @@ public final class WindowSpec {
 
         public Builder layout(Layout layout) {
             this.layout = Objects.requireNonNull(layout, "layout");
+            return this;
+        }
+
+        public Builder gap(float gap) {
+            this.gap = nonNegativeFinite(gap, "gap");
+            return this;
+        }
+
+        public Builder grid(int columns, float rowGap, float columnGap) {
+            this.layout = Layout.GRID;
+            this.columns = positiveColumns(columns);
+            this.rowGap = nonNegativeFinite(rowGap, "rowGap");
+            this.columnGap = nonNegativeFinite(columnGap, "columnGap");
+            return this;
+        }
+
+        public Builder justifyItems(ItemAlignment alignment) {
+            this.justifyItems = Objects.requireNonNull(alignment, "alignment");
+            return this;
+        }
+
+        public Builder alignItems(ItemAlignment alignment) {
+            this.alignItems = Objects.requireNonNull(alignment, "alignment");
             return this;
         }
 
@@ -801,6 +921,12 @@ public final class WindowSpec {
         private String backgroundColor = "#88000000";
         private float padding;
         private Layout layout = Layout.ABSOLUTE;
+        private float gap = DEFAULT_LAYOUT_GAP;
+        private int columns = DEFAULT_GRID_COLUMNS;
+        private float rowGap = DEFAULT_LAYOUT_GAP;
+        private float columnGap = DEFAULT_LAYOUT_GAP;
+        private ItemAlignment justifyItems = ItemAlignment.START;
+        private ItemAlignment alignItems = ItemAlignment.START;
 
         private PanelBuilder(String id) {
             this.id = id;
@@ -837,13 +963,37 @@ public final class WindowSpec {
         }
 
         public PanelBuilder layout(Layout layout) {
-            this.layout = layout;
+            this.layout = Objects.requireNonNull(layout, "layout");
+            return this;
+        }
+
+        public PanelBuilder gap(float gap) {
+            this.gap = nonNegativeFinite(gap, "gap");
+            return this;
+        }
+
+        public PanelBuilder grid(int columns, float rowGap, float columnGap) {
+            this.layout = Layout.GRID;
+            this.columns = positiveColumns(columns);
+            this.rowGap = nonNegativeFinite(rowGap, "rowGap");
+            this.columnGap = nonNegativeFinite(columnGap, "columnGap");
+            return this;
+        }
+
+        public PanelBuilder justifyItems(ItemAlignment alignment) {
+            this.justifyItems = Objects.requireNonNull(alignment, "alignment");
+            return this;
+        }
+
+        public PanelBuilder alignItems(ItemAlignment alignment) {
+            this.alignItems = Objects.requireNonNull(alignment, "alignment");
             return this;
         }
 
         private PanelSpec build() {
             return new PanelSpec(this.id, this.position, this.size, this.visible, this.opacity,
-                    this.backgroundColor, this.padding, this.layout);
+                    this.backgroundColor, this.padding, this.layout, this.gap, this.columns,
+                    this.rowGap, this.columnGap, this.justifyItems, this.alignItems);
         }
     }
 
@@ -901,6 +1051,20 @@ public final class WindowSpec {
 
     private static float positive(float value, float fallback) {
         return value > 0.0f ? value : fallback;
+    }
+
+    private static float nonNegativeFinite(float value, String name) {
+        if (!Float.isFinite(value) || value < 0.0f) {
+            throw new IllegalArgumentException(name + " must be a finite non-negative number");
+        }
+        return value;
+    }
+
+    private static int positiveColumns(int columns) {
+        if (columns < 1) {
+            throw new IllegalArgumentException("columns must be >= 1");
+        }
+        return columns;
     }
 
     private static float clampOpacity(float opacity) {

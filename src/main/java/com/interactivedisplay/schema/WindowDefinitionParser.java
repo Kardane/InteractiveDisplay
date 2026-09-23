@@ -21,7 +21,9 @@ import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.component.TextInputComponentDefinition;
+import com.interactivedisplay.core.layout.ItemAlignment;
 import com.interactivedisplay.core.layout.LayoutMode;
+import com.interactivedisplay.core.layout.LayoutOptions;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransition;
@@ -50,10 +52,10 @@ public final class WindowDefinitionParser {
         String id = root.get("id").textValue();
         ComponentSize size = parseSize(root, 1.0f, 1.0f);
         WindowOffset offset = parseOffset(root, WindowOffset.defaults());
-        LayoutMode layoutMode = LayoutMode.fromString(getString(root, "layout", null));
+        LayoutOptions layoutOptions = parseLayoutOptions(root.get("layout"), LayoutMode.ABSOLUTE);
         List<ComponentDefinition> components = parseComponents(root.get("components"), sourceName + ".components");
         WindowTransition transition = parseTransition(root.get("transition"));
-        return new WindowDefinition(id, size, offset, layoutMode, components, transition);
+        return new WindowDefinition(id, size, offset, layoutOptions, components, transition);
     }
 
     private List<ComponentDefinition> parseComponents(JsonNode array, String sourceName) throws IOException, InterruptedException {
@@ -162,12 +164,44 @@ public final class WindowDefinitionParser {
                     opacity,
                     getString(component, "backgroundColor", "#00000000"),
                     getFloat(component, "padding", 0.0f),
-                    LayoutMode.fromString(getString(component, "layout", "absolute")),
+                    parseLayoutOptions(component.get("layout"), LayoutMode.ABSOLUTE),
                     parseComponents(component.get("children"), sourceName + ".children")
             );
         }
 
         throw new SchemaValidationException("지원하지 않는 component type: " + type);
+    }
+
+    private static LayoutOptions parseLayoutOptions(JsonNode layout, LayoutMode defaultMode) {
+        if (layout == null || layout.isNull()) {
+            return LayoutOptions.defaults(defaultMode);
+        }
+        if (layout.isTextual()) {
+            return LayoutOptions.defaults(LayoutMode.fromString(layout.textValue()));
+        }
+        if (!layout.isObject()) {
+            throw new SchemaValidationException("layout must be a string or object");
+        }
+
+        LayoutMode mode = LayoutMode.fromString(getString(layout, "type", defaultMode.name().toLowerCase(Locale.ROOT)));
+        LayoutOptions defaults = LayoutOptions.defaults(mode);
+        return new LayoutOptions(
+                mode,
+                getFloat(layout, "gap", defaults.gap()),
+                getInt(layout, "columns", defaults.columns()),
+                getFloat(layout, "rowGap", defaults.rowGap()),
+                getFloat(layout, "columnGap", defaults.columnGap()),
+                parseItemAlignment(layout, "justifyItems", defaults.justifyItems()),
+                parseItemAlignment(layout, "alignItems", defaults.alignItems())
+        );
+    }
+
+    private static ItemAlignment parseItemAlignment(JsonNode layout, String key, ItemAlignment defaultAlignment) {
+        JsonNode value = layout.get(key);
+        if (value == null) {
+            return defaultAlignment;
+        }
+        return ItemAlignment.fromString(value.textValue());
     }
 
     private static List<AnimationDefinition> parseAnimations(JsonNode animations, String sourceName) {

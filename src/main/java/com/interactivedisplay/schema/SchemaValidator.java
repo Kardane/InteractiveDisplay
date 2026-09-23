@@ -10,10 +10,11 @@ public final class SchemaValidator {
     private static final Set<String> COMPONENT_TYPES = Set.of("text", "button", "text_input", "image", "panel");
     private static final Set<String> ACTION_TYPES = Set.of("close_window", "open_window", "switch_mode_fixed", "switch_mode_player_fixed", "switch_mode_player_view", "toggle_placement_tracking", "run_command", "callback");
     private static final Set<String> IMAGE_TYPES = Set.of("item", "block", "map");
-    private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal");
+    private static final Set<String> LAYOUT_TYPES = Set.of("absolute", "vertical", "horizontal", "grid");
     private static final Set<String> CLICK_TYPES = Set.of("left", "right", "both");
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
     private static final Set<String> BUTTON_VERTICAL_ALIGNMENTS = Set.of("bottom", "center", "top");
+    private static final Set<String> ITEM_ALIGNMENTS = Set.of("start", "center", "end");
     private static final Set<String> BUTTON_SIZE_MODES = Set.of("fixed", "content");
     private static final Set<String> POSITION_MODES = Set.of("fixed", "player_fixed", "player_view");
     private static final Set<String> TRANSITION_TYPES = Set.of("none", "scale", "slide_up", "slide_down");
@@ -29,7 +30,7 @@ public final class SchemaValidator {
         requireString(root, "id", sourceName, errors);
         requireObject(root, "size", sourceName, errors);
         requireArray(root, "components", sourceName, errors);
-        requireLayout(root, sourceName, errors);
+        validateLayout(root, sourceName, errors, true);
         validateOffset(root, sourceName, errors);
         validateTransition(root, sourceName, errors);
 
@@ -96,7 +97,7 @@ public final class SchemaValidator {
             validatePosition(component, componentName, errors);
             validateOptionalBoolean(component, "visible", componentName, errors);
             validateOpacity(component, componentName, errors);
-            requireLayout(component, componentName, errors);
+            validateLayout(component, componentName, errors, "panel".equals(type));
             validateColorFields(component, componentName, errors);
 
             if ("text".equals(type)) {
@@ -163,7 +164,6 @@ public final class SchemaValidator {
                 validateSize(component, componentName, errors, true);
                 requireArray(component, "children", componentName, errors);
                 validateNonNegativeOptional(component, "padding", componentName, errors);
-                requireLayout(component, componentName, errors);
                 JsonNode children = getArray(component, "children");
                 if (children != null) {
                     validateComponents(children, componentName + ".children", errors, componentIds);
@@ -339,17 +339,82 @@ public final class SchemaValidator {
         requirePositiveNumber(component, "height", sourceName, errors);
     }
 
-    private static void requireLayout(JsonNode object, String sourceName, List<String> errors) {
+    private static void validateLayout(JsonNode object, String sourceName, List<String> errors, boolean container) {
         JsonNode element = object.get("layout");
         if (element == null) {
             return;
         }
-        if (!element.isTextual()) {
-            errors.add(sourceName + ": layout must be string");
+        if (element.isTextual()) {
+            String type = element.textValue().toLowerCase();
+            if (!LAYOUT_TYPES.contains(type) || (!container && "grid".equals(type))) {
+                errors.add(sourceName + ": layout must be absolute, vertical, horizontal" + (container ? ", grid" : ""));
+            }
             return;
         }
-        if (!LAYOUT_TYPES.contains(element.textValue().toLowerCase())) {
-            errors.add(sourceName + ": layout must be absolute, vertical, horizontal");
+        if (!container || !element.isObject()) {
+            errors.add(sourceName + ": layout must be string" + (container ? " or object" : ""));
+            return;
+        }
+
+        String layoutName = sourceName + ".layout";
+        JsonNode typeNode = element.get("type");
+        if (typeNode == null || !typeNode.isTextual()) {
+            errors.add(layoutName + ": type must be string");
+            return;
+        }
+        String type = typeNode.textValue().toLowerCase();
+        if (!LAYOUT_TYPES.contains(type)) {
+            errors.add(layoutName + ": type must be absolute, vertical, horizontal, grid");
+            return;
+        }
+
+        validateNonNegativeLayoutNumber(element, "gap", layoutName, errors);
+        validateNonNegativeLayoutNumber(element, "rowGap", layoutName, errors);
+        validateNonNegativeLayoutNumber(element, "columnGap", layoutName, errors);
+        validateItemAlignment(element, "justifyItems", type, layoutName, errors);
+        validateItemAlignment(element, "alignItems", type, layoutName, errors);
+        JsonNode columns = element.get("columns");
+        if ("grid".equals(type)) {
+            if (!isPositiveInteger(columns)) {
+                errors.add(layoutName + ": columns must be a positive integer");
+            }
+        } else if (columns != null && !isPositiveInteger(columns)) {
+            errors.add(layoutName + ": columns must be a positive integer");
+        }
+    }
+
+    private static void validateNonNegativeLayoutNumber(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null) {
+            return;
+        }
+        if (!element.isNumber() || !Float.isFinite(element.floatValue()) || element.floatValue() < 0.0f) {
+            errors.add(sourceName + ": " + key + " must be a finite non-negative number");
+        }
+    }
+
+    private static boolean isPositiveInteger(JsonNode element) {
+        return element != null && element.isIntegralNumber() && element.canConvertToInt() && element.intValue() >= 1;
+    }
+
+    private static void validateItemAlignment(JsonNode object,
+                                              String key,
+                                              String layoutType,
+                                              String sourceName,
+                                              List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null) {
+            return;
+        }
+        if (!element.isTextual()) {
+            errors.add(sourceName + ": " + key + " must be string");
+            return;
+        }
+        String value = element.textValue().toLowerCase();
+        if (!ITEM_ALIGNMENTS.contains(value)) {
+            errors.add(sourceName + ": " + key + " must be start, center, or end");
+        } else if (!"grid".equals(layoutType)) {
+            errors.add(sourceName + ": " + key + " is only supported by grid layout");
         }
     }
 

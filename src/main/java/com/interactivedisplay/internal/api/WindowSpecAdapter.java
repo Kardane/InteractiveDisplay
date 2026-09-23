@@ -18,6 +18,8 @@ import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
+import com.interactivedisplay.core.layout.LayoutOptions;
+import com.interactivedisplay.core.layout.ItemAlignment;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransition;
@@ -38,7 +40,8 @@ final class WindowSpecAdapter {
                 PublicIdCodec.toInternalWindowId(spec.id()),
                 new ComponentSize(spec.size().width(), spec.size().height()),
                 new WindowOffset(spec.offset().forward(), spec.offset().horizontal(), spec.offset().vertical()),
-                LayoutMode.valueOf(spec.layout().name()),
+                layoutOptions(spec.layout(), spec.gap(), spec.columns(), spec.rowGap(), spec.columnGap(),
+                        spec.justifyItems(), spec.alignItems()),
                 List.copyOf(components),
                 new WindowTransition(
                         spec.transition().duration(),
@@ -87,7 +90,8 @@ final class WindowSpecAdapter {
         if (component instanceof WindowSpec.PanelSpec panel) {
             return new PanelComponentDefinition(
                     panel.id(), position, size, panel.visible(), panel.opacity(), panel.backgroundColor(), panel.padding(),
-                    LayoutMode.valueOf(panel.layout().name()), List.of()
+                    layoutOptions(panel.layout(), panel.gap(), panel.columns(), panel.rowGap(), panel.columnGap(),
+                            panel.justifyItems(), panel.alignItems()), List.of()
             );
         }
         if (component instanceof WindowSpec.ImageSpec image) {
@@ -97,6 +101,24 @@ final class WindowSpecAdapter {
             );
         }
         throw new IllegalArgumentException("unsupported public component: " + component.getClass().getName());
+    }
+
+    private static LayoutOptions layoutOptions(WindowSpec.Layout layout,
+                                               float gap,
+                                               int columns,
+                                               float rowGap,
+                                               float columnGap,
+                                               WindowSpec.ItemAlignment justifyItems,
+                                               WindowSpec.ItemAlignment alignItems) {
+        return new LayoutOptions(
+                LayoutMode.valueOf(layout.name()),
+                gap,
+                columns,
+                rowGap,
+                columnGap,
+                ItemAlignment.valueOf(justifyItems.name()),
+                ItemAlignment.valueOf(alignItems.name())
+        );
     }
 
     private static ComponentAction toAction(WindowSpec.ButtonAction action) {

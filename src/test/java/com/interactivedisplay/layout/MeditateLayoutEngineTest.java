@@ -3,6 +3,7 @@ package com.interactivedisplay.layout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.interactivedisplay.core.component.ButtonComponentDefinition;
+import com.interactivedisplay.core.component.ButtonBoxModel;
 import com.interactivedisplay.core.component.ButtonHorizontalAlignment;
 import com.interactivedisplay.core.component.ButtonPadding;
 import com.interactivedisplay.core.component.ButtonSizeMode;
@@ -15,7 +16,9 @@ import com.interactivedisplay.core.component.ComponentSize;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutComponent;
+import com.interactivedisplay.core.layout.ItemAlignment;
 import com.interactivedisplay.core.layout.LayoutMode;
+import com.interactivedisplay.core.layout.LayoutOptions;
 import com.interactivedisplay.core.layout.MeditateLayoutEngine;
 import com.interactivedisplay.core.positioning.WindowOffset;
 import com.interactivedisplay.core.window.WindowDefinition;
@@ -46,6 +49,42 @@ class MeditateLayoutEngineTest {
         assertEquals(0.2f, out.get(0).localPosition().y(), 0.0001f);
         assertEquals(-0.1f, out.get(1).localPosition().x(), 0.0001f);
         assertEquals(0.55f, out.get(1).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void verticalLayoutShouldUseCustomGap() {
+        TextComponentDefinition a = text("a", 0f, 0f, 0f, 1f, 0.2f);
+        TextComponentDefinition b = text("b", 0f, 0f, 0f, 1f, 0.4f);
+        WindowDefinition window = new WindowDefinition(
+                "vertical-gap",
+                new ComponentSize(3f, 2f),
+                WindowOffset.defaults(),
+                new LayoutOptions(LayoutMode.VERTICAL, 0.12f, 1, 0.05f, 0.05f),
+                List.of(a, b),
+                null
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(0.32f, out.get(1).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void horizontalLayoutShouldUseCustomGap() {
+        TextComponentDefinition a = text("a", 0f, 0f, 0f, 0.5f, 0.2f);
+        TextComponentDefinition b = text("b", 0f, 0f, 0f, 0.4f, 0.2f);
+        WindowDefinition window = new WindowDefinition(
+                "horizontal-gap",
+                new ComponentSize(3f, 2f),
+                WindowOffset.defaults(),
+                new LayoutOptions(LayoutMode.HORIZONTAL, 0.2f, 1, 0.05f, 0.05f),
+                List.of(a, b),
+                null
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(0.7f, out.get(1).localPosition().x(), 0.0001f);
     }
 
     @Test
@@ -81,6 +120,187 @@ class MeditateLayoutEngineTest {
         List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
 
         assertEquals(0.45f, out.get(1).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void gridShouldSizeTracksFromChildrenAndPlaceOddChildOnNextRow() {
+        TextComponentDefinition a = text("a", 0f, 0f, 0f, 1.0f, 0.2f);
+        TextComponentDefinition b = text("b", 0f, 0f, 0f, 0.6f, 0.4f);
+        TextComponentDefinition c = text("c", 0f, 0f, 0f, 0.8f, 0.3f);
+        TextComponentDefinition d = text("d", 0f, 0f, 0f, 0.5f, 0.1f);
+        TextComponentDefinition e = text("e", 0f, 0f, 0f, 0.4f, 0.25f);
+        WindowDefinition window = new WindowDefinition(
+                "grid-tracks",
+                new ComponentSize(4f, 3f),
+                WindowOffset.defaults(),
+                new LayoutOptions(LayoutMode.GRID, 0.05f, 2, 0.15f, 0.25f),
+                List.of(a, b, c, d, e),
+                null
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(0.0f, out.get(0).localPosition().x(), 0.0001f);
+        assertEquals(1.25f, out.get(1).localPosition().x(), 0.0001f);
+        assertEquals(0.55f, out.get(2).localPosition().y(), 0.0001f);
+        assertEquals(1.25f, out.get(3).localPosition().x(), 0.0001f);
+        assertEquals(0.55f, out.get(3).localPosition().y(), 0.0001f);
+        assertEquals(1.0f, out.get(4).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void threeColumnGridShouldPlaceChildrenRowMajorUsingPerTrackSizes() {
+        TextComponentDefinition a = text("a", 0f, 0f, 0f, 0.5f, 0.2f);
+        TextComponentDefinition b = text("b", 0f, 0f, 0f, 1.1f, 0.4f);
+        TextComponentDefinition c = text("c", 0f, 0f, 0f, 0.8f, 0.3f);
+        TextComponentDefinition d = text("d", 0f, 0f, 0f, 0.7f, 0.6f);
+        TextComponentDefinition e = text("e", 0f, 0f, 0f, 0.9f, 0.25f);
+        WindowDefinition window = new WindowDefinition(
+                "grid-three-columns",
+                new ComponentSize(4f, 3f),
+                WindowOffset.defaults(),
+                new LayoutOptions(LayoutMode.GRID, 0.05f, 3, 0.15f, 0.2f),
+                List.of(a, b, c, d, e),
+                null
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(0.0f, out.get(0).localPosition().x(), 0.0001f);
+        assertEquals(0.9f, out.get(1).localPosition().x(), 0.0001f);
+        assertEquals(2.2f, out.get(2).localPosition().x(), 0.0001f);
+        assertEquals(0.55f, out.get(3).localPosition().y(), 0.0001f);
+        assertEquals(0.9f, out.get(4).localPosition().x(), 0.0001f);
+        assertEquals(0.55f, out.get(4).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void gridShouldUseResolvedContentSizedButtonDimensions() {
+        ButtonComponentDefinition button = new ButtonComponentDefinition(
+                "content",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                new ComponentSize(0.3f, 0.1f),
+                true,
+                1.0f,
+                "Long\nlabel",
+                0.4f,
+                "#CC222222",
+                "#EE444444",
+                null,
+                ClickType.BOTH,
+                ComponentAction.closeWindow(),
+                1.0f,
+                new ButtonPadding(0.05f, 0.05f),
+                ButtonHorizontalAlignment.CENTER,
+                ButtonVerticalAlignment.CENTER,
+                new ButtonSizing(ButtonSizeMode.CONTENT, ButtonSizeMode.CONTENT)
+        );
+        TextComponentDefinition sameRow = text("same-row", 0f, 0f, 0f, 0.2f, 0.15f);
+        TextComponentDefinition nextRow = text("next-row", 0f, 0f, 0f, 0.4f, 0.2f);
+        WindowDefinition window = new WindowDefinition(
+                "content-grid",
+                new ComponentSize(4f, 3f),
+                WindowOffset.defaults(),
+                new LayoutOptions(LayoutMode.GRID, 0.05f, 2, 0.2f, 0.3f),
+                List.of(button, sameRow, nextRow),
+                null
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+        var resolved = ButtonBoxModel.resolve(button);
+
+        assertEquals(resolved.width() + 0.3f, out.get(1).localPosition().x(), 0.0001f);
+        assertEquals(resolved.height() + 0.2f, out.get(2).localPosition().y(), 0.0001f);
+    }
+
+    @Test
+    void gridShouldAlignItemsAtStartCenterAndEndWithinEachCell() {
+        List<TextComponentDefinition> children = List.of(
+                text("a", 0f, 0f, 0f, 0.6f, 0.2f),
+                text("a_track", 0f, 0f, 0f, 2.2f, 0.6f),
+                text("b", 0f, 0f, 0f, 1.4f, 0.4f),
+                text("b_track", 0f, 0f, 0f, 2.2f, 0.6f),
+                text("c", 0f, 0f, 0f, 2.2f, 0.6f),
+                text("c_track", 0f, 0f, 0f, 2.2f, 0.6f)
+        );
+        float[][] expectedXOffsets = {
+                {0.0f, 0.0f, 0.0f},
+                {0.8f, 0.4f, 0.0f},
+                {1.6f, 0.8f, 0.0f}
+        };
+        float[][] expectedYOffsets = {
+                {0.0f, 0.0f, 0.0f},
+                {0.2f, 0.1f, 0.0f},
+                {0.4f, 0.2f, 0.0f}
+        };
+        ItemAlignment[] alignments = ItemAlignment.values();
+
+        for (int alignmentIndex = 0; alignmentIndex < alignments.length; alignmentIndex++) {
+            ItemAlignment alignment = alignments[alignmentIndex];
+            for (int rowAlignmentIndex = 0; rowAlignmentIndex < alignments.length; rowAlignmentIndex++) {
+                ItemAlignment rowAlignment = alignments[rowAlignmentIndex];
+                WindowDefinition window = new WindowDefinition(
+                        "grid-align-" + alignment + "-" + rowAlignment,
+                        new ComponentSize(5f, 3f),
+                        WindowOffset.defaults(),
+                        new LayoutOptions(
+                                LayoutMode.GRID,
+                                0.05f,
+                                2,
+                                0.05f,
+                                0.2f,
+                                alignment,
+                                rowAlignment
+                        ),
+                        List.copyOf(children),
+                        null
+                );
+                List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+                float rowOneStart = 0.6f + 0.05f;
+                float rowTwoStart = 0.6f + 0.05f + 0.6f + 0.05f;
+
+                assertEquals(expectedXOffsets[alignmentIndex][0], out.get(0).localPosition().x(), 0.0001f);
+                assertEquals(expectedYOffsets[rowAlignmentIndex][0], out.get(0).localPosition().y(), 0.0001f);
+                assertEquals(expectedXOffsets[alignmentIndex][1], out.get(2).localPosition().x(), 0.0001f);
+                assertEquals(rowOneStart + expectedYOffsets[rowAlignmentIndex][1],
+                        out.get(2).localPosition().y(), 0.0001f);
+                assertEquals(expectedXOffsets[alignmentIndex][2], out.get(4).localPosition().x(), 0.0001f);
+                assertEquals(rowTwoStart, out.get(4).localPosition().y(), 0.0001f);
+            }
+        }
+    }
+
+    @Test
+    void nestedPanelGridShouldRespectParentPositionPaddingAndTrackGaps() {
+        TextComponentDefinition a = text("a", 0f, 0f, 0f, 0.5f, 0.2f);
+        TextComponentDefinition b = text("b", 0f, 0f, 0f, 0.8f, 0.3f);
+        TextComponentDefinition c = text("c", 0f, 0f, 0f, 0.4f, 0.2f);
+        PanelComponentDefinition panel = new PanelComponentDefinition(
+                "grid-panel",
+                new ComponentPosition(1f, 2f, 0f),
+                new ComponentSize(3f, 2f),
+                true,
+                1f,
+                "#00000000",
+                0.2f,
+                new LayoutOptions(LayoutMode.GRID, 0.05f, 2, 0.1f, 0.3f),
+                List.of(a, b, c)
+        );
+        WindowDefinition window = new WindowDefinition(
+                "nested-grid",
+                new ComponentSize(5f, 4f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(panel)
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(4, out.size());
+        assertEquals(1.2f, out.get(1).localPosition().x(), 0.0001f);
+        assertEquals(2.2f, out.get(1).localPosition().y(), 0.0001f);
+        assertEquals(2.0f, out.get(2).localPosition().x(), 0.0001f);
+        assertEquals(2.6f, out.get(3).localPosition().y(), 0.0001f);
     }
 
     @Test
