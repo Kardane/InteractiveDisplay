@@ -11,8 +11,11 @@ import com.interactivedisplay.core.component.ButtonSizing;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
+import com.interactivedisplay.core.component.ComponentAnchor;
+import com.interactivedisplay.core.component.ComponentMargin;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
+import com.interactivedisplay.core.component.ComponentSizeMode;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutComponent;
@@ -366,6 +369,186 @@ class MeditateLayoutEngineTest {
         assertEquals(2.0f, out.get(2).localPosition().x(), 0.0001f);
         assertEquals(2.85f, out.get(2).localPosition().y(), 0.0001f);
         assertEquals(0.18f, out.get(2).localPosition().z(), 0.0001f);
+    }
+
+    @Test
+    void topRightAnchorShouldUseWindowBoundsAndMargin() {
+        TextComponentDefinition close = new TextComponentDefinition(
+                "close",
+                new ComponentPosition(
+                        0.0f,
+                        0.0f,
+                        0.02f,
+                        ComponentAnchor.TOP_RIGHT,
+                        new ComponentMargin(0.1f, 0.2f, 0.0f, 0.0f)
+                ),
+                new ComponentSize(0.4f, 0.3f),
+                true,
+                1.0f,
+                "x",
+                1.0f,
+                "#fff",
+                "center",
+                100,
+                false,
+                "#00000000"
+        );
+        WindowDefinition window = new WindowDefinition(
+                "anchored",
+                new ComponentSize(4.0f, 2.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(close)
+        );
+
+        LayoutComponent placed = new MeditateLayoutEngine().calculate(window).getFirst();
+
+        assertEquals(1.6f, placed.localPosition().x(), 0.0001f);
+        assertEquals(0.6f, placed.localPosition().y(), 0.0001f);
+        assertEquals(0.02f, placed.localPosition().z(), 0.0001f);
+    }
+
+    @Test
+    void fillWidthShouldUseWindowContentWidthAndRespectMinMax() {
+        ComponentSize fill = new ComponentSize(
+                1.0f,
+                0.4f,
+                ComponentSizeMode.FILL,
+                ComponentSizeMode.FIXED,
+                1.0f,
+                3.0f,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        TextComponentDefinition child = new TextComponentDefinition(
+                "fill",
+                new ComponentPosition(0.0f, 0.0f, 0.0f),
+                fill,
+                true,
+                1.0f,
+                "fill",
+                1.0f,
+                "#fff",
+                "left",
+                100,
+                false,
+                "#00000000"
+        );
+        WindowDefinition window = new WindowDefinition(
+                "fill-window",
+                new ComponentSize(4.0f, 2.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(child)
+        );
+
+        LayoutComponent placed = new MeditateLayoutEngine().calculate(window).getFirst();
+
+        assertEquals(3.0f, placed.definition().size().width(), 0.0001f);
+        assertEquals(0.0f, placed.localPosition().x(), 0.0001f);
+    }
+
+    @Test
+    void panelChildAnchorShouldUsePaddedContentBounds() {
+        TextComponentDefinition child = new TextComponentDefinition(
+                "child",
+                new ComponentPosition(
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        ComponentAnchor.TOP_RIGHT,
+                        ComponentMargin.zero()
+                ),
+                new ComponentSize(0.4f, 0.2f),
+                true,
+                1.0f,
+                "child",
+                1.0f,
+                "#fff",
+                "left",
+                100,
+                false,
+                "#00000000"
+        );
+        PanelComponentDefinition panel = new PanelComponentDefinition(
+                "panel",
+                new ComponentPosition(0.0f, -1.0f, 0.0f),
+                new ComponentSize(4.0f, 2.0f),
+                true,
+                1.0f,
+                "#22000000",
+                0.2f,
+                LayoutMode.ABSOLUTE,
+                List.of(child)
+        );
+        WindowDefinition window = new WindowDefinition(
+                "panel-content",
+                new ComponentSize(5.0f, 3.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(panel)
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+        LayoutComponent placed = out.get(1);
+
+        assertEquals(1.6f, placed.localPosition().x(), 0.0001f);
+        assertEquals(0.6f, placed.localPosition().y(), 0.0001f);
+        assertEquals(0.01f, placed.localPosition().z(), 0.0001f);
+    }
+
+    @Test
+    void fillPanelShouldResolveBeforeLayingOutAnchoredChildren() {
+        ComponentSize panelSize = new ComponentSize(
+                1.0f,
+                1.0f,
+                ComponentSizeMode.FILL,
+                ComponentSizeMode.FILL,
+                0.0f,
+                Float.POSITIVE_INFINITY,
+                0.0f,
+                Float.POSITIVE_INFINITY
+        );
+        TextComponentDefinition child = new TextComponentDefinition(
+                "center",
+                new ComponentPosition(0.0f, 0.0f, 0.0f, ComponentAnchor.CENTER, ComponentMargin.zero()),
+                new ComponentSize(0.5f, 0.5f),
+                true,
+                1.0f,
+                "center",
+                1.0f,
+                "#fff",
+                "center",
+                100,
+                false,
+                "#00000000"
+        );
+        PanelComponentDefinition panel = new PanelComponentDefinition(
+                "fill-panel",
+                new ComponentPosition(0.0f, 0.0f, 0.0f, ComponentAnchor.CENTER, ComponentMargin.zero()),
+                panelSize,
+                true,
+                1.0f,
+                "#22000000",
+                0.25f,
+                LayoutMode.ABSOLUTE,
+                List.of(child)
+        );
+        WindowDefinition window = new WindowDefinition(
+                "fill-parent",
+                new ComponentSize(4.0f, 3.0f),
+                WindowOffset.defaults(),
+                LayoutMode.ABSOLUTE,
+                List.of(panel)
+        );
+
+        List<LayoutComponent> out = new MeditateLayoutEngine().calculate(window);
+
+        assertEquals(4.0f, out.get(0).definition().size().width(), 0.0001f);
+        assertEquals(3.0f, out.get(0).definition().size().height(), 0.0001f);
+        assertEquals(-1.5f, out.get(0).localPosition().y(), 0.0001f);
+        assertEquals(0.0f, out.get(1).localPosition().x(), 0.0001f);
+        assertEquals(-0.25f, out.get(1).localPosition().y(), 0.0001f);
     }
 
     private static TextComponentDefinition text(String id, float x, float y, float z, float width, float height) {
