@@ -259,7 +259,30 @@ maxSize:
   height: 0.6
 ```
 
-`margin` may be a single non-negative number or an object with `top`, `right`, `bottom`, and `left`. General `auto` sizing is not part of this pass; it requires a later measure/arrange layout phase.
+Use `auto` when a Window, Panel, or Button should derive an axis from intrinsic content:
+
+```yaml
+size:
+  width: auto
+  height: auto
+layout:
+  type: vertical
+  gap: 0.1
+```
+
+Window and Panel auto sizing measure child extents before placement. Button auto sizing reuses the same intrinsic content box used by button rendering. If a fill-sized child appears inside an auto-sized parent, measurement uses the child's configured/minimum fallback first, then the arrange pass expands it against the resolved parent.
+
+Container layouts also support an overflow policy:
+
+```yaml
+layout:
+  type: absolute
+  overflow: error
+```
+
+`visible` is the default and preserves existing behavior. `error` rejects a layout when a resolved child box lies outside the parent content bounds. Renderer-level clipping such as `overflow: hidden` is not implemented.
+
+`margin` may be a single non-negative number or an object with `top`, `right`, `bottom`, and `left`.
 
 ### Button box model
 
