@@ -514,6 +514,26 @@ public final class WindowSpec {
                 float gap,
                 int columns,
                 float rowGap,
+                float columnGap,
+                ItemAlignment justifyItems,
+                ItemAlignment alignItems
+        ) {
+            this(id, position, size, visible, opacity, backgroundColor, padding, layout,
+                    gap, columns, rowGap, columnGap, justifyItems, alignItems, Overflow.VISIBLE);
+        }
+
+        public PanelSpec(
+                String id,
+                Position position,
+                Size size,
+                boolean visible,
+                float opacity,
+                String backgroundColor,
+                float padding,
+                Layout layout,
+                float gap,
+                int columns,
+                float rowGap,
                 float columnGap
         ) {
             this(id, position, size, visible, opacity, backgroundColor, padding, layout,
