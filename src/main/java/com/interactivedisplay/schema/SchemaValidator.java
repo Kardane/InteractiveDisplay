@@ -15,6 +15,11 @@ public final class SchemaValidator {
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
     private static final Set<String> BUTTON_VERTICAL_ALIGNMENTS = Set.of("bottom", "center", "top");
     private static final Set<String> ITEM_ALIGNMENTS = Set.of("start", "center", "end");
+    private static final Set<String> ANCHORS = Set.of(
+            "top-left", "top-center", "top-right",
+            "center-left", "center", "center-right",
+            "bottom-left", "bottom-center", "bottom-right"
+    );
     private static final Set<String> BUTTON_SIZE_MODES = Set.of("fixed", "content");
     private static final Set<String> POSITION_MODES = Set.of("fixed", "player_fixed", "player_view");
     private static final Set<String> TRANSITION_TYPES = Set.of("none", "scale", "slide_up", "slide_down");
@@ -93,8 +98,13 @@ public final class SchemaValidator {
                 continue;
             }
 
-            requireObject(component, "position", componentName, errors);
+            JsonNode position = component.get("position");
+            if (position != null && !position.isObject()) {
+                errors.add(componentName + ": position must be object");
+            }
             validatePosition(component, componentName, errors);
+            validateAnchorAndMargin(component, componentName, errors);
+            validateSizeConstraints(component, componentName, errors);
             validateOptionalBoolean(component, "visible", componentName, errors);
             validateOpacity(component, componentName, errors);
             validateLayout(component, componentName, errors, "panel".equals(type));
@@ -276,6 +286,38 @@ public final class SchemaValidator {
         requireNumber(position, "z", sourceName + ".position", errors);
     }
 
+    private static void validateAnchorAndMargin(JsonNode component, String sourceName, List<String> errors) {
+        JsonNode anchor = component.get("anchor");
+        if (anchor != null) {
+            if (!anchor.isTextual()) {
+                errors.add(sourceName + ": anchor must be string");
+            } else if (!ANCHORS.contains(anchor.textValue().toLowerCase())) {
+                errors.add(sourceName + ": anchor must be top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center, or bottom-right");
+            }
+        }
+
+        JsonNode margin = component.get("margin");
+        if (margin == null) {
+            return;
+        }
+        if (margin.isNumber()) {
+            if (!Float.isFinite(margin.floatValue()) || margin.floatValue() < 0.0f) {
+                errors.add(sourceName + ": margin must be a finite non-negative number");
+            }
+            return;
+        }
+        if (!margin.isObject()) {
+            errors.add(sourceName + ": margin must be a number or object");
+            return;
+        }
+        for (String side : List.of("top", "right", "bottom", "left")) {
+            JsonNode value = margin.get(side);
+            if (value != null && (!value.isNumber() || !Float.isFinite(value.floatValue()) || value.floatValue() < 0.0f)) {
+                errors.add(sourceName + ".margin: " + side + " must be a finite non-negative number");
+            }
+        }
+    }
+
     private static void validateOffset(JsonNode root, String sourceName, List<String> errors) {
         JsonNode offset = getObject(root, "offset");
         if (offset == null) {
@@ -304,14 +346,14 @@ public final class SchemaValidator {
     private static void validateSize(JsonNode component, String sourceName, List<String> errors, boolean requireSizeObject) {
         JsonNode size = getObject(component, "size");
         if (size != null) {
-            requirePositiveNumber(size, "width", sourceName + ".size", errors);
-            requirePositiveNumber(size, "height", sourceName + ".size", errors);
+            validateComponentSizeAxis(size, "width", sourceName + ".size", errors);
+            validateComponentSizeAxis(size, "height", sourceName + ".size", errors);
             return;
         }
 
         if (!requireSizeObject && component.has("width") && component.has("height")) {
-            requirePositiveNumber(component, "width", sourceName, errors);
-            requirePositiveNumber(component, "height", sourceName, errors);
+            validateComponentSizeAxis(component, "width", sourceName, errors);
+            validateComponentSizeAxis(component, "height", sourceName, errors);
             return;
         }
 
@@ -321,8 +363,8 @@ public final class SchemaValidator {
     private static void validateOptionalTextSize(JsonNode component, String sourceName, List<String> errors) {
         JsonNode size = getObject(component, "size");
         if (size != null) {
-            requirePositiveNumber(size, "width", sourceName + ".size", errors);
-            requirePositiveNumber(size, "height", sourceName + ".size", errors);
+            validateComponentSizeAxis(size, "width", sourceName + ".size", errors);
+            validateComponentSizeAxis(size, "height", sourceName + ".size", errors);
             return;
         }
 
@@ -335,8 +377,71 @@ public final class SchemaValidator {
             errors.add(sourceName + ": width and height must be provided together");
             return;
         }
-        requirePositiveNumber(component, "width", sourceName, errors);
-        requirePositiveNumber(component, "height", sourceName, errors);
+        validateComponentSizeAxis(component, "width", sourceName, errors);
+        validateComponentSizeAxis(component, "height", sourceName, errors);
+    }
+
+    private static void validateComponentSizeAxis(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null) {
+            errors.add(sourceName + ": " + key + " is required");
+            return;
+        }
+        if (element.isTextual()) {
+            if (!"fill".equalsIgnoreCase(element.textValue())) {
+                errors.add(sourceName + ": " + key + " must be a positive number or fill");
+            }
+            return;
+        }
+        if (!element.isNumber()) {
+            errors.add(sourceName + ": " + key + " must be a positive number or fill");
+            return;
+        }
+        if (!Float.isFinite(element.floatValue()) || element.floatValue() <= 0.0f) {
+            errors.add(sourceName + ": " + key + " must be > 0");
+        }
+    }
+
+    private static void validateSizeConstraints(JsonNode component, String sourceName, List<String> errors) {
+        validateConstraintObject(component.get("minSize"), sourceName + ".minSize", true, errors);
+        validateConstraintObject(component.get("maxSize"), sourceName + ".maxSize", false, errors);
+
+        JsonNode minSize = getObject(component, "minSize");
+        JsonNode maxSize = getObject(component, "maxSize");
+        if (minSize == null || maxSize == null) {
+            return;
+        }
+        for (String axis : List.of("width", "height")) {
+            JsonNode min = minSize.get(axis);
+            JsonNode max = maxSize.get(axis);
+            if (min != null && max != null && min.isNumber() && max.isNumber()
+                    && min.floatValue() > max.floatValue()) {
+                errors.add(sourceName + ": minSize." + axis + " must be <= maxSize." + axis);
+            }
+        }
+    }
+
+    private static void validateConstraintObject(JsonNode object,
+                                                 String sourceName,
+                                                 boolean allowZero,
+                                                 List<String> errors) {
+        if (object == null) {
+            return;
+        }
+        if (!object.isObject()) {
+            errors.add(sourceName + " must be object");
+            return;
+        }
+        for (String axis : List.of("width", "height")) {
+            JsonNode value = object.get(axis);
+            if (value == null) {
+                continue;
+            }
+            if (!value.isNumber() || !Float.isFinite(value.floatValue())
+                    || (allowZero ? value.floatValue() < 0.0f : value.floatValue() <= 0.0f)) {
+                errors.add(sourceName + ": " + axis + (allowZero ? " must be >= 0" : " must be > 0"));
+            }
+        }
     }
 
     private static void validateLayout(JsonNode object, String sourceName, List<String> errors, boolean container) {

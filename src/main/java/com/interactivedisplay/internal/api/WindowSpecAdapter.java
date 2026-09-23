@@ -9,9 +9,12 @@ import com.interactivedisplay.core.component.ButtonSizing;
 import com.interactivedisplay.core.component.ButtonVerticalAlignment;
 import com.interactivedisplay.core.component.ClickType;
 import com.interactivedisplay.core.component.ComponentAction;
+import com.interactivedisplay.core.component.ComponentAnchor;
 import com.interactivedisplay.core.component.ComponentDefinition;
+import com.interactivedisplay.core.component.ComponentMargin;
 import com.interactivedisplay.core.component.ComponentPosition;
 import com.interactivedisplay.core.component.ComponentSize;
+import com.interactivedisplay.core.component.ComponentSizeMode;
 import com.interactivedisplay.core.component.ImageComponentDefinition;
 import com.interactivedisplay.core.component.ImageType;
 import com.interactivedisplay.core.component.PanelComponentDefinition;
@@ -55,9 +58,25 @@ final class WindowSpecAdapter {
         ComponentPosition position = new ComponentPosition(
                 component.position().x(),
                 component.position().y(),
-                component.position().z()
+                component.position().z(),
+                ComponentAnchor.valueOf(component.position().anchor().name()),
+                new ComponentMargin(
+                        component.position().margin().top(),
+                        component.position().margin().right(),
+                        component.position().margin().bottom(),
+                        component.position().margin().left()
+                )
         );
-        ComponentSize size = new ComponentSize(component.size().width(), component.size().height());
+        ComponentSize size = new ComponentSize(
+                component.size().width(),
+                component.size().height(),
+                ComponentSizeMode.valueOf(component.size().widthMode().name()),
+                ComponentSizeMode.valueOf(component.size().heightMode().name()),
+                component.size().minWidth(),
+                component.size().maxWidth(),
+                component.size().minHeight(),
+                component.size().maxHeight()
+        );
 
         if (component instanceof WindowSpec.TextSpec text) {
             return new TextComponentDefinition(

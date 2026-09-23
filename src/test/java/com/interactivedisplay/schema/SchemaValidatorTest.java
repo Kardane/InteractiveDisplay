@@ -274,6 +274,46 @@ class SchemaValidatorTest {
     }
 
     @Test
+    void anchoredFillAndConstraintsShouldValidate() {
+        JsonNode valid = parse("""
+                id: constrained
+                size: { width: 4.0, height: 3.0 }
+                components:
+                  - id: close
+                    type: button
+                    anchor: top-right
+                    margin: { top: 0.1, right: 0.2, bottom: 0.0, left: 0.0 }
+                    size: { width: fill, height: 0.4 }
+                    minSize: { width: 0.8, height: 0.2 }
+                    maxSize: { width: 3.0, height: 0.6 }
+                    label: Close
+                    action: { type: close_window }
+                """);
+        assertTrue(this.validator.validate(valid, "constrained.yaml").isEmpty());
+
+        JsonNode invalid = parse("""
+                id: constrained
+                size: { width: 4.0, height: 3.0 }
+                components:
+                  - id: bad
+                    type: button
+                    anchor: diagonal
+                    margin: { top: -0.1 }
+                    size: { width: stretch, height: 0.4 }
+                    minSize: { width: 2.0 }
+                    maxSize: { width: 1.0 }
+                    label: Bad
+                    action: { type: close_window }
+                """);
+        List<String> errors = this.validator.validate(invalid, "invalid_constraints.yaml");
+
+        assertTrue(errors.stream().anyMatch(error -> error.contains("anchor must be")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("margin") && error.contains("top")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("width must be a positive number or fill")));
+        assertTrue(errors.stream().anyMatch(error -> error.contains("minSize.width must be <= maxSize.width")));
+    }
+
+    @Test
     void runCommandPermissionLevelShouldBeValidated() {
         JsonNode root = parse("""
                 id: menu

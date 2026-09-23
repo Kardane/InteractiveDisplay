@@ -125,6 +125,32 @@ WindowSpec.builder(STATUS)
 
 Grid tracks use each component's resolved width and height. `justifyItems` and `alignItems` accept `START`, `CENTER`, or `END`; both default to `START`. Children fill rows from left to right; `position.x` and `position.y` remain additional offsets from their assigned cells.
 
+## Parent bounds and anchored components
+
+Programmatic components can opt into parent-bound placement and sizing. Existing explicit positions remain unchanged.
+
+```java
+WindowSpec.builder(STATUS)
+        .size(4.0f, 2.5f)
+        .panel("background", panel -> panel
+                .size(1.0f, 1.0f)
+                .fillWidth()
+                .fillHeight()
+                .anchor(WindowSpec.Anchor.CENTER)
+                .background("#CC10243A"))
+        .button("close", button -> button
+                .size(0.42f, 0.42f)
+                .anchor(WindowSpec.Anchor.TOP_RIGHT)
+                .margin(0.12f, 0.12f, 0.0f, 0.0f)
+                .label("×")
+                .action(WindowSpec.Actions.close()))
+        .build();
+```
+
+`.fillWidth()` and `.fillHeight()` use the available parent content bounds. For nested panels, panel padding is excluded before child constraints are resolved. Use `.minSize(width, height)` and `.maxSize(width, height)` to clamp resolved sizes. Anchors support the nine combinations from `TOP_LEFT` through `BOTTOM_RIGHT`; `position(x, y, z)` remains an additional anchor-relative offset.
+
+General content-driven `auto` sizing is intentionally deferred to a future measure/arrange layout pass.
+
 ## Open a window at runtime
 
 ```java

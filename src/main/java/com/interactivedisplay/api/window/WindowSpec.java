@@ -138,17 +138,109 @@ public final class WindowSpec {
         BLOCK
     }
 
-    public record Position(float x, float y, float z) {
-        public static Position origin() {
-            return new Position(0.0f, 0.0f, 0.0f);
+    public enum Anchor {
+        NONE,
+        TOP_LEFT,
+        TOP_CENTER,
+        TOP_RIGHT,
+        CENTER_LEFT,
+        CENTER,
+        CENTER_RIGHT,
+        BOTTOM_LEFT,
+        BOTTOM_CENTER,
+        BOTTOM_RIGHT
+    }
+
+    public enum SizeMode {
+        FIXED,
+        FILL
+    }
+
+    public record Margin(float top, float right, float bottom, float left) {
+        public Margin {
+            requireNonNegativeFinite(top, "margin.top");
+            requireNonNegativeFinite(right, "margin.right");
+            requireNonNegativeFinite(bottom, "margin.bottom");
+            requireNonNegativeFinite(left, "margin.left");
+        }
+
+        public static Margin zero() {
+            return new Margin(0.0f, 0.0f, 0.0f, 0.0f);
         }
     }
 
-    public record Size(float width, float height) {
-        public Size {
-            if (width <= 0.0f || height <= 0.0f) {
-                throw new IllegalArgumentException("size must be positive");
+    public record Position(float x, float y, float z, Anchor anchor, Margin margin) {
+        public Position(float x, float y, float z) {
+            this(x, y, z, Anchor.NONE, Margin.zero());
+        }
+
+        public Position {
+            if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) {
+                throw new IllegalArgumentException("position must be finite");
             }
+            anchor = anchor == null ? Anchor.NONE : anchor;
+            margin = margin == null ? Margin.zero() : margin;
+        }
+
+        public static Position origin() {
+            return new Position(0.0f, 0.0f, 0.0f);
+        }
+
+        public Position withAnchor(Anchor value) {
+            return new Position(x, y, z, Objects.requireNonNull(value, "anchor"), margin);
+        }
+
+        public Position withMargin(float top, float right, float bottom, float left) {
+            return new Position(x, y, z, anchor, new Margin(top, right, bottom, left));
+        }
+    }
+
+    public record Size(
+            float width,
+            float height,
+            SizeMode widthMode,
+            SizeMode heightMode,
+            float minWidth,
+            float maxWidth,
+            float minHeight,
+            float maxHeight
+    ) {
+        public Size(float width, float height) {
+            this(width, height, SizeMode.FIXED, SizeMode.FIXED,
+                    0.0f, Float.POSITIVE_INFINITY, 0.0f, Float.POSITIVE_INFINITY);
+        }
+
+        public Size {
+            if (!Float.isFinite(width) || !Float.isFinite(height) || width <= 0.0f || height <= 0.0f) {
+                throw new IllegalArgumentException("size must be finite and positive");
+            }
+            widthMode = widthMode == null ? SizeMode.FIXED : widthMode;
+            heightMode = heightMode == null ? SizeMode.FIXED : heightMode;
+            if (!Float.isFinite(minWidth) || minWidth < 0.0f || !Float.isFinite(minHeight) || minHeight < 0.0f) {
+                throw new IllegalArgumentException("minimum size must be finite and >= 0");
+            }
+            if (Float.isNaN(maxWidth) || maxWidth <= 0.0f || Float.isNaN(maxHeight) || maxHeight <= 0.0f) {
+                throw new IllegalArgumentException("maximum size must be > 0");
+            }
+            if (minWidth > maxWidth || minHeight > maxHeight) {
+                throw new IllegalArgumentException("minimum size must not exceed maximum size");
+            }
+        }
+
+        public Size fillWidth() {
+            return new Size(width, height, SizeMode.FILL, heightMode, minWidth, maxWidth, minHeight, maxHeight);
+        }
+
+        public Size fillHeight() {
+            return new Size(width, height, widthMode, SizeMode.FILL, minWidth, maxWidth, minHeight, maxHeight);
+        }
+
+        public Size withMin(float width, float height) {
+            return new Size(this.width, this.height, widthMode, heightMode, width, maxWidth, height, maxHeight);
+        }
+
+        public Size withMax(float width, float height) {
+            return new Size(this.width, this.height, widthMode, heightMode, minWidth, width, minHeight, height);
         }
     }
 
@@ -314,10 +406,14 @@ public final class WindowSpec {
             horizontalAlignment = horizontalAlignment == null ? HorizontalAlignment.CENTER : horizontalAlignment;
             verticalAlignment = verticalAlignment == null ? VerticalAlignment.CENTER : verticalAlignment;
             sizing = sizing == null ? ButtonSizing.fixed() : sizing;
-            if (sizing.width() == ButtonSizeMode.FIXED && size.width() <= padding.horizontal() * 2.0f) {
+            if (sizing.width() == ButtonSizeMode.FIXED
+                    && size.widthMode() == SizeMode.FIXED
+                    && size.width() <= padding.horizontal() * 2.0f) {
                 throw new IllegalArgumentException("button horizontal padding must leave positive content width");
             }
-            if (sizing.height() == ButtonSizeMode.FIXED && size.height() <= padding.vertical() * 2.0f) {
+            if (sizing.height() == ButtonSizeMode.FIXED
+                    && size.heightMode() == SizeMode.FIXED
+                    && size.height() <= padding.vertical() * 2.0f) {
                 throw new IllegalArgumentException("button vertical padding must leave positive content height");
             }
             opacity = clampOpacity(opacity);
@@ -639,8 +735,38 @@ public final class WindowSpec {
             return this;
         }
 
+        public TextBuilder anchor(Anchor anchor) {
+            this.position = this.position.withAnchor(anchor);
+            return this;
+        }
+
+        public TextBuilder margin(float top, float right, float bottom, float left) {
+            this.position = this.position.withMargin(top, right, bottom, left);
+            return this;
+        }
+
         public TextBuilder size(float width, float height) {
             this.size = new Size(width, height);
+            return this;
+        }
+
+        public TextBuilder fillWidth() {
+            this.size = this.size.fillWidth();
+            return this;
+        }
+
+        public TextBuilder fillHeight() {
+            this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public TextBuilder minSize(float width, float height) {
+            this.size = this.size.withMin(width, height);
+            return this;
+        }
+
+        public TextBuilder maxSize(float width, float height) {
+            this.size = this.size.withMax(width, height);
             return this;
         }
 
@@ -728,8 +854,38 @@ public final class WindowSpec {
             return this;
         }
 
+        public ButtonBuilder anchor(Anchor anchor) {
+            this.position = this.position.withAnchor(anchor);
+            return this;
+        }
+
+        public ButtonBuilder margin(float top, float right, float bottom, float left) {
+            this.position = this.position.withMargin(top, right, bottom, left);
+            return this;
+        }
+
         public ButtonBuilder size(float width, float height) {
             this.size = new Size(width, height);
+            return this;
+        }
+
+        public ButtonBuilder fillWidth() {
+            this.size = this.size.fillWidth();
+            return this;
+        }
+
+        public ButtonBuilder fillHeight() {
+            this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public ButtonBuilder minSize(float width, float height) {
+            this.size = this.size.withMin(width, height);
+            return this;
+        }
+
+        public ButtonBuilder maxSize(float width, float height) {
+            this.size = this.size.withMax(width, height);
             return this;
         }
 
@@ -834,8 +990,38 @@ public final class WindowSpec {
             return this;
         }
 
+        public TextInputBuilder anchor(Anchor anchor) {
+            this.position = this.position.withAnchor(anchor);
+            return this;
+        }
+
+        public TextInputBuilder margin(float top, float right, float bottom, float left) {
+            this.position = this.position.withMargin(top, right, bottom, left);
+            return this;
+        }
+
         public TextInputBuilder size(float width, float height) {
             this.size = new Size(width, height);
+            return this;
+        }
+
+        public TextInputBuilder fillWidth() {
+            this.size = this.size.fillWidth();
+            return this;
+        }
+
+        public TextInputBuilder fillHeight() {
+            this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public TextInputBuilder minSize(float width, float height) {
+            this.size = this.size.withMin(width, height);
+            return this;
+        }
+
+        public TextInputBuilder maxSize(float width, float height) {
+            this.size = this.size.withMax(width, height);
             return this;
         }
 
@@ -937,8 +1123,38 @@ public final class WindowSpec {
             return this;
         }
 
+        public PanelBuilder anchor(Anchor anchor) {
+            this.position = this.position.withAnchor(anchor);
+            return this;
+        }
+
+        public PanelBuilder margin(float top, float right, float bottom, float left) {
+            this.position = this.position.withMargin(top, right, bottom, left);
+            return this;
+        }
+
         public PanelBuilder size(float width, float height) {
             this.size = new Size(width, height);
+            return this;
+        }
+
+        public PanelBuilder fillWidth() {
+            this.size = this.size.fillWidth();
+            return this;
+        }
+
+        public PanelBuilder fillHeight() {
+            this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public PanelBuilder minSize(float width, float height) {
+            this.size = this.size.withMin(width, height);
+            return this;
+        }
+
+        public PanelBuilder maxSize(float width, float height) {
+            this.size = this.size.withMax(width, height);
             return this;
         }
 
@@ -1018,8 +1234,38 @@ public final class WindowSpec {
             return this;
         }
 
+        public ImageBuilder anchor(Anchor anchor) {
+            this.position = this.position.withAnchor(anchor);
+            return this;
+        }
+
+        public ImageBuilder margin(float top, float right, float bottom, float left) {
+            this.position = this.position.withMargin(top, right, bottom, left);
+            return this;
+        }
+
         public ImageBuilder size(float width, float height) {
             this.size = new Size(width, height);
+            return this;
+        }
+
+        public ImageBuilder fillWidth() {
+            this.size = this.size.fillWidth();
+            return this;
+        }
+
+        public ImageBuilder fillHeight() {
+            this.size = this.size.fillHeight();
+            return this;
+        }
+
+        public ImageBuilder minSize(float width, float height) {
+            this.size = this.size.withMin(width, height);
+            return this;
+        }
+
+        public ImageBuilder maxSize(float width, float height) {
+            this.size = this.size.withMax(width, height);
             return this;
         }
 
@@ -1058,6 +1304,10 @@ public final class WindowSpec {
             throw new IllegalArgumentException(name + " must be a finite non-negative number");
         }
         return value;
+    }
+
+    private static void requireNonNegativeFinite(float value, String name) {
+        nonNegativeFinite(value, name);
     }
 
     private static int positiveColumns(int columns) {
