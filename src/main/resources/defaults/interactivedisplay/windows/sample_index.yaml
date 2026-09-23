@@ -9,13 +9,10 @@ offset:
 components:
   - id: background
     type: panel
-    position:
-      x: 0.0
-      y: -1.0
-      z: 0.0
+    anchor: center
     size:
-      width: 4.2
-      height: 2.6
+      width: fill
+      height: fill
     backgroundColor: "#CC10243A"
     children: []
   - id: title
@@ -25,7 +22,7 @@ components:
       y: 0.62
       z: 0.02
     size:
-      width: 3.8
+      width: 3.2
       height: 0.35
     content: "INTERACTIVE DISPLAY SAMPLES"
     fontSize: 0.48
@@ -86,8 +83,12 @@ components:
     type: button
     position:
       x: 0.0
-      y: -1.08
+      y: 0.0
       z: 0.03
+    anchor: top-right
+    margin:
+      top: 0.12
+      right: 0.12
     size:
       width: 0.42
       height: 0.42
