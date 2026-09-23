@@ -198,13 +198,68 @@ components:
 | Field | Description |
 | --- | --- |
 | `id` | Unique window ID |
-| `size.width`, `size.height` | Window reference size |
+| `size.width`, `size.height` | Window content bounds used by anchored/fill children |
 | `offset.forward` | Distance forward from the placement reference |
 | `offset.horizontal` | Horizontal offset |
 | `offset.vertical` | Vertical offset |
-| `layout` | `absolute`, `vertical`, or `horizontal` |
+| `layout` | `absolute`, `vertical`, `horizontal`, or `grid` |
 | `components` | Component definitions |
 | `transition` | Optional enter/exit transition configuration |
+
+### Parent bounds, anchors, and fill sizing
+
+Window `size` now defines the parent bounds used by opt-in constrained components. Panels pass their own resolved size minus `padding` as the content bounds for nested children. Existing components that only use numeric sizes and explicit `position` values keep their legacy placement behavior.
+
+Use an anchor to place a component relative to its parent instead of manually calculating x/y:
+
+```yaml
+- id: close
+  type: button
+  anchor: top-right
+  margin:
+    top: 0.12
+    right: 0.12
+  position:
+    x: 0.0
+    y: 0.0
+    z: 0.03
+  size:
+    width: 0.42
+    height: 0.42
+  label: "×"
+  action:
+    type: close_window
+```
+
+Supported anchors are `top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, and `bottom-right`. `position.x/y` remain optional offsets from the resolved anchor.
+
+A component axis can fill the available parent content bounds:
+
+```yaml
+- id: background
+  type: panel
+  anchor: center
+  size:
+    width: fill
+    height: fill
+  backgroundColor: "#CC10243A"
+  children: []
+```
+
+Optional constraints clamp the final resolved size:
+
+```yaml
+size:
+  width: fill
+  height: 0.4
+minSize:
+  width: 1.0
+maxSize:
+  width: 3.0
+  height: 0.6
+```
+
+`margin` may be a single non-negative number or an object with `top`, `right`, `bottom`, and `left`. General `auto` sizing is not part of this pass; it requires a later measure/arrange layout phase.
 
 ### Button box model
 
