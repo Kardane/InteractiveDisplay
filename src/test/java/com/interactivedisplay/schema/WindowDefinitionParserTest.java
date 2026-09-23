@@ -265,7 +265,10 @@ class WindowDefinitionParserTest {
         assertEquals("display", menuGrid.children().get(1).id());
         assertEquals(-0.62f, layoutById.get("menu").localPosition().y(), 0.0001f);
         assertEquals(0.0f, layoutById.get("display").localPosition().y(), 0.0001f);
-        assertEquals(-1.08f, layoutById.get("close").localPosition().y(), 0.0001f);
+        assertEquals(1.77f, layoutById.get("close").localPosition().x(), 0.0001f);
+        assertEquals(0.76f, layoutById.get("close").localPosition().y(), 0.0001f);
+        assertEquals(4.2f, layoutById.get("background").definition().size().width(), 0.0001f);
+        assertEquals(2.6f, layoutById.get("background").definition().size().height(), 0.0001f);
 
         for (String id : List.of("menu", "display", "close")) {
             LayoutComponent layout = layoutById.get(id);
