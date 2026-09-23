@@ -18,6 +18,7 @@ import com.interactivedisplay.core.component.PanelComponentDefinition;
 import com.interactivedisplay.core.component.TextComponentDefinition;
 import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutMode;
+import com.interactivedisplay.core.layout.OverflowPolicy;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransitionType;
 import net.minecraft.resources.ResourceLocation;
@@ -189,6 +190,42 @@ class WindowSpecAdapterTest {
         assertEquals(0.8f, button.size().minWidth(), 0.0001f);
         assertEquals(2.5f, button.size().maxWidth(), 0.0001f);
         assertEquals(0.6f, button.size().maxHeight(), 0.0001f);
+    }
+
+    @Test
+    void shouldAdaptAutoSizingAndOverflow() {
+        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "auto"))
+                .size(1.0f, 1.0f)
+                .autoWidth()
+                .autoHeight()
+                .minSize(1.5f, 1.0f)
+                .overflow(WindowSpec.Overflow.ERROR)
+                .panel("panel", panel -> panel
+                        .size(1.0f, 1.0f)
+                        .autoWidth()
+                        .autoHeight()
+                        .overflow(WindowSpec.Overflow.VISIBLE))
+                .button("auto", button -> button
+                        .size(0.1f, 0.1f)
+                        .autoWidth()
+                        .autoHeight()
+                        .label("Auto")
+                        .action(WindowSpec.Actions.close()))
+                .build();
+
+        WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);
+        PanelComponentDefinition panel = (PanelComponentDefinition) definition.components().get(0);
+        ButtonComponentDefinition button = (ButtonComponentDefinition) definition.components().get(1);
+
+        assertEquals(ComponentSizeMode.AUTO, definition.size().widthMode());
+        assertEquals(ComponentSizeMode.AUTO, definition.size().heightMode());
+        assertEquals(1.5f, definition.size().minWidth(), 0.0001f);
+        assertEquals(OverflowPolicy.ERROR, definition.layoutOptions().overflow());
+        assertEquals(ComponentSizeMode.AUTO, panel.size().widthMode());
+        assertEquals(ComponentSizeMode.AUTO, panel.size().heightMode());
+        assertEquals(OverflowPolicy.VISIBLE, panel.layoutOptions().overflow());
+        assertEquals(ComponentSizeMode.AUTO, button.size().widthMode());
+        assertEquals(ComponentSizeMode.AUTO, button.size().heightMode());
     }
 
     @Test
