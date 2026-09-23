@@ -15,6 +15,7 @@ public final class SchemaValidator {
     private static final Set<String> ALIGNMENTS = Set.of("left", "center", "right");
     private static final Set<String> BUTTON_VERTICAL_ALIGNMENTS = Set.of("bottom", "center", "top");
     private static final Set<String> ITEM_ALIGNMENTS = Set.of("start", "center", "end");
+    private static final Set<String> OVERFLOW_POLICIES = Set.of("visible", "error");
     private static final Set<String> ANCHORS = Set.of(
             "top-left", "top-center", "top-right",
             "center-left", "center", "center-right",
@@ -41,9 +42,10 @@ public final class SchemaValidator {
 
         JsonNode size = getObject(root, "size");
         if (size != null) {
-            requirePositiveNumber(size, "width", sourceName + ".size", errors);
-            requirePositiveNumber(size, "height", sourceName + ".size", errors);
+            validateWindowSizeAxis(size, "width", sourceName + ".size", errors);
+            validateWindowSizeAxis(size, "height", sourceName + ".size", errors);
         }
+        validateSizeConstraints(root, sourceName, errors);
 
         JsonNode components = getArray(root, "components");
         if (components != null) {
@@ -388,13 +390,35 @@ public final class SchemaValidator {
             return;
         }
         if (element.isTextual()) {
-            if (!"fill".equalsIgnoreCase(element.textValue())) {
-                errors.add(sourceName + ": " + key + " must be a positive number or fill");
+            String value = element.textValue().toLowerCase();
+            if (!"fill".equals(value) && !"auto".equals(value)) {
+                errors.add(sourceName + ": " + key + " must be a positive number, fill, or auto");
             }
             return;
         }
         if (!element.isNumber()) {
-            errors.add(sourceName + ": " + key + " must be a positive number or fill");
+            errors.add(sourceName + ": " + key + " must be a positive number, fill, or auto");
+            return;
+        }
+        if (!Float.isFinite(element.floatValue()) || element.floatValue() <= 0.0f) {
+            errors.add(sourceName + ": " + key + " must be > 0");
+        }
+    }
+
+    private static void validateWindowSizeAxis(JsonNode object, String key, String sourceName, List<String> errors) {
+        JsonNode element = object.get(key);
+        if (element == null) {
+            errors.add(sourceName + ": " + key + " is required");
+            return;
+        }
+        if (element.isTextual()) {
+            if (!"auto".equalsIgnoreCase(element.textValue())) {
+                errors.add(sourceName + ": " + key + " must be a positive number or auto");
+            }
+            return;
+        }
+        if (!element.isNumber()) {
+            errors.add(sourceName + ": " + key + " must be a positive number or auto");
             return;
         }
         if (!Float.isFinite(element.floatValue()) || element.floatValue() <= 0.0f) {
@@ -478,6 +502,7 @@ public final class SchemaValidator {
         validateNonNegativeLayoutNumber(element, "columnGap", layoutName, errors);
         validateItemAlignment(element, "justifyItems", type, layoutName, errors);
         validateItemAlignment(element, "alignItems", type, layoutName, errors);
+        validateOverflowPolicy(element, layoutName, errors);
         JsonNode columns = element.get("columns");
         if ("grid".equals(type)) {
             if (!isPositiveInteger(columns)) {
@@ -485,6 +510,20 @@ public final class SchemaValidator {
             }
         } else if (columns != null && !isPositiveInteger(columns)) {
             errors.add(layoutName + ": columns must be a positive integer");
+        }
+    }
+
+    private static void validateOverflowPolicy(JsonNode layout, String sourceName, List<String> errors) {
+        JsonNode overflow = layout.get("overflow");
+        if (overflow == null) {
+            return;
+        }
+        if (!overflow.isTextual()) {
+            errors.add(sourceName + ": overflow must be string");
+            return;
+        }
+        if (!OVERFLOW_POLICIES.contains(overflow.textValue().toLowerCase())) {
+            errors.add(sourceName + ": overflow must be visible or error");
         }
     }
 
