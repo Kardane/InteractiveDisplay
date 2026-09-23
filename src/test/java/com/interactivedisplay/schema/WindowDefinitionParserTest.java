@@ -18,6 +18,7 @@ import com.interactivedisplay.core.component.TextInputComponentDefinition;
 import com.interactivedisplay.core.layout.LayoutComponent;
 import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.layout.MeditateLayoutEngine;
+import com.interactivedisplay.core.layout.OverflowPolicy;
 import com.interactivedisplay.core.window.WindowComponentRuntime;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransitionType;
@@ -329,6 +330,55 @@ class WindowDefinitionParserTest {
         assertEquals(0.5f, button.size().maxHeight(), 0.0001f);
         assertEquals(0.0f, button.position().x(), 0.0001f);
         assertEquals(0.0f, button.position().y(), 0.0001f);
+    }
+
+    @Test
+    void parsesAutoSizingAndOverflowPolicy(@TempDir Path tempDir) throws Exception {
+        Path fixture = tempDir.resolve("auto_layout.yaml");
+        Files.writeString(fixture, """
+                id: auto_layout
+                size:
+                  width: auto
+                  height: auto
+                minSize:
+                  width: 1.5
+                  height: 1.0
+                layout:
+                  type: absolute
+                  overflow: error
+                components:
+                  - id: auto_panel
+                    type: panel
+                    position: { x: 0.0, y: 0.0, z: 0.0 }
+                    size: { width: auto, height: auto }
+                    layout:
+                      type: vertical
+                      gap: 0.1
+                      overflow: visible
+                    children:
+                      - id: action
+                        type: button
+                        size: { width: auto, height: auto }
+                        label: Auto
+                        action: { type: close_window }
+                """);
+
+        JsonNode root = new ConfigDocumentLoader().load(fixture);
+        assertTrue(new SchemaValidator().validate(root, "auto_layout.yaml").isEmpty());
+
+        WindowDefinition definition = parser(tempDir, new DebugRecorder(10)).parse(root, "auto_layout.yaml");
+        PanelComponentDefinition panel = (PanelComponentDefinition) definition.components().getFirst();
+        ButtonComponentDefinition button = (ButtonComponentDefinition) panel.children().getFirst();
+
+        assertEquals(ComponentSizeMode.AUTO, definition.size().widthMode());
+        assertEquals(ComponentSizeMode.AUTO, definition.size().heightMode());
+        assertEquals(1.5f, definition.size().minWidth(), 0.0001f);
+        assertEquals(OverflowPolicy.ERROR, definition.layoutOptions().overflow());
+        assertEquals(ComponentSizeMode.AUTO, panel.size().widthMode());
+        assertEquals(ComponentSizeMode.AUTO, panel.size().heightMode());
+        assertEquals(OverflowPolicy.VISIBLE, panel.layoutOptions().overflow());
+        assertEquals(ComponentSizeMode.AUTO, button.size().widthMode());
+        assertEquals(ComponentSizeMode.AUTO, button.size().heightMode());
     }
 
     private static WindowDefinitionParser parser(Path tempDir, DebugRecorder recorder) {
