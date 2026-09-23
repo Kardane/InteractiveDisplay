@@ -82,7 +82,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
             var internalNav = clickHandler.handle(
                     player.getUUID(),
                     player.getGameProfile().getName(),
-                    hit("main_menu", "menu_group", group.baseAnchor(), group.baseYaw(), group.basePitch(), "samples")
+                    hit("main_menu", "menu_group", group.baseAnchor(), group.baseYaw(), group.basePitch(), "sample_index")
             );
             helper.assertTrue(internalNav.consumed(), Component.literal("group internal open_window navigation was not consumed"));
 
@@ -99,7 +99,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
             var standaloneNav = clickHandler.handle(
                     player.getUUID(),
                     player.getGameProfile().getName(),
-                    hit("sample_index", "menu_group", navigatedGroup.baseAnchor(), navigatedGroup.baseYaw(), navigatedGroup.basePitch(), "display")
+                    hit("sample_index", "menu_group", navigatedGroup.baseAnchor(), navigatedGroup.baseYaw(), navigatedGroup.basePitch(), "display_showcase")
             );
             helper.assertTrue(standaloneNav.consumed(), Component.literal("group-to-standalone open_window navigation was not consumed"));
             helper.assertTrue(manager.findActiveGroup(player.getUUID(), "menu_group") == null,
