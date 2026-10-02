@@ -18,7 +18,7 @@ public abstract class ServerCommonPacketListenerImplMixin {
             return;
         }
 
-        MinecraftServer server = gameListener.player.getServer();
+        MinecraftServer server = gameListener.player.level().getServer();
         if (server != null && !server.isSameThread()) {
             server.execute(() -> ((ServerCommonPacketListenerImpl) (Object) this).handleCustomClickAction(packet));
             ci.cancel();

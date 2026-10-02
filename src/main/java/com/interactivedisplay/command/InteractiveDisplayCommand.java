@@ -77,8 +77,8 @@ public final class InteractiveDisplayCommand {
                                     resolvedRotation.pitch()
                             );
                             if (!result.success()) {
-                                InteractiveDisplay.LOGGER.warn("[{}] create command rejected player={} windowId={} mode={} position={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, target.getGameProfile().getName(), windowId, positionMode, position, result.reasonCode(), result.message());
-                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                InteractiveDisplay.LOGGER.warn("[{}] create command rejected player={} windowId={} mode={} position={} reasonCode={} message={}", InteractiveDisplay.MOD_ID, target.getGameProfile().name(), windowId, positionMode, position, result.reasonCode(), result.message());
+                                failures.add(target.getGameProfile().name() + " [" + result.reasonCode() + "]");
                                 continue;
                             }
                             successCount++;
@@ -105,7 +105,7 @@ public final class InteractiveDisplayCommand {
                         for (ServerPlayer target : targets) {
                             RemoveWindowResult result = windowManager.removeWindow(target.getUUID(), windowId);
                             if (!result.success()) {
-                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                failures.add(target.getGameProfile().name() + " [" + result.reasonCode() + "]");
                                 continue;
                             }
                             successCount++;
@@ -160,7 +160,7 @@ public final class InteractiveDisplayCommand {
                             InteractiveDisplayCommandTree.Rotation resolvedRotation = resolveRotationForTarget(positionMode, context.getSource(), rotation);
                             CreateWindowResult result = windowManager.createGroup(target, groupId, positionMode, position, resolvedRotation.yaw(), resolvedRotation.pitch());
                             if (!result.success()) {
-                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                failures.add(target.getGameProfile().name() + " [" + result.reasonCode() + "]");
                                 continue;
                             }
                             successCount++;
@@ -186,7 +186,7 @@ public final class InteractiveDisplayCommand {
                         for (ServerPlayer target : targets) {
                             RemoveWindowResult result = windowManager.removeGroup(target.getUUID(), groupId);
                             if (!result.success()) {
-                                failures.add(target.getGameProfile().getName() + " [" + result.reasonCode() + "]");
+                                failures.add(target.getGameProfile().name() + " [" + result.reasonCode() + "]");
                                 continue;
                             }
                             successCount++;
@@ -246,7 +246,7 @@ public final class InteractiveDisplayCommand {
                     @Override
                     public int debugBindings(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
                         ServerPlayer player = EntityArgument.getPlayer(context, "player");
-                        sendLines(context, buildBindingLines(player.getGameProfile().getName(), windowManager(managerSupplier).bindingSnapshots(player.getUUID())), false);
+                        sendLines(context, buildBindingLines(player.getGameProfile().name(), windowManager(managerSupplier).bindingSnapshots(player.getUUID())), false);
                         return 1;
                     }
                 },
@@ -312,7 +312,7 @@ public final class InteractiveDisplayCommand {
         if (instance == null) {
             lines.add("창 " + windowId + " 정의 있음, 활성 인스턴스 없음");
         } else {
-            lines.add("창 " + windowId + " 정의 있음, 활성 인스턴스 있음, entityCount=" + instance.entityIds().size() + " bindings=" + instance.bindingCount() + " world=" + instance.worldKey().location() + " mode=" + instance.positionMode() + " fixedYaw=" + instance.fixedYaw() + " fixedPitch=" + instance.fixedPitch());
+            lines.add("창 " + windowId + " 정의 있음, 활성 인스턴스 있음, entityCount=" + instance.entityIds().size() + " bindings=" + instance.bindingCount() + " world=" + instance.worldKey().identifier() + " mode=" + instance.positionMode() + " fixedYaw=" + instance.fixedYaw() + " fixedPitch=" + instance.fixedPitch());
         }
         lines.add(latestFailure == null
                 ? "최근 실패 없음"

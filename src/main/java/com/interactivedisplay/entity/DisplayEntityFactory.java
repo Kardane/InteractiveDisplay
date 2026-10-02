@@ -25,7 +25,8 @@ import eu.pb4.mapcanvas.api.core.CanvasImage;
 import eu.pb4.mapcanvas.api.core.DrawableCanvas;
 import eu.pb4.mapcanvas.api.core.PlayerCanvas;
 import eu.pb4.mapcanvas.api.utils.CanvasUtils;
-import eu.pb4.placeholders.api.PlaceholderContext;
+import eu.pb4.placeholders.api.ServerPlaceholderContext;
+import eu.pb4.placeholders.api.node.TextNode;
 import eu.pb4.placeholders.api.Placeholders;
 import eu.pb4.polymer.virtualentity.api.elements.BlockDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
@@ -46,7 +47,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -560,7 +561,7 @@ public final class DisplayEntityFactory {
     }
 
     private ItemStack buildItemStack(String value) {
-        ResourceLocation identifier = ResourceLocation.tryParse(value);
+        Identifier identifier = Identifier.tryParse(value);
         if (identifier == null) {
             throw new IllegalArgumentException("잘못된 item id: " + value);
         }
@@ -572,7 +573,7 @@ public final class DisplayEntityFactory {
     }
 
     private BlockState buildBlockState(String value) {
-        ResourceLocation identifier = ResourceLocation.tryParse(value);
+        Identifier identifier = Identifier.tryParse(value);
         if (identifier == null) {
             throw new IllegalArgumentException("잘못된 block id: " + value);
         }
@@ -624,7 +625,8 @@ public final class DisplayEntityFactory {
         if (player == null) {
             return text;
         }
-        return Placeholders.parseText(text, PlaceholderContext.of(player));
+        return Placeholders.SERVER_PLACEHOLDER_PARSER.parseNode(TextNode.convert(text))
+                .toComponent(ServerPlaceholderContext.of(player));
     }
 
     private static ServerPlayer ownerPlayer(MinecraftServer server, UUID owner) {
@@ -642,8 +644,11 @@ public final class DisplayEntityFactory {
         if (parsed.result().isPresent()) {
             return parsed.result().get();
         }
-        ChatFormatting formatting = ChatFormatting.getByName(value.toLowerCase(Locale.ROOT));
-        return formatting != null ? TextColor.fromLegacyFormat(formatting) : null;
+        try {
+            return TextColor.fromLegacyFormat(ChatFormatting.valueOf(value.toUpperCase(Locale.ROOT)));
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     private static int parseArgb(String value) {
@@ -671,13 +676,13 @@ public final class DisplayEntityFactory {
                 componentId,
                 null,
                 DebugReason.ENTITY_SPAWN_FAILED,
-                "가상 엔티티 생성 실패 world=" + world.dimension().location() + " position=" + position,
+                "가상 엔티티 생성 실패 world=" + world.dimension().identifier() + " position=" + position,
                 exception
         );
         InteractiveDisplay.LOGGER.error(
                 "[{}] virtual entity spawn failed world={} componentId={} position={} reasonCode={}",
                 InteractiveDisplay.MOD_ID,
-                world.dimension().location(),
+                world.dimension().identifier(),
                 componentId,
                 position,
                 DebugReason.ENTITY_SPAWN_FAILED,

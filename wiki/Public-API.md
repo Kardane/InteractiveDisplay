@@ -30,13 +30,13 @@ The extension entrypoint is for registration. Runtime operations should be invok
     import com.interactivedisplay.api.InteractiveDisplayEntrypoint;
     import com.interactivedisplay.api.InteractiveDisplayRegistrar;
     import com.interactivedisplay.api.window.WindowSpec;
-    import net.minecraft.resources.ResourceLocation;
+    import net.minecraft.resources.Identifier;
 
     public final class ExampleDisplayIntegration implements InteractiveDisplayEntrypoint {
-        private static final ResourceLocation STATUS =
-                ResourceLocation.fromNamespaceAndPath("example", "status");
-        private static final ResourceLocation CLOSE =
-                ResourceLocation.fromNamespaceAndPath("example", "close");
+        private static final Identifier STATUS =
+                Identifier.fromNamespaceAndPath("example", "status");
+        private static final Identifier CLOSE =
+                Identifier.fromNamespaceAndPath("example", "close");
 
         @Override
         public void register(InteractiveDisplayRegistrar registrar) {
@@ -107,7 +107,7 @@ Callbacks are useful for button behavior that is local to the consumer mod:
 
 Custom actions can carry immutable string parameters:
 
-    var buy = ResourceLocation.fromNamespaceAndPath("economy", "buy");
+    var buy = Identifier.fromNamespaceAndPath("economy", "buy");
     registrar.actions().register(buy, context -> {
         String product = context.parameters().get("product");
         // Run the consumer mod's server-side purchase logic.

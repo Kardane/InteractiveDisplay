@@ -22,6 +22,9 @@ import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ServerboundAttackPacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
@@ -205,9 +208,12 @@ public final class InteractiveDisplayClickDedupGameTest implements CustomTestMet
         helper.assertTrue(manager.findUiHit(player) != null,
                 Component.literal("click dedup fixture is not raycastable from player view"));
 
-        boolean first = app.consumeUiRightClick(player);
+        player.connection.handleInteract(new ServerboundInteractPacket(-1, InteractionHand.OFF_HAND,
+                net.minecraft.world.phys.Vec3.ZERO, false));
+        helper.assertTrue(callbackCalls.get() == 0, Component.literal("off-hand interaction executed a UI action"));
+        player.connection.handlePunch(ServerboundPunchPacket.INSTANCE);
+        player.connection.handleAttack(new ServerboundAttackPacket(-1));
         boolean duplicate = app.consumeUiRightClick(player);
-        helper.assertTrue(first, Component.literal("first runtime click was not consumed"));
         helper.assertTrue(duplicate, Component.literal("same-tick duplicate should report already-consumed input"));
         helper.assertTrue(callbackCalls.get() == 1,
                 Component.literal("same-tick duplicate executed action more than once: calls=" + callbackCalls.get()));
@@ -216,8 +222,8 @@ public final class InteractiveDisplayClickDedupGameTest implements CustomTestMet
             try {
                 helper.assertTrue(manager.findUiHit(player) != null,
                         Component.literal("click dedup fixture lost hit target on next tick"));
-                boolean nextTick = app.consumeUiRightClick(player);
-                helper.assertTrue(nextTick, Component.literal("next-tick runtime click was not consumed"));
+                player.connection.handleInteract(new ServerboundInteractPacket(-1, InteractionHand.MAIN_HAND,
+                        net.minecraft.world.phys.Vec3.ZERO, false));
                 helper.assertTrue(callbackCalls.get() == 2,
                         Component.literal("next-tick click did not execute exactly once: calls=" + callbackCalls.get()));
                 helper.succeed();

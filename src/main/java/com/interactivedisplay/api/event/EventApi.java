@@ -4,7 +4,7 @@ import com.interactivedisplay.api.window.WindowPositionMode;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public interface EventApi {
     Subscription onWindowOpened(Consumer<WindowEvent> listener);
@@ -21,7 +21,7 @@ public interface EventApi {
         void close();
     }
 
-    record WindowEvent(UUID ownerId, ResourceLocation windowId, WindowPositionMode mode) {
+    record WindowEvent(UUID ownerId, Identifier windowId, WindowPositionMode mode) {
         public WindowEvent {
             Objects.requireNonNull(ownerId, "ownerId");
             Objects.requireNonNull(windowId, "windowId");
@@ -29,7 +29,7 @@ public interface EventApi {
         }
     }
 
-    record ButtonClickEvent(UUID ownerId, ResourceLocation windowId, String componentId) {
+    record ButtonClickEvent(UUID ownerId, Identifier windowId, String componentId) {
         public ButtonClickEvent {
             Objects.requireNonNull(ownerId, "ownerId");
             Objects.requireNonNull(windowId, "windowId");
@@ -37,7 +37,7 @@ public interface EventApi {
         }
     }
 
-    record TextInputSubmitEvent(UUID ownerId, ResourceLocation windowId, String componentId, String value) {
+    record TextInputSubmitEvent(UUID ownerId, Identifier windowId, String componentId, String value) {
         public TextInputSubmitEvent {
             Objects.requireNonNull(ownerId, "ownerId");
             Objects.requireNonNull(windowId, "windowId");

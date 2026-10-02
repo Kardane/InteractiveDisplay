@@ -36,12 +36,12 @@ class DisplayEntityFactoryTest {
                 new Vector3f(1.0f, 2.0f, 3.0f)
         );
 
-        assertEquals(0.5f, transformation.getScale().x, 0.0001f);
-        assertEquals(1.25f, transformation.getScale().y, 0.0001f);
-        assertEquals(0.001f, transformation.getScale().z, 0.0001f);
-        assertEquals(1.0f, transformation.getTranslation().x, 0.0001f);
-        assertEquals(2.0f, transformation.getTranslation().y, 0.0001f);
-        assertEquals(3.0f, transformation.getTranslation().z, 0.0001f);
+        assertEquals(0.5f, transformation.scale().x(), 0.0001f);
+        assertEquals(1.25f, transformation.scale().y(), 0.0001f);
+        assertEquals(0.001f, transformation.scale().z(), 0.0001f);
+        assertEquals(1.0f, transformation.translation().x(), 0.0001f);
+        assertEquals(2.0f, transformation.translation().y(), 0.0001f);
+        assertEquals(3.0f, transformation.translation().z(), 0.0001f);
     }
 
     @Test
@@ -51,7 +51,7 @@ class DisplayEntityFactoryTest {
                 new Vector3f()
         );
 
-        assertEquals(0.001f, transformation.getScale().z, 0.0001f);
+        assertEquals(0.001f, transformation.scale().z(), 0.0001f);
     }
 
     @Test

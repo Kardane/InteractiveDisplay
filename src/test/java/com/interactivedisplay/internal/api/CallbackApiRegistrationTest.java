@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.interactivedisplay.api.window.WindowSpec;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 class CallbackApiRegistrationTest {
@@ -14,7 +14,7 @@ class CallbackApiRegistrationTest {
     void duplicateCallbackRegistrationShouldFailWithoutReplacingOriginalBinding() {
         CallbackRegistry callbacks = new CallbackRegistry();
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(callbacks);
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("qa", "callback_collision");
+        Identifier id = Identifier.fromNamespaceAndPath("qa", "callback_collision");
 
         assertTrue(api.callbacks().register(id, context -> { }).success());
         var original = callbacks.find(id.toString()).orElseThrow();
@@ -28,7 +28,7 @@ class CallbackApiRegistrationTest {
     @Test
     void duplicatePublicWindowRegistrationShouldFailAndKeepOriginalIdRegistered() {
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(new CallbackRegistry());
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("qa", "window_collision");
+        Identifier id = Identifier.fromNamespaceAndPath("qa", "window_collision");
         WindowSpec original = WindowSpec.builder(id).size(2.0f, 1.0f).build();
         WindowSpec duplicate = WindowSpec.builder(id).size(4.0f, 2.0f).build();
 

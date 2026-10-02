@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class PublicEventDispatcher {
     private static final List<Consumer<EventApi.WindowEvent>> WINDOW_OPENED = new CopyOnWriteArrayList<>();
@@ -93,7 +93,7 @@ public final class PublicEventDispatcher {
         }
     }
 
-    private static ResourceLocation toPublicWindowId(String internalId) {
+    private static Identifier toPublicWindowId(String internalId) {
         return PublicIdCodec.toPublicWindowId(internalId);
     }
 

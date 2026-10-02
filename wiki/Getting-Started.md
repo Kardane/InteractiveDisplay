@@ -2,10 +2,10 @@
 
 ## Requirements
 
-- Minecraft 1.21.8
-- Java 21
-- Fabric Loader 0.18.0 or newer
-- Fabric API 0.136.0+1.21.8 or the compatible version declared by the release
+- Minecraft 26.3
+- Java 25
+- Fabric Loader 0.19.5 or newer
+- Fabric API 0.161.0+26.3 or the compatible version declared by the release
 - Polymer Core, Polymer Resource Pack, and Polymer Autohost versions compatible with the release
 
 InteractiveDisplay is a server-side mod. The exact dependency set is declared in the release JAR metadata. Do not mix a JAR from one Minecraft or Polymer version with a different runtime without testing that combination.

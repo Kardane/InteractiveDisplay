@@ -3,30 +3,30 @@ package com.interactivedisplay.api.window;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public interface WindowApi {
     RegistrationResult register(WindowSpec spec);
 
-    OperationResult open(ServerPlayer player, ResourceLocation windowId, WindowOpenOptions options);
+    OperationResult open(ServerPlayer player, Identifier windowId, WindowOpenOptions options);
 
-    default OperationResult open(ServerPlayer player, ResourceLocation windowId) {
+    default OperationResult open(ServerPlayer player, Identifier windowId) {
         return open(player, windowId, WindowOpenOptions.playerView());
     }
 
-    OperationResult close(ServerPlayer player, ResourceLocation windowId);
+    OperationResult close(ServerPlayer player, Identifier windowId);
 
     void closeAll(ServerPlayer player);
 
-    boolean isOpen(ServerPlayer player, ResourceLocation windowId);
+    boolean isOpen(ServerPlayer player, Identifier windowId);
 
-    Optional<WindowHandle> find(ServerPlayer player, ResourceLocation windowId);
+    Optional<WindowHandle> find(ServerPlayer player, Identifier windowId);
 
-    Set<ResourceLocation> registeredIds();
+    Set<Identifier> registeredIds();
 
     interface WindowHandle {
-        ResourceLocation id();
+        Identifier id();
 
         UUID ownerId();
 
@@ -37,12 +37,12 @@ public interface WindowApi {
         OperationResult close();
     }
 
-    record RegistrationResult(boolean success, ResourceLocation id, String message) {
-        public static RegistrationResult success(ResourceLocation id) {
+    record RegistrationResult(boolean success, Identifier id, String message) {
+        public static RegistrationResult success(Identifier id) {
             return new RegistrationResult(true, id, "window registered");
         }
 
-        public static RegistrationResult failure(ResourceLocation id, String message) {
+        public static RegistrationResult failure(Identifier id, String message) {
             return new RegistrationResult(false, id, message);
         }
     }

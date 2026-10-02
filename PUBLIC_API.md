@@ -1,6 +1,6 @@
 # InteractiveDisplay Public API v1
 
-InteractiveDisplay 1.1.0 introduces a server-side API for other Fabric mods without exposing its Polymer, entity, schema, or runtime implementation classes. API v1 targets Minecraft 1.21.8.
+InteractiveDisplay 1.1.0 introduces a server-side API for other Fabric mods without exposing its Polymer, entity, schema, or runtime implementation classes. API v1 targets Minecraft 26.3 on this branch. Minecraft identifiers use `net.minecraft.resources.Identifier`; consumer mods built for 1.21.8 must update their imports and recompile for 26.3.
 
 ## Consumer dependency
 
@@ -30,12 +30,12 @@ import com.interactivedisplay.api.InteractiveDisplayEntrypoint;
 import com.interactivedisplay.api.InteractiveDisplayRegistrar;
 import com.interactivedisplay.api.window.WindowSpec;
 import java.util.Map;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class ExampleDisplayIntegration implements InteractiveDisplayEntrypoint {
-    private static final ResourceLocation STATUS = id("example", "status");
-    private static final ResourceLocation CLOSE_CALLBACK = id("example", "close_callback");
-    private static final ResourceLocation PURCHASE = id("example", "purchase");
+    private static final Identifier STATUS = id("example", "status");
+    private static final Identifier CLOSE_CALLBACK = id("example", "close_callback");
+    private static final Identifier PURCHASE = id("example", "purchase");
 
     @Override
     public void register(InteractiveDisplayRegistrar registrar) {
@@ -94,8 +94,8 @@ public final class ExampleDisplayIntegration implements InteractiveDisplayEntryp
         );
     }
 
-    private static ResourceLocation id(String namespace, String path) {
-        return ResourceLocation.fromNamespaceAndPath(namespace, path);
+    private static Identifier id(String namespace, String path) {
+        return Identifier.fromNamespaceAndPath(namespace, path);
     }
 }
 ```
@@ -180,7 +180,7 @@ API v1 also exposes runtime operations for existing group definitions while deli
 ```java
 import com.interactivedisplay.api.group.GroupOpenOptions;
 
-ResourceLocation SHOP_GROUP = ResourceLocation.fromNamespaceAndPath("economy", "shop_group");
+Identifier SHOP_GROUP = Identifier.fromNamespaceAndPath("economy", "shop_group");
 
 InteractiveDisplayApi.get()
         .groups()
@@ -236,7 +236,7 @@ On startup InteractiveDisplay installs missing definitions into `config/interact
 Custom actions are namespaced handlers registered by another mod. `ActionApi.bind(...)` binds immutable string parameters to a programmatic button while reusing InteractiveDisplay's existing callback/click pipeline.
 
 ```java
-ResourceLocation BUY = ResourceLocation.fromNamespaceAndPath("economy", "buy");
+Identifier BUY = Identifier.fromNamespaceAndPath("economy", "buy");
 
 registrar.actions().register(BUY, context -> {
     String product = context.parameters().get("product");

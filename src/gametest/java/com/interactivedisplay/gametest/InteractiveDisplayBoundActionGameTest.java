@@ -23,7 +23,7 @@ import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -36,7 +36,7 @@ public final class InteractiveDisplayBoundActionGameTest implements CustomTestMe
         var api = InteractiveDisplayApi.get();
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ResourceLocation actionId = ResourceLocation.fromNamespaceAndPath("qa", "gametest_bound_action");
+        Identifier actionId = Identifier.fromNamespaceAndPath("qa", "gametest_bound_action");
         AtomicInteger calls = new AtomicInteger();
         AtomicReference<Map<String, String>> capturedParameters = new AtomicReference<>();
         AtomicReference<ServerPlayer> capturedPlayer = new AtomicReference<>();
@@ -60,7 +60,7 @@ public final class InteractiveDisplayBoundActionGameTest implements CustomTestMe
         ));
         helper.assertTrue(publicAction instanceof WindowSpec.CallbackAction,
                 Component.literal("ActionApi.bind did not return a callback-backed action"));
-        ResourceLocation callbackId = ((WindowSpec.CallbackAction) publicAction).callbackId();
+        Identifier callbackId = ((WindowSpec.CallbackAction) publicAction).callbackId();
 
         ComponentAction internalAction = ComponentAction.callback(callbackId.toString());
         ButtonComponentDefinition button = new ButtonComponentDefinition(
@@ -103,7 +103,7 @@ public final class InteractiveDisplayBoundActionGameTest implements CustomTestMe
         );
 
         var result = new ClickHandler(manager, new DebugRecorder(20))
-                .handle(player.getUUID(), player.getGameProfile().getName(), hit);
+                .handle(player.getUUID(), player.getGameProfile().name(), hit);
 
         helper.assertTrue(result.consumed(), Component.literal("bound action click was not consumed: " + result.message()));
         helper.assertTrue(calls.get() == 1, Component.literal("bound action handler call count was " + calls.get()));

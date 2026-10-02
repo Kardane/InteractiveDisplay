@@ -26,7 +26,7 @@ import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -41,7 +41,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
         InteractiveDisplayApi api = InteractiveDisplayApi.get();
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ResourceLocation main = publicId("main_menu");
+        Identifier main = publicId("main_menu");
 
         List<EventApi.WindowEvent> opened = new ArrayList<>();
         List<EventApi.WindowEvent> closed = new ArrayList<>();
@@ -81,7 +81,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
             int closedBeforeInternalNav = closed.size();
             var internalNav = clickHandler.handle(
                     player.getUUID(),
-                    player.getGameProfile().getName(),
+                    player.getGameProfile().name(),
                     hit("main_menu", "menu_group", group.baseAnchor(), group.baseYaw(), group.basePitch(), "sample_index")
             );
             helper.assertTrue(internalNav.consumed(), Component.literal("group internal open_window navigation was not consumed"));
@@ -98,7 +98,7 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
             int closedBeforeStandalone = closed.size();
             var standaloneNav = clickHandler.handle(
                     player.getUUID(),
-                    player.getGameProfile().getName(),
+                    player.getGameProfile().name(),
                     hit("sample_index", "menu_group", navigatedGroup.baseAnchor(), navigatedGroup.baseYaw(), navigatedGroup.basePitch(), "display_showcase")
             );
             helper.assertTrue(standaloneNav.consumed(), Component.literal("group-to-standalone open_window navigation was not consumed"));
@@ -125,8 +125,8 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         var manager = InteractiveDisplay.instance().windowManager();
         InteractiveDisplayApiImpl detachedApi = new InteractiveDisplayApiImpl(new CallbackRegistry());
-        ResourceLocation windowId = publicId("main_menu");
-        ResourceLocation groupId = publicId("menu_group");
+        Identifier windowId = publicId("main_menu");
+        Identifier groupId = publicId("menu_group");
 
         var preAttachWindow = detachedApi.windows().open(player, windowId, WindowOpenOptions.playerFixed());
         helper.assertFalse(preAttachWindow.success(), Component.literal("pre-attach window open unexpectedly succeeded"));
@@ -197,8 +197,8 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
             String source,
             String target
     ) {
-        ResourceLocation expectedSource = publicId(source);
-        ResourceLocation expectedTarget = publicId(target);
+        Identifier expectedSource = publicId(source);
+        Identifier expectedTarget = publicId(target);
         helper.assertTrue(closed.size() == closedBefore + 1,
                 Component.literal("navigation did not emit exactly one CLOSED event: " + source + " -> " + target));
         helper.assertTrue(opened.size() == openedBefore + 1,
@@ -209,8 +209,8 @@ public final class InteractiveDisplayGroupNavigationGameTest implements CustomTe
                 Component.literal("navigation OPENED wrong target: expected=" + expectedTarget + " actual=" + opened.get(opened.size() - 1).windowId()));
     }
 
-    private static ResourceLocation publicId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, path);
+    private static Identifier publicId(String path) {
+        return Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, path);
     }
 
     @Override

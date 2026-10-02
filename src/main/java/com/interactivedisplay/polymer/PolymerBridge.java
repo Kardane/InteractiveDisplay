@@ -22,6 +22,13 @@ public class PolymerBridge {
     }
 
     public boolean buildMain() {
-        return PolymerResourcePackUtils.buildMain();
+        try {
+            return !PolymerResourcePackUtils.getInstance().build(PolymerResourcePackUtils.getMainPath()).hadIssues();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Resource pack build interrupted", exception);
+        } catch (java.util.concurrent.ExecutionException exception) {
+            throw new IllegalStateException("Resource pack build failed", exception.getCause());
+        }
     }
 }

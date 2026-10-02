@@ -16,7 +16,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dialog.ActionButton;
 import net.minecraft.server.dialog.CommonButtonData;
@@ -30,7 +30,7 @@ import net.minecraft.server.dialog.input.TextInput;
 import net.minecraft.server.level.ServerPlayer;
 
 final class TextInputController {
-    static final ResourceLocation SUBMIT_ACTION_ID = ResourceLocation.fromNamespaceAndPath(
+    static final Identifier SUBMIT_ACTION_ID = Identifier.fromNamespaceAndPath(
             InteractiveDisplay.MOD_ID,
             "text_input_submit"
     );

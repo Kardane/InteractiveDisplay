@@ -13,17 +13,17 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 final class CollisionAwareInteractiveDisplayApi implements InteractiveDisplayApi, InteractiveDisplayRegistrar {
     private final InteractiveDisplayApiImpl delegate;
-    private final Predicate<ResourceLocation> preRuntimeWindowCollision;
+    private final Predicate<Identifier> preRuntimeWindowCollision;
     private final WindowApi windowApi;
 
     CollisionAwareInteractiveDisplayApi(
             InteractiveDisplayApiImpl delegate,
-            Predicate<ResourceLocation> preRuntimeWindowCollision
+            Predicate<Identifier> preRuntimeWindowCollision
     ) {
         this.delegate = Objects.requireNonNull(delegate, "delegate");
         this.preRuntimeWindowCollision = Objects.requireNonNull(preRuntimeWindowCollision, "preRuntimeWindowCollision");
@@ -40,12 +40,12 @@ final class CollisionAwareInteractiveDisplayApi implements InteractiveDisplayApi
             }
 
             @Override
-            public OperationResult open(ServerPlayer player, ResourceLocation windowId, WindowOpenOptions options) {
+            public OperationResult open(ServerPlayer player, Identifier windowId, WindowOpenOptions options) {
                 return delegateWindows.open(player, windowId, options);
             }
 
             @Override
-            public OperationResult close(ServerPlayer player, ResourceLocation windowId) {
+            public OperationResult close(ServerPlayer player, Identifier windowId) {
                 return delegateWindows.close(player, windowId);
             }
 
@@ -55,17 +55,17 @@ final class CollisionAwareInteractiveDisplayApi implements InteractiveDisplayApi
             }
 
             @Override
-            public boolean isOpen(ServerPlayer player, ResourceLocation windowId) {
+            public boolean isOpen(ServerPlayer player, Identifier windowId) {
                 return delegateWindows.isOpen(player, windowId);
             }
 
             @Override
-            public Optional<WindowHandle> find(ServerPlayer player, ResourceLocation windowId) {
+            public Optional<WindowHandle> find(ServerPlayer player, Identifier windowId) {
                 return delegateWindows.find(player, windowId);
             }
 
             @Override
-            public Set<ResourceLocation> registeredIds() {
+            public Set<Identifier> registeredIds() {
                 return delegateWindows.registeredIds();
             }
         };

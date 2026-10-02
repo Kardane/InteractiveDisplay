@@ -2,11 +2,11 @@ package com.interactivedisplay.api.callback;
 
 import com.interactivedisplay.api.window.WindowApi;
 import java.util.Objects;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public interface CallbackApi {
-    RegistrationResult register(ResourceLocation id, DisplayCallback callback);
+    RegistrationResult register(Identifier id, DisplayCallback callback);
 
     @FunctionalInterface
     interface DisplayCallback {
@@ -15,7 +15,7 @@ public interface CallbackApi {
 
     record CallbackContext(
             ServerPlayer player,
-            ResourceLocation windowId,
+            Identifier windowId,
             String componentId,
             WindowApi windows
     ) {
@@ -27,12 +27,12 @@ public interface CallbackApi {
         }
     }
 
-    record RegistrationResult(boolean success, ResourceLocation id, String message) {
-        public static RegistrationResult success(ResourceLocation id) {
+    record RegistrationResult(boolean success, Identifier id, String message) {
+        public static RegistrationResult success(Identifier id) {
             return new RegistrationResult(true, id, "callback registered");
         }
 
-        public static RegistrationResult failure(ResourceLocation id, String message) {
+        public static RegistrationResult failure(Identifier id, String message) {
             return new RegistrationResult(false, id, message);
         }
     }

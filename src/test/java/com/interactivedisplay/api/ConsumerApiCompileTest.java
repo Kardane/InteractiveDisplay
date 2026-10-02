@@ -22,12 +22,12 @@ class ConsumerApiCompileTest {
                 import com.interactivedisplay.api.InteractiveDisplayEntrypoint;
                 import com.interactivedisplay.api.InteractiveDisplayRegistrar;
                 import com.interactivedisplay.api.window.WindowSpec;
-                import net.minecraft.resources.ResourceLocation;
+                import net.minecraft.resources.Identifier;
 
                 public final class ConsumerEntrypoint implements InteractiveDisplayEntrypoint {
                     @Override
                     public void register(InteractiveDisplayRegistrar registrar) {
-                        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "status");
+                        Identifier id = Identifier.fromNamespaceAndPath("example", "status");
                         WindowSpec spec = WindowSpec.builder(id)
                                 .size(2.0f, 1.0f)
                                 .layout(WindowSpec.Layout.VERTICAL)
@@ -39,7 +39,7 @@ class ConsumerApiCompileTest {
                         registrar.windows().register(spec);
 
                         WindowSpec grid = WindowSpec.builder(
-                                        ResourceLocation.fromNamespaceAndPath("example", "grid"))
+                                        Identifier.fromNamespaceAndPath("example", "grid"))
                                 .grid(2, 0.1f, 0.2f)
                                 .justifyItems(WindowSpec.ItemAlignment.CENTER)
                                 .alignItems(WindowSpec.ItemAlignment.END)

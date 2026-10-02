@@ -29,13 +29,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, InteractiveDisplayRegistrar {
     private final CallbackRegistry callbackRegistry;
-    private final ConcurrentHashMap<ResourceLocation, WindowSpec> windowSpecs = new ConcurrentHashMap<>();
-    private final Set<ResourceLocation> callbackIds = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<Identifier, WindowSpec> windowSpecs = new ConcurrentHashMap<>();
+    private final Set<Identifier> callbackIds = ConcurrentHashMap.newKeySet();
     private final AtomicLong actionBindingSequence = new AtomicLong();
     private final WindowApi windowApi = new WindowApiImpl();
     private final GroupApi groupApi = new GroupApiImpl();
@@ -118,7 +118,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public OperationResult open(ServerPlayer player, ResourceLocation windowId, WindowOpenOptions options) {
+        public OperationResult open(ServerPlayer player, Identifier windowId, WindowOpenOptions options) {
             if (player == null || windowId == null || options == null) {
                 return OperationResult.failure("invalid_argument", "player, windowId and options are required");
             }
@@ -148,7 +148,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public OperationResult close(ServerPlayer player, ResourceLocation windowId) {
+        public OperationResult close(ServerPlayer player, Identifier windowId) {
             if (player == null || windowId == null) {
                 return OperationResult.failure("invalid_argument", "player and windowId are required");
             }
@@ -183,7 +183,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public boolean isOpen(ServerPlayer player, ResourceLocation windowId) {
+        public boolean isOpen(ServerPlayer player, Identifier windowId) {
             WindowManager current = manager;
             return current != null
                     && player != null
@@ -192,7 +192,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public Optional<WindowHandle> find(ServerPlayer player, ResourceLocation windowId) {
+        public Optional<WindowHandle> find(ServerPlayer player, Identifier windowId) {
             if (!isOpen(player, windowId)) {
                 return Optional.empty();
             }
@@ -200,14 +200,14 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public Set<ResourceLocation> registeredIds() {
+        public Set<Identifier> registeredIds() {
             return Set.copyOf(windowSpecs.keySet());
         }
     }
 
     private final class GroupApiImpl implements GroupApi {
         @Override
-        public GroupApi.OperationResult open(ServerPlayer player, ResourceLocation groupId, GroupOpenOptions options) {
+        public GroupApi.OperationResult open(ServerPlayer player, Identifier groupId, GroupOpenOptions options) {
             if (player == null || groupId == null || options == null) {
                 return GroupApi.OperationResult.failure("invalid_argument", "player, groupId and options are required");
             }
@@ -243,7 +243,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public GroupApi.OperationResult close(ServerPlayer player, ResourceLocation groupId) {
+        public GroupApi.OperationResult close(ServerPlayer player, Identifier groupId) {
             if (player == null || groupId == null) {
                 return GroupApi.OperationResult.failure("invalid_argument", "player and groupId are required");
             }
@@ -268,7 +268,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public boolean isOpen(ServerPlayer player, ResourceLocation groupId) {
+        public boolean isOpen(ServerPlayer player, Identifier groupId) {
             WindowManager current = manager;
             return current != null
                     && player != null
@@ -277,7 +277,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public Optional<GroupHandle> find(ServerPlayer player, ResourceLocation groupId) {
+        public Optional<GroupHandle> find(ServerPlayer player, Identifier groupId) {
             if (!isOpen(player, groupId)) {
                 return Optional.empty();
             }
@@ -287,7 +287,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
 
     private final class CallbackApiImpl implements CallbackApi {
         @Override
-        public RegistrationResult register(ResourceLocation id, DisplayCallback callback) {
+        public RegistrationResult register(Identifier id, DisplayCallback callback) {
             if (id == null || callback == null) {
                 return RegistrationResult.failure(id, "callback id and callback are required");
             }
@@ -311,7 +311,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
 
     private final class ActionApiImpl implements ActionApi {
         @Override
-        public RegistrationResult register(ResourceLocation id, ActionHandler handler) {
+        public RegistrationResult register(Identifier id, ActionHandler handler) {
             if (id == null || handler == null) {
                 return RegistrationResult.failure(id, "action id and handler are required");
             }
@@ -322,13 +322,13 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public WindowSpec.ButtonAction bind(ResourceLocation id, Map<String, String> parameters) {
+        public WindowSpec.ButtonAction bind(Identifier id, Map<String, String> parameters) {
             if (id == null) {
                 throw new IllegalArgumentException("action id is required");
             }
             Map<String, String> safeParameters = Map.copyOf(parameters == null ? Map.of() : parameters);
             while (true) {
-                ResourceLocation callbackId = ResourceLocation.fromNamespaceAndPath(
+                Identifier callbackId = Identifier.fromNamespaceAndPath(
                         InteractiveDisplay.MOD_ID,
                         "bound_action/" + actionBindingSequence.incrementAndGet()
                 );
@@ -374,7 +374,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
             ServerPlayer player,
             String windowId,
             String componentId,
-            ResourceLocation actionId,
+            Identifier actionId,
             Map<String, String> parameters
     ) {
         PublicActionDispatcher.ExecutionResult result = PublicActionDispatcher.execute(
@@ -391,15 +391,15 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
 
     private final class WindowHandleImpl implements WindowApi.WindowHandle {
         private final UUID ownerId;
-        private final ResourceLocation id;
+        private final Identifier id;
 
-        private WindowHandleImpl(UUID ownerId, ResourceLocation id) {
+        private WindowHandleImpl(UUID ownerId, Identifier id) {
             this.ownerId = ownerId;
             this.id = id;
         }
 
         @Override
-        public ResourceLocation id() {
+        public Identifier id() {
             return this.id;
         }
 
@@ -446,15 +446,15 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
 
     private final class GroupHandleImpl implements GroupApi.GroupHandle {
         private final UUID ownerId;
-        private final ResourceLocation id;
+        private final Identifier id;
 
-        private GroupHandleImpl(UUID ownerId, ResourceLocation id) {
+        private GroupHandleImpl(UUID ownerId, Identifier id) {
             this.ownerId = ownerId;
             this.id = id;
         }
 
         @Override
-        public ResourceLocation id() {
+        public Identifier id() {
             return this.id;
         }
 
@@ -470,7 +470,7 @@ public final class InteractiveDisplayApiImpl implements InteractiveDisplayApi, I
         }
 
         @Override
-        public Optional<ResourceLocation> currentWindowId() {
+        public Optional<Identifier> currentWindowId() {
             WindowGroupInstance group = currentGroup();
             return group == null || group.currentWindowId() == null
                     ? Optional.empty()

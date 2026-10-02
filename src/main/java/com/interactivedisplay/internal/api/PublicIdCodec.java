@@ -1,39 +1,39 @@
 package com.interactivedisplay.internal.api;
 
 import com.interactivedisplay.InteractiveDisplay;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 final class PublicIdCodec {
     private PublicIdCodec() {
     }
 
-    static String toInternalWindowId(ResourceLocation id) {
+    static String toInternalWindowId(Identifier id) {
         return toInternalId(id);
     }
 
-    static ResourceLocation toPublicWindowId(String internalId) {
+    static Identifier toPublicWindowId(String internalId) {
         return toPublicId(internalId, "window");
     }
 
-    static String toInternalGroupId(ResourceLocation id) {
+    static String toInternalGroupId(Identifier id) {
         return toInternalId(id);
     }
 
-    static ResourceLocation toPublicGroupId(String internalId) {
+    static Identifier toPublicGroupId(String internalId) {
         return toPublicId(internalId, "group");
     }
 
-    private static String toInternalId(ResourceLocation id) {
+    private static String toInternalId(Identifier id) {
         if (InteractiveDisplay.MOD_ID.equals(id.getNamespace())) {
             return id.getPath();
         }
         return id.toString();
     }
 
-    private static ResourceLocation toPublicId(String internalId, String kind) {
-        ResourceLocation parsed = internalId.indexOf(':') >= 0
-                ? ResourceLocation.tryParse(internalId)
-                : ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, internalId);
+    private static Identifier toPublicId(String internalId, String kind) {
+        Identifier parsed = internalId.indexOf(':') >= 0
+                ? Identifier.tryParse(internalId)
+                : Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, internalId);
         if (parsed == null) {
             throw new IllegalArgumentException("invalid " + kind + " id: " + internalId);
         }

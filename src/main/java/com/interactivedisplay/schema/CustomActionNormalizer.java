@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 final class CustomActionNormalizer {
     private static final Set<String> BUILTIN_ACTION_TYPES = Set.of(
@@ -55,7 +55,7 @@ final class CustomActionNormalizer {
         if (BUILTIN_ACTION_TYPES.contains(rawType)) {
             return;
         }
-        ResourceLocation actionId = ResourceLocation.tryParse(rawType);
+        Identifier actionId = Identifier.tryParse(rawType);
         if (actionId == null || rawType.indexOf(':') < 0) {
             return;
         }

@@ -4,11 +4,11 @@
 
 | Area | Current baseline |
 | --- | --- |
-| Minecraft | 1.21.8 |
-| Java | 21 |
-| Fabric Loader | 0.18.0 or newer |
-| Fabric API | 0.136.0+1.21.8 |
-| Polymer | 0.13.13+1.21.8 family |
+| Minecraft | 26.3 |
+| Java | 25 |
+| Fabric Loader | 0.19.5 or newer |
+| Fabric API | 0.161.0+26.3 |
+| Polymer | 0.18.2+26.3 family |
 | API style | Server-side Fabric custom entrypoint and ObjectShare |
 
 Treat the release metadata as authoritative when it differs from this page.
@@ -42,7 +42,7 @@ The pointer item is part of the interaction contract. A consumer mod should eith
 
 The public source boundary is com.interactivedisplay.api.*. Do not compile against core, entity, schema, polymer, or internal classes.
 
-API v1 uses Minecraft/Fabric server types such as ServerPlayer, ResourceLocation, and Vec3. It is therefore not a provider-neutral UI API and should be version-tested with each Minecraft baseline supported by the consumer mod.
+API v1 uses Minecraft/Fabric server types such as ServerPlayer, Identifier, and Vec3. It is therefore not a provider-neutral UI API and should be version-tested with each Minecraft baseline supported by the consumer mod.
 
 ## Current confidence level
 

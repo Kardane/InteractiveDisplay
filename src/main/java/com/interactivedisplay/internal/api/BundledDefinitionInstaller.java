@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Set;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 final class BundledDefinitionInstaller {
     private BundledDefinitionInstaller() {
@@ -71,7 +71,7 @@ final class BundledDefinitionInstaller {
                 try {
                     JsonNode root = documentLoader.load(source);
                     String rawId = root.path("id").isTextual() ? root.path("id").textValue() : null;
-                    ResourceLocation id = rawId == null ? null : ResourceLocation.tryParse(rawId);
+                    Identifier id = rawId == null ? null : Identifier.tryParse(rawId);
                     if (id == null || rawId.indexOf(':') < 0 || !modId.equals(id.getNamespace())) {
                         errors.add(sourceName + ": bundled " + kind.label() + " id must be namespaced with '" + modId + "'");
                         skipped++;

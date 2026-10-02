@@ -37,7 +37,7 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
         waitForExternalWorldOrReportDisconnect(context);
         context.waitTicks(20);
 
-        String playerName = context.computeOnClient(client -> client.player.getGameProfile().getName());
+        String playerName = context.computeOnClient(client -> client.player.getGameProfile().name());
         Set<Integer> baselineDisplayIds = displayPassengerIds(context);
         int baselinePassengers = baselineDisplayIds.size();
         int baselineWorldDisplays = worldDisplayCount(context);
@@ -129,7 +129,7 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
         try {
             context.waitFor(client -> {
                 recordScreenTransition(client, lastScreen, screenTrace);
-                if (client.screen instanceof DisconnectedScreen disconnected) {
+                if (client.gui.screen() instanceof DisconnectedScreen disconnected) {
                     disconnectReason.compareAndSet(null, disconnected.getNarrationMessage().getString());
                     return true;
                 }
@@ -177,7 +177,7 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
     }
 
     private static String screenName(Minecraft client) {
-        return client.screen == null ? "null" : client.screen.getClass().getName();
+        return client.gui.screen() == null ? "null" : client.gui.screen().getClass().getName();
     }
 
     private static void acceptServerPackPromptIfPresent(ClientGameTestContext context) {
@@ -190,14 +190,14 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
             // Invoke the actual affirmative widget rather than duplicating part of its callback.
             // Vanilla's PackConfirmScreen callback restores its parent screen, allows queued server
             // packs, pushes each pending pack, persists ServerData when present, and continues login.
-            Button affirmative = client.screen.children().stream()
+            Button affirmative = client.gui.screen().children().stream()
                     .filter(Button.class::isInstance)
                     .map(Button.class::cast)
                     .filter(button -> CommonComponents.GUI_PROCEED.equals(button.getMessage())
                             || CommonComponents.GUI_YES.equals(button.getMessage()))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("PackConfirmScreen affirmative button not found"));
-            affirmative.onPress();
+            affirmative.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEYCODE_RETURN, 0, 0));
             return true;
         });
         if (accepted) {
@@ -206,16 +206,16 @@ public final class InteractiveDisplayClientGameTest implements FabricClientGameT
     }
 
     private static boolean isPackConfirmScreen(Minecraft client) {
-        return client.screen != null && PACK_CONFIRM_SCREEN.equals(client.screen.getClass().getName());
+        return client.gui.screen() != null && PACK_CONFIRM_SCREEN.equals(client.gui.screen().getClass().getName());
     }
 
     private static void runInProcessServerTest(ClientGameTestContext context) {
-        try (TestDedicatedServerContext server = context.worldBuilder().createServer();
-             TestServerConnection connection = server.connect()) {
-            connection.getClientWorld().waitForChunksDownload();
+        try (TestDedicatedServerContext server = context.worldBuilder().createServer()) {
+            TestServerConnection connection = server.connect();
+            connection.waitForChunksDownload();
             context.waitTicks(10);
 
-            String playerName = context.computeOnClient(client -> client.player.getGameProfile().getName());
+            String playerName = context.computeOnClient(client -> client.player.getGameProfile().name());
             int baselinePassengers = displayPassengerCount(context);
 
             server.runCommand("interactivedisplay create main_menu " + playerName + " player_fixed");

@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.interactivedisplay.api.window.WindowSpec;
 import com.interactivedisplay.core.interaction.CallbackRegistry;
 import java.util.Map;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 class ActionApiBindingTest {
@@ -16,7 +16,7 @@ class ActionApiBindingTest {
     void shouldRegisterNamespacedActionAndBindParametersThroughCallbackPipeline() {
         CallbackRegistry callbacks = new CallbackRegistry();
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(callbacks);
-        ResourceLocation actionId = ResourceLocation.fromNamespaceAndPath("economy", "purchase");
+        Identifier actionId = Identifier.fromNamespaceAndPath("economy", "purchase");
 
         assertTrue(api.actions().register(actionId, context -> { }).success());
         assertFalse(api.actions().register(actionId, context -> { }).success());
@@ -34,7 +34,7 @@ class ActionApiBindingTest {
         CallbackRegistry callbacks = new CallbackRegistry();
         callbacks.register("interactivedisplay:bound_action/1", (player, windowId, componentId) -> { });
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(callbacks);
-        ResourceLocation actionId = ResourceLocation.fromNamespaceAndPath("economy", "purchase_collision");
+        Identifier actionId = Identifier.fromNamespaceAndPath("economy", "purchase_collision");
         assertTrue(api.actions().register(actionId, context -> { }).success());
 
         WindowSpec.CallbackAction callbackAction = assertInstanceOf(

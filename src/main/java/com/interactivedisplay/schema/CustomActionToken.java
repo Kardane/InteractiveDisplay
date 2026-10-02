@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class CustomActionToken {
     private static final String PREFIX = "__interactivedisplay_custom_action__:";
@@ -16,7 +16,7 @@ public final class CustomActionToken {
     private CustomActionToken() {
     }
 
-    public static String encode(ResourceLocation actionId, Map<String, String> parameters) {
+    public static String encode(Identifier actionId, Map<String, String> parameters) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (DataOutputStream output = new DataOutputStream(bytes)) {
@@ -45,7 +45,7 @@ public final class CustomActionToken {
         try {
             byte[] bytes = Base64.getUrlDecoder().decode(token.substring(PREFIX.length()));
             try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes))) {
-                ResourceLocation actionId = ResourceLocation.tryParse(input.readUTF());
+                Identifier actionId = Identifier.tryParse(input.readUTF());
                 if (actionId == null) {
                     throw new IllegalArgumentException("invalid custom action id");
                 }
@@ -67,6 +67,6 @@ public final class CustomActionToken {
         }
     }
 
-    public record Decoded(ResourceLocation actionId, Map<String, String> parameters) {
+    public record Decoded(Identifier actionId, Map<String, String> parameters) {
     }
 }

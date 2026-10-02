@@ -33,7 +33,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -194,7 +194,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
             return false;
         }
 
-        ClickHandleResult result = handler.handle(player.getUUID(), player.getGameProfile().getName(), hitResult);
+        ClickHandleResult result = handler.handle(player.getUUID(), player.getGameProfile().name(), hitResult);
         if (result.consumed()) {
             rememberConsumedUiClick(player);
             playInteractionSound(player, hitResult);
@@ -217,7 +217,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     }
 
     private boolean wasUiClickConsumedThisTick(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         if (server == null) {
             return false;
         }
@@ -226,7 +226,7 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     }
 
     private boolean wasRightUiInputThisTick(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         if (server == null) {
             return false;
         }
@@ -235,14 +235,14 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
     }
 
     private void rememberConsumedUiClick(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         if (server != null) {
             this.lastConsumedUiClickTicks.put(player.getUUID(), (long) server.getTickCount());
         }
     }
 
     private void rememberRightUiInput(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.level().getServer();
         if (server != null) {
             this.lastRightUiInputTicks.put(player.getUUID(), (long) server.getTickCount());
         }
@@ -260,11 +260,14 @@ public class InteractiveDisplay implements DedicatedServerModInitializer {
         if (clickSound == null || clickSound.isBlank()) {
             return;
         }
-        ResourceLocation soundId = ResourceLocation.tryParse(clickSound);
+        Identifier soundId = Identifier.tryParse(clickSound);
         if (soundId == null) {
             LOGGER.warn("[{}] invalid clickSound componentId={} value={}", MOD_ID, hitResult.componentId(), clickSound);
             return;
         }
-        player.playNotifySound(SoundEvent.createVariableRangeEvent(soundId), SoundSource.PLAYERS, 1.0f, 1.0f);
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                net.minecraft.core.Holder.direct(SoundEvent.createVariableRangeEvent(soundId)),
+                SoundSource.PLAYERS, player.getX(), player.getY(), player.getZ(), 1.0f, 1.0f,
+                player.getRandom().nextLong()));
     }
 }
