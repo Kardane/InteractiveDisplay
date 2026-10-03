@@ -7,6 +7,7 @@ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -25,8 +26,8 @@ public final class MapDisplayElement extends GenericEntityElement {
 
     public MapDisplayElement(ItemStack mapStack, Direction direction) {
         this.direction = direction;
-        this.getDataTracker().set(ItemFrameEntityAccessor.getItemStack(), mapStack);
-        this.getDataTracker().set(ItemFrameEntityAccessor.getRotation(), 0);
+        this.getSyncedData().set(ItemFrameEntityAccessor.getItemStack(), mapStack);
+        this.getSyncedData().set(ItemFrameEntityAccessor.getRotation(), 0);
         this.setInvisible(true);
     }
 
@@ -71,7 +72,7 @@ public final class MapDisplayElement extends GenericEntityElement {
 
     @Override
     protected EntityType<? extends Entity> getEntityType() {
-        return EntityType.ITEM_FRAME;
+        return EntityTypes.ITEM_FRAME;
     }
 
     @Override
@@ -85,7 +86,7 @@ public final class MapDisplayElement extends GenericEntityElement {
                 position.z,
                 0.0f,
                 0.0f,
-                EntityType.ITEM_FRAME,
+                EntityTypes.ITEM_FRAME,
                 this.direction.get3DDataValue(),
                 Vec3.ZERO,
                 0.0f
@@ -104,7 +105,7 @@ public final class MapDisplayElement extends GenericEntityElement {
 
         @Override
         protected EntityType<? extends Entity> getEntityType() {
-            return EntityType.INTERACTION;
+            return EntityTypes.INTERACTION;
         }
     }
 }

@@ -4,15 +4,15 @@ import com.interactivedisplay.api.window.WindowApi;
 import com.interactivedisplay.api.window.WindowSpec;
 import java.util.Map;
 import java.util.Objects;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public interface ActionApi {
-    RegistrationResult register(ResourceLocation id, ActionHandler handler);
+    RegistrationResult register(Identifier id, ActionHandler handler);
 
-    WindowSpec.ButtonAction bind(ResourceLocation id, Map<String, String> parameters);
+    WindowSpec.ButtonAction bind(Identifier id, Map<String, String> parameters);
 
-    default WindowSpec.ButtonAction bind(ResourceLocation id) {
+    default WindowSpec.ButtonAction bind(Identifier id) {
         return bind(id, Map.of());
     }
 
@@ -23,9 +23,9 @@ public interface ActionApi {
 
     record ActionContext(
             ServerPlayer player,
-            ResourceLocation windowId,
+            Identifier windowId,
             String componentId,
-            ResourceLocation actionId,
+            Identifier actionId,
             Map<String, String> parameters,
             WindowApi windows
     ) {
@@ -39,12 +39,12 @@ public interface ActionApi {
         }
     }
 
-    record RegistrationResult(boolean success, ResourceLocation id, String message) {
-        public static RegistrationResult success(ResourceLocation id) {
+    record RegistrationResult(boolean success, Identifier id, String message) {
+        public static RegistrationResult success(Identifier id) {
             return new RegistrationResult(true, id, "action registered");
         }
 
-        public static RegistrationResult failure(ResourceLocation id, String message) {
+        public static RegistrationResult failure(Identifier id, String message) {
             return new RegistrationResult(false, id, message);
         }
     }

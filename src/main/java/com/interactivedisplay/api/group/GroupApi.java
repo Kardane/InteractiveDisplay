@@ -3,30 +3,30 @@ package com.interactivedisplay.api.group;
 import com.interactivedisplay.api.window.WindowPositionMode;
 import java.util.Optional;
 import java.util.UUID;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public interface GroupApi {
-    OperationResult open(ServerPlayer player, ResourceLocation groupId, GroupOpenOptions options);
+    OperationResult open(ServerPlayer player, Identifier groupId, GroupOpenOptions options);
 
-    default OperationResult open(ServerPlayer player, ResourceLocation groupId) {
+    default OperationResult open(ServerPlayer player, Identifier groupId) {
         return open(player, groupId, GroupOpenOptions.playerView());
     }
 
-    OperationResult close(ServerPlayer player, ResourceLocation groupId);
+    OperationResult close(ServerPlayer player, Identifier groupId);
 
-    boolean isOpen(ServerPlayer player, ResourceLocation groupId);
+    boolean isOpen(ServerPlayer player, Identifier groupId);
 
-    Optional<GroupHandle> find(ServerPlayer player, ResourceLocation groupId);
+    Optional<GroupHandle> find(ServerPlayer player, Identifier groupId);
 
     interface GroupHandle {
-        ResourceLocation id();
+        Identifier id();
 
         UUID ownerId();
 
         Optional<WindowPositionMode> mode();
 
-        Optional<ResourceLocation> currentWindowId();
+        Optional<Identifier> currentWindowId();
 
         boolean isOpen();
 

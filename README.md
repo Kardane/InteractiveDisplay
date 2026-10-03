@@ -1,6 +1,6 @@
 # InteractiveDisplay
 
-`InteractiveDisplay` is a server-side 3D HUD/window system for Minecraft **1.21.8 Fabric**. Windows are defined with YAML and rendered as **owner-only Polymer Virtual Entities**, so opening a UI does not add vanilla `Display` entities to the world and nearby players do not receive another player's HUD.
+`InteractiveDisplay` is a server-side 3D HUD/window system for Minecraft **26.3 Fabric**. Windows are defined with YAML and rendered as **owner-only Polymer Virtual Entities**, so opening a UI does not add vanilla `Display` entities to the world and nearby players do not receive another player's HUD.
 
 ## Features
 
@@ -46,13 +46,15 @@ Supported values are `left`, `right`, and `both`. Left-click packet paths are de
 
 ## Requirements
 
-- Minecraft `1.21.8`
-- Java `21`
-- Fabric Loader `0.18.0`
-- Fabric API `0.136.0+1.21.8`
-- Polymer `0.13.13+1.21.8`
+- Minecraft `26.3`
+- Java `25`
+- Fabric Loader `0.19.5`
+- Fabric API `0.161.0+26.3`
+- Polymer `0.18.2+26.3`
 
-The Gradle build includes the required server-side dependencies.
+The Gradle build includes the required server-side dependencies. Map Canvas API `0.9.1+26.2` declares support for Minecraft `>=26.1-`; this branch uses it for 26.3. Placeholder API is `3.2.0+26.3` and Fabric Permissions API is `0.7.0`.
+
+Use JDK 25 for the Gradle JVM (`JAVA_HOME` on Windows). The wrapper uses Gradle `9.7.1` and Loom `1.18.2`.
 
 ## Build and run
 
@@ -68,7 +70,7 @@ gradlew.bat build
 gradlew.bat runServer
 ```
 
-CI uses Java 21 and runs the full Gradle build, including unit tests and Fabric Loom remapping.
+CI uses Java 25 and runs the full Gradle build, including unit tests and Loom packaging for the unobfuscated game.
 
 ## Configuration
 
@@ -534,7 +536,9 @@ Before merging runtime changes, run:
 ./gradlew build --stacktrace
 ```
 
-This covers Java compilation, unit tests, and Loom remapping in CI.
+This covers Java compilation, unit tests, server GameTests, and Loom packaging for the unobfuscated game in CI.
+
+Local verification on October 3, 2026: 221 unit tests and 28 server GameTests passed on the 26.3 branch. A packaged Fabric 26.3 dedicated server reached `Done`, loaded all three default windows with `recentFailures=0`, and generated the Polymer resource pack. The JAR includes Jackson and SnakeYAML so YAML loading also works outside the development classpath. Graphical client smoke and external client E2E remain separate validation steps.
 
 Recommended runtime smoke checks:
 

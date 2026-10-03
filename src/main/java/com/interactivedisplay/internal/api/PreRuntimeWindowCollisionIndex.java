@@ -5,7 +5,7 @@ import com.interactivedisplay.schema.ConfigDocumentLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 final class PreRuntimeWindowCollisionIndex {
     private static final Set<String> BUILT_IN_WINDOW_IDS = Set.of(
@@ -19,7 +19,7 @@ final class PreRuntimeWindowCollisionIndex {
         this.windowsDir = configDir.resolve("interactivedisplay").resolve("windows");
     }
 
-    boolean contains(ResourceLocation publicId) {
+    boolean contains(Identifier publicId) {
         if (publicId == null) {
             return false;
         }

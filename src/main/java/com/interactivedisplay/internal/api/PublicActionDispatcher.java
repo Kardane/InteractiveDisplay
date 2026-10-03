@@ -5,20 +5,20 @@ import com.interactivedisplay.api.action.ActionApi;
 import com.interactivedisplay.api.window.WindowApi;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class PublicActionDispatcher {
-    private static final Map<ResourceLocation, RegisteredAction> ACTIONS = new ConcurrentHashMap<>();
+    private static final Map<Identifier, RegisteredAction> ACTIONS = new ConcurrentHashMap<>();
 
     private PublicActionDispatcher() {
     }
 
-    static boolean register(ResourceLocation id, ActionApi.ActionHandler handler, WindowApi windows) {
+    static boolean register(Identifier id, ActionApi.ActionHandler handler, WindowApi windows) {
         return ACTIONS.putIfAbsent(id, new RegisteredAction(handler, windows)) == null;
     }
 
-    public static boolean isRegistered(ResourceLocation id) {
+    public static boolean isRegistered(Identifier id) {
         return id != null && ACTIONS.containsKey(id);
     }
 
@@ -29,7 +29,7 @@ public final class PublicActionDispatcher {
             String rawActionId,
             Map<String, String> parameters
     ) {
-        ResourceLocation actionId = ResourceLocation.tryParse(rawActionId);
+        Identifier actionId = Identifier.tryParse(rawActionId);
         if (actionId == null || rawActionId.indexOf(':') < 0) {
             return ExecutionResult.failure("invalid custom action id: " + rawActionId);
         }

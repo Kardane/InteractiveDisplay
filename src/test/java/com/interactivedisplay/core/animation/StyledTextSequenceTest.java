@@ -25,7 +25,7 @@ class StyledTextSequenceTest {
 
         Component prefix = sequence.prefix(2);
         assertEquals("안녕", prefix.getString());
-        assertEquals(ChatFormatting.GOLD.getColor(), prefix.getSiblings().getFirst().getStyle().getColor().getValue());
+        assertEquals(0xFFAA00, prefix.getSiblings().getFirst().getStyle().getColor().getValue());
         assertEquals(true, prefix.getSiblings().get(1).getStyle().isBold());
     }
 }

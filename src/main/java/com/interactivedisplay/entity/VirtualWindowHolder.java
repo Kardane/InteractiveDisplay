@@ -298,7 +298,7 @@ public final class VirtualWindowHolder {
         if (anchor == null) {
             return;
         }
-        this.holder.sendPacket(VirtualEntityUtils.createRidePacket(
+        this.holder.sendPacket(VirtualEntityUtils.createClientboundSetPassengersPacket(
                 anchor.getEntityId(),
                 new int[]{map.getEntityId()}
         ));

@@ -44,7 +44,7 @@ public final class InteractiveDisplayClientModesGameTest implements FabricClient
         waitForExternalWorldOrReportDisconnect(context);
         context.waitTicks(20);
 
-        String playerName = context.computeOnClient(client -> client.player.getGameProfile().getName());
+        String playerName = context.computeOnClient(client -> client.player.getGameProfile().name());
         Set<Integer> baselineDisplayIds = displayPassengerIds(context);
         int baselinePassengers = baselineDisplayIds.size();
         int baselineWorldDisplays = worldDisplayCount(context);
@@ -188,9 +188,9 @@ public final class InteractiveDisplayClientModesGameTest implements FabricClient
                     throw new AssertionError("Display render state missing for PLAYER_VIEW passenger id=" + entity.getId());
                 }
                 var transformation = renderState.transformation().get(1.0f);
-                translationSum.add(transformation.getTranslation());
+                translationSum.add(transformation.translation());
                 if (rotation == null) {
-                    rotation = new Quaternionf(transformation.getLeftRotation());
+                    rotation = new Quaternionf(transformation.leftRotation());
                 }
                 count++;
             }
@@ -229,7 +229,7 @@ public final class InteractiveDisplayClientModesGameTest implements FabricClient
         try {
             context.waitFor(client -> {
                 recordScreenTransition(client, lastScreen, screenTrace);
-                if (client.screen instanceof DisconnectedScreen disconnected) {
+                if (client.gui.screen() instanceof DisconnectedScreen disconnected) {
                     disconnectReason.compareAndSet(null, disconnected.getNarrationMessage().getString());
                     return true;
                 }
@@ -266,7 +266,7 @@ public final class InteractiveDisplayClientModesGameTest implements FabricClient
     }
 
     private static String screenName(Minecraft client) {
-        return client.screen == null ? "null" : client.screen.getClass().getName();
+        return client.gui.screen() == null ? "null" : client.gui.screen().getClass().getName();
     }
 
     private static void acceptServerPackPromptIfPresent(ClientGameTestContext context) {
@@ -275,14 +275,14 @@ public final class InteractiveDisplayClientModesGameTest implements FabricClient
             if (!isPackConfirmScreen(client)) {
                 return false;
             }
-            Button affirmative = client.screen.children().stream()
+            Button affirmative = client.gui.screen().children().stream()
                     .filter(Button.class::isInstance)
                     .map(Button.class::cast)
                     .filter(button -> CommonComponents.GUI_PROCEED.equals(button.getMessage())
                             || CommonComponents.GUI_YES.equals(button.getMessage()))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("PackConfirmScreen affirmative button not found"));
-            affirmative.onPress();
+            affirmative.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEYCODE_RETURN, 0, 0));
             return true;
         });
         if (accepted) {
@@ -291,7 +291,7 @@ public final class InteractiveDisplayClientModesGameTest implements FabricClient
     }
 
     private static boolean isPackConfirmScreen(Minecraft client) {
-        return client.screen != null && PACK_CONFIRM_SCREEN.equals(client.screen.getClass().getName());
+        return client.gui.screen() != null && PACK_CONFIRM_SCREEN.equals(client.gui.screen().getClass().getName());
     }
 
     private static int displayPassengerCount(ClientGameTestContext context) {

@@ -10,7 +10,7 @@ import com.interactivedisplay.internal.api.InteractiveDisplayApiImpl;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -51,7 +51,7 @@ class CustomActionYamlTest {
         assertFalse(callbacks.find(token).isPresent());
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(callbacks);
         assertTrue(api.actions().register(
-                ResourceLocation.fromNamespaceAndPath("economy", "yaml_purchase"),
+                Identifier.fromNamespaceAndPath("economy", "yaml_purchase"),
                 context -> { }
         ).success());
         assertTrue(callbacks.find(token).isPresent());

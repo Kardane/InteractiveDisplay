@@ -163,7 +163,7 @@ public final class InteractiveDisplayDimensionLifecycleGameTest implements Custo
                 Component.literal("FIXED pitch policy mismatch expected=0 actual=" + fixed.currentPitch()));
 
         Vec3 playerBeforeMove = player.position();
-        int moveResult = dispatcher.execute("tp @s ~10 ~ ~", player.createCommandSourceStack().withPermission(4));
+        int moveResult = dispatcher.execute("tp @s ~10 ~ ~", player.createCommandSourceStack().withPermission(net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER));
         helper.assertTrue(moveResult > 0, Component.literal("FIXED same-dimension owner movement command failed"));
         helper.assertTrue(player.position().distanceToSqr(playerBeforeMove) > 50.0D,
                 Component.literal("FIXED owner did not move enough for independence check"));
@@ -204,7 +204,7 @@ public final class InteractiveDisplayDimensionLifecycleGameTest implements Custo
             double y,
             double z
     ) throws Exception {
-        var source = player.createCommandSourceStack().withPermission(4);
+        var source = player.createCommandSourceStack().withPermission(net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER);
         String command = "execute in " + dimension + " run tp @s " + x + " " + y + " " + z;
         int result = dispatcher.execute(command, source);
         helper.assertTrue(result > 0, Component.literal("dimension teleport command failed: " + command));

@@ -21,14 +21,14 @@ import com.interactivedisplay.core.layout.LayoutMode;
 import com.interactivedisplay.core.layout.OverflowPolicy;
 import com.interactivedisplay.core.window.WindowDefinition;
 import com.interactivedisplay.core.window.WindowTransitionType;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 class WindowSpecAdapterTest {
     @Test
     void shouldAdaptNamespacedProgrammaticWindowToExistingRuntimeModel() {
-        ResourceLocation callbackId = ResourceLocation.fromNamespaceAndPath("economy", "buy");
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("economy", "shop"))
+        Identifier callbackId = Identifier.fromNamespaceAndPath("economy", "buy");
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("economy", "shop"))
                 .size(3.0f, 1.5f)
                 .offset(2.5f, 0.25f, 0.4f)
                 .layout(WindowSpec.Layout.VERTICAL)
@@ -53,11 +53,11 @@ class WindowSpecAdapterTest {
                         .layout(WindowSpec.Layout.HORIZONTAL)
                         .gap(0.11f)
                         .opacity(0.65f))
-                .item("icon", ResourceLocation.withDefaultNamespace("diamond"), image -> image
+                .item("icon", Identifier.withDefaultNamespace("diamond"), image -> image
                         .position(-0.8f, 0.0f, 0.02f)
                         .size(0.5f, 0.5f)
                         .scale(0.75f))
-                .block("block", ResourceLocation.withDefaultNamespace("stone"), image -> image
+                .block("block", Identifier.withDefaultNamespace("stone"), image -> image
                         .position(0.8f, 0.0f, 0.02f)
                         .size(0.6f, 0.6f)
                         .scale(0.8f))
@@ -145,7 +145,7 @@ class WindowSpecAdapterTest {
 
     @Test
     void shouldAdaptPublicGridLayoutOptions() {
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("economy", "grid"))
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("economy", "grid"))
                 .grid(2, 0.1f, 0.2f)
                 .justifyItems(WindowSpec.ItemAlignment.CENTER)
                 .alignItems(WindowSpec.ItemAlignment.END)
@@ -167,7 +167,7 @@ class WindowSpecAdapterTest {
 
     @Test
     void shouldAdaptAnchorsFillAndConstraints() {
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "bounds"))
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("test", "bounds"))
                 .button("close", button -> button
                         .size(0.5f, 0.3f)
                         .fillWidth()
@@ -194,7 +194,7 @@ class WindowSpecAdapterTest {
 
     @Test
     void shouldAdaptAutoSizingAndOverflow() {
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "auto"))
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("test", "auto"))
                 .size(1.0f, 1.0f)
                 .autoWidth()
                 .autoHeight()
@@ -230,8 +230,8 @@ class WindowSpecAdapterTest {
 
     @Test
     void shouldAdaptAllBuiltInButtonActions() {
-        ResourceLocation target = ResourceLocation.fromNamespaceAndPath("economy", "details");
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("economy", "actions"))
+        Identifier target = Identifier.fromNamespaceAndPath("economy", "details");
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("economy", "actions"))
                 .button("close", b -> b.action(WindowSpec.Actions.close()))
                 .button("open", b -> b.action(WindowSpec.Actions.open(target)))
                 .button("callback", b -> b.action(WindowSpec.Actions.callback(target)))
@@ -256,7 +256,7 @@ class WindowSpecAdapterTest {
 
     @Test
     void shouldAdaptLeftRightAndBothClickModes() {
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "clicks"))
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("test", "clicks"))
                 .button("left", b -> b.click(WindowSpec.Click.LEFT).action(WindowSpec.Actions.close()))
                 .button("right", b -> b.click(WindowSpec.Click.RIGHT).action(WindowSpec.Actions.close()))
                 .button("both", b -> b.click(WindowSpec.Click.BOTH).action(WindowSpec.Actions.close()))
@@ -270,7 +270,7 @@ class WindowSpecAdapterTest {
 
     @Test
     void shouldAdaptProgrammaticTextInput() {
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "input"))
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("test", "input"))
                 .textInput("search", input -> input
                         .position(0.1f, 0.2f, 0.01f)
                         .size(2.0f, 0.4f)
@@ -305,7 +305,7 @@ class WindowSpecAdapterTest {
     }
 
     private static void assertTransition(WindowSpec.TransitionType publicType, WindowTransitionType internalType) {
-        WindowSpec spec = WindowSpec.builder(ResourceLocation.fromNamespaceAndPath("test", "transition_" + publicType.name().toLowerCase()))
+        WindowSpec spec = WindowSpec.builder(Identifier.fromNamespaceAndPath("test", "transition_" + publicType.name().toLowerCase()))
                 .transition(5, publicType, publicType)
                 .build();
         WindowDefinition definition = WindowSpecAdapter.toDefinition(spec);

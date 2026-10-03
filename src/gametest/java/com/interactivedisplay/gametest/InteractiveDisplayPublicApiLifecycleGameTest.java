@@ -13,7 +13,7 @@ import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 
@@ -23,8 +23,8 @@ public final class InteractiveDisplayPublicApiLifecycleGameTest implements Custo
     public void windowAndGroupApisShouldEmitOwnerScopedLifecycleEventsForAllModes(GameTestHelper helper) {
         InteractiveDisplayApi api = InteractiveDisplayApi.get();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ResourceLocation main = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu");
-        ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "menu_group");
+        Identifier main = Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu");
+        Identifier groupId = Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "menu_group");
 
         List<EventApi.WindowEvent> opened = new ArrayList<>();
         List<EventApi.WindowEvent> closed = new ArrayList<>();
@@ -63,7 +63,7 @@ public final class InteractiveDisplayPublicApiLifecycleGameTest implements Custo
             GameTestHelper helper,
             InteractiveDisplayApi api,
             ServerPlayer player,
-            ResourceLocation windowId,
+            Identifier windowId,
             WindowOpenOptions options,
             WindowPositionMode expectedMode,
             List<EventApi.WindowEvent> opened,
@@ -94,7 +94,7 @@ public final class InteractiveDisplayPublicApiLifecycleGameTest implements Custo
             GameTestHelper helper,
             InteractiveDisplayApi api,
             ServerPlayer player,
-            ResourceLocation groupId,
+            Identifier groupId,
             GroupOpenOptions options,
             WindowPositionMode expectedMode,
             List<EventApi.WindowEvent> opened,
@@ -108,7 +108,7 @@ public final class InteractiveDisplayPublicApiLifecycleGameTest implements Custo
         helper.assertTrue(api.groups().isOpen(player, groupId), Component.literal("GroupApi.isOpen false for " + expectedMode));
         var handle = api.groups().find(player, groupId).orElseThrow();
         helper.assertTrue(handle.mode().orElseThrow() == expectedMode, Component.literal("GroupHandle.mode mismatch for " + expectedMode));
-        ResourceLocation currentWindowId = handle.currentWindowId().orElseThrow();
+        Identifier currentWindowId = handle.currentWindowId().orElseThrow();
         helper.assertTrue(opened.size() == openedBefore + 1, Component.literal("group current-window open event count mismatch for " + expectedMode));
         EventApi.WindowEvent openEvent = opened.get(opened.size() - 1);
         helper.assertTrue(currentWindowId.equals(openEvent.windowId()), Component.literal("group OPENED window id mismatch for " + expectedMode));

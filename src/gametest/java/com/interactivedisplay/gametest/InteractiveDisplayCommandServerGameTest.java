@@ -17,10 +17,11 @@ public final class InteractiveDisplayCommandServerGameTest implements CustomTest
         var dispatcher = server.getCommands().getDispatcher();
         var manager = InteractiveDisplay.instance().windowManager();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        var source = server.createCommandSourceStack()
+        var source = player.createCommandSourceStack()
+                .withPermission(net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER)
                 .withLevel(helper.getLevel())
                 .withPosition(player.position());
-        String target = "@p";
+        String target = "@s";
 
         assertCommand(helper, dispatcher.execute("interactivedisplay list", source), "list");
         assertCommand(helper, dispatcher.execute("interactivedisplay debug status", source), "debug status");
@@ -37,7 +38,7 @@ public final class InteractiveDisplayCommandServerGameTest implements CustomTest
                 dispatcher.execute("interactivedisplay create main_menu " + target + " player_fixed", source),
                 "create main_menu " + target + " player_fixed");
         helper.assertTrue(manager.findActiveWindow(player.getUUID(), "main_menu") != null,
-                Component.literal("live create command did not create main_menu for nearest QA player"));
+                Component.literal("live create command did not create main_menu for the QA player"));
         assertCommand(helper,
                 dispatcher.execute("interactivedisplay debug window main_menu " + target, source),
                 "debug window main_menu " + target);

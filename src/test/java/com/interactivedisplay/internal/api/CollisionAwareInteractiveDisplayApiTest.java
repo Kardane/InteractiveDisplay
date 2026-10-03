@@ -8,7 +8,7 @@ import com.interactivedisplay.core.interaction.CallbackRegistry;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -26,7 +26,7 @@ class CollisionAwareInteractiveDisplayApiTest {
         PreRuntimeWindowCollisionIndex index = new PreRuntimeWindowCollisionIndex(tempDir);
         InteractiveDisplayApiImpl delegate = new InteractiveDisplayApiImpl(new CallbackRegistry());
         CollisionAwareInteractiveDisplayApi api = new CollisionAwareInteractiveDisplayApi(delegate, index::contains);
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("economy", "shop");
+        Identifier id = Identifier.fromNamespaceAndPath("economy", "shop");
 
         var result = api.windows().register(WindowSpec.builder(id).size(2.0f, 1.0f).build());
 
@@ -39,7 +39,7 @@ class CollisionAwareInteractiveDisplayApiTest {
         PreRuntimeWindowCollisionIndex index = new PreRuntimeWindowCollisionIndex(tempDir);
         InteractiveDisplayApiImpl delegate = new InteractiveDisplayApiImpl(new CallbackRegistry());
         CollisionAwareInteractiveDisplayApi api = new CollisionAwareInteractiveDisplayApi(delegate, index::contains);
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("interactivedisplay", "main_menu");
+        Identifier id = Identifier.fromNamespaceAndPath("interactivedisplay", "main_menu");
 
         var result = api.windows().register(WindowSpec.builder(id).size(2.0f, 1.0f).build());
 
@@ -52,7 +52,7 @@ class CollisionAwareInteractiveDisplayApiTest {
         PreRuntimeWindowCollisionIndex index = new PreRuntimeWindowCollisionIndex(tempDir);
         InteractiveDisplayApiImpl delegate = new InteractiveDisplayApiImpl(new CallbackRegistry());
         CollisionAwareInteractiveDisplayApi api = new CollisionAwareInteractiveDisplayApi(delegate, index::contains);
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("economy", "new_shop");
+        Identifier id = Identifier.fromNamespaceAndPath("economy", "new_shop");
 
         var result = api.windows().register(WindowSpec.builder(id).size(2.0f, 1.0f).build());
 

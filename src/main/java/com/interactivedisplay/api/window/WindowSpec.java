@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class WindowSpec {
     private static final float DEFAULT_LAYOUT_GAP = 0.05f;
     private static final int DEFAULT_GRID_COLUMNS = 1;
 
-    private final ResourceLocation id;
+    private final Identifier id;
     private final Size size;
     private final Offset offset;
     private final Layout layout;
@@ -40,11 +40,11 @@ public final class WindowSpec {
         this.transition = builder.transition;
     }
 
-    public static Builder builder(ResourceLocation id) {
+    public static Builder builder(Identifier id) {
         return new Builder(id);
     }
 
-    public ResourceLocation id() {
+    public Identifier id() {
         return this.id;
     }
 
@@ -580,7 +580,7 @@ public final class WindowSpec {
             boolean visible,
             float opacity,
             ImageKind kind,
-            ResourceLocation value,
+            Identifier value,
             float scale
     ) implements ComponentSpec {
         public ImageSpec {
@@ -600,13 +600,13 @@ public final class WindowSpec {
     public record CloseAction() implements ButtonAction {
     }
 
-    public record OpenAction(ResourceLocation target) implements ButtonAction {
+    public record OpenAction(Identifier target) implements ButtonAction {
         public OpenAction {
             Objects.requireNonNull(target, "target");
         }
     }
 
-    public record CallbackAction(ResourceLocation callbackId) implements ButtonAction {
+    public record CallbackAction(Identifier callbackId) implements ButtonAction {
         public CallbackAction {
             Objects.requireNonNull(callbackId, "callbackId");
         }
@@ -628,11 +628,11 @@ public final class WindowSpec {
             return new CloseAction();
         }
 
-        public static ButtonAction open(ResourceLocation target) {
+        public static ButtonAction open(Identifier target) {
             return new OpenAction(target);
         }
 
-        public static ButtonAction callback(ResourceLocation callbackId) {
+        public static ButtonAction callback(Identifier callbackId) {
             return new CallbackAction(callbackId);
         }
 
@@ -646,7 +646,7 @@ public final class WindowSpec {
     }
 
     public static final class Builder {
-        private final ResourceLocation id;
+        private final Identifier id;
         private Size size = new Size(3.0f, 2.0f);
         private Offset offset = Offset.defaults();
         private Layout layout = Layout.ABSOLUTE;
@@ -660,7 +660,7 @@ public final class WindowSpec {
         private final List<ComponentSpec> components = new ArrayList<>();
         private Transition transition = Transition.none();
 
-        private Builder(ResourceLocation id) {
+        private Builder(Identifier id) {
             this.id = Objects.requireNonNull(id, "id");
         }
 
@@ -760,14 +760,14 @@ public final class WindowSpec {
             return this;
         }
 
-        public Builder item(String id, ResourceLocation itemId, Consumer<ImageBuilder> consumer) {
+        public Builder item(String id, Identifier itemId, Consumer<ImageBuilder> consumer) {
             ImageBuilder builder = new ImageBuilder(id, ImageKind.ITEM, itemId);
             consumer.accept(builder);
             this.components.add(builder.build());
             return this;
         }
 
-        public Builder block(String id, ResourceLocation blockId, Consumer<ImageBuilder> consumer) {
+        public Builder block(String id, Identifier blockId, Consumer<ImageBuilder> consumer) {
             ImageBuilder builder = new ImageBuilder(id, ImageKind.BLOCK, blockId);
             consumer.accept(builder);
             this.components.add(builder.build());
@@ -1330,14 +1330,14 @@ public final class WindowSpec {
     public static final class ImageBuilder {
         private final String id;
         private final ImageKind kind;
-        private final ResourceLocation value;
+        private final Identifier value;
         private Position position = Position.origin();
         private Size size = new Size(1.0f, 1.0f);
         private boolean visible = true;
         private float opacity = 1.0f;
         private float scale = 1.0f;
 
-        private ImageBuilder(String id, ImageKind kind, ResourceLocation value) {
+        private ImageBuilder(String id, ImageKind kind, Identifier value) {
             this.id = id;
             this.kind = Objects.requireNonNull(kind, "kind");
             this.value = Objects.requireNonNull(value, "value");

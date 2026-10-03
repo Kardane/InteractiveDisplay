@@ -14,11 +14,13 @@ import com.interactivedisplay.entity.VirtualWindowHolder;
 import eu.pb4.polymer.virtualentity.api.elements.BlockDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
+import java.awt.image.BufferedImage;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
+import javax.imageio.ImageIO;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.fabricmc.loader.api.FabricLoader;
@@ -40,9 +42,12 @@ public final class InteractiveDisplayStaleRuntimeGameTest implements CustomTestM
         Path configRoot = FabricLoader.getInstance().getConfigDir().resolve("interactivedisplay");
         Path windows = configRoot.resolve("windows");
         Path windowFile = windows.resolve(WINDOW_ID + ".yaml");
+        Path imageFile = configRoot.resolve("images/qa_stale_runtime.png");
         Files.createDirectories(windows);
 
         try {
+            Files.createDirectories(imageFile.getParent());
+            ImageIO.write(new BufferedImage(128, 128, BufferedImage.TYPE_INT_RGB), "png", imageFile.toFile());
             Files.writeString(windowFile, textYaml("before"), StandardCharsets.UTF_8);
             helper.assertTrue(manager.reloadOne(WINDOW_ID).success(), Component.literal("initial stale-runtime fixture failed to load"));
             var opened = manager.createWindow(player, WINDOW_ID, PositionMode.FIXED, FIXED_ANCHOR, 0.0f, 0.0f);
@@ -100,6 +105,7 @@ public final class InteractiveDisplayStaleRuntimeGameTest implements CustomTestM
             manager.removeWindow(player.getUUID(), WINDOW_ID);
             VirtualWindowHolder.destroyAllPending(helper.getLevel().getServer());
             Files.deleteIfExists(windowFile);
+            Files.deleteIfExists(imageFile);
             manager.reloadAll();
         }
 
@@ -194,7 +200,7 @@ public final class InteractiveDisplayStaleRuntimeGameTest implements CustomTestM
                   position: { x: 0.0, y: 0.0, z: 0.0 }
                   size: { width: 1.0, height: 1.0 }
                   imageType: map
-                  value: sample_local.png
+                  value: qa_stale_runtime.png
                   scale: 1.0
                 """);
     }

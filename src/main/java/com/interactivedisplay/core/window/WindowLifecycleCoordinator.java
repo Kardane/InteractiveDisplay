@@ -107,11 +107,11 @@ final class WindowLifecycleCoordinator {
                                    float basePitch) {
         WindowGroupDefinition groupDefinition = this.stateStore.groupDefinition(groupId);
         if (groupDefinition == null) {
-            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().getName(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().name(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
         }
         WindowGroupEntry initialEntry = groupDefinition.entry(groupDefinition.initialWindowId());
         if (initialEntry == null) {
-            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().getName(), groupDefinition.initialWindowId(), null, null, 0, 0, "초기 그룹 창 정의를 찾을 수 없음");
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().name(), groupDefinition.initialWindowId(), null, null, 0, 0, "초기 그룹 창 정의를 찾을 수 없음");
         }
 
         removeGroupInternal(player.getUUID(), groupId, false);
@@ -224,7 +224,7 @@ final class WindowLifecycleCoordinator {
             return openGroupWindow(owner, context.groupId(), context.positionMode(), windowId, context.fixedAnchor(), context.fixedYaw(), context.fixedPitch(), player);
         }
         if (!this.stateStore.hasDefinition(windowId)) {
-            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().getName(), windowId, null, null, 0, 0, "창 정의를 찾을 수 없음");
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().name(), windowId, null, null, 0, 0, "창 정의를 찾을 수 없음");
         }
         removeWindowInternal(owner, context.windowId(), false);
         return createWindow(player, windowId, context.positionMode(), context.fixedAnchor(), context.fixedYaw(), context.fixedPitch());
@@ -272,10 +272,11 @@ final class WindowLifecycleCoordinator {
                     .withPosition(sourceContext.position())
                     .withRotation(new Vec2(sourceContext.pitch(), sourceContext.yaw()));
             if (sourceContext.hasPermissionOverride()) {
-                source = source.withPermission(sourceContext.permissionLevel());
+                source = source.withPermission(net.minecraft.server.permissions.LevelBasedPermissionSet.forLevel(
+                        net.minecraft.server.permissions.PermissionLevel.byId(sourceContext.permissionLevel())));
             }
             this.server.getCommands().performPrefixedCommand(source, sourceContext.normalizedCommand());
-            InteractiveDisplay.LOGGER.info("[{}] run_command player={} windowId={} componentId={} command={}", InteractiveDisplay.MOD_ID, player.getGameProfile().getName(), hitResult.windowId(), hitResult.componentId(), command);
+            InteractiveDisplay.LOGGER.info("[{}] run_command player={} windowId={} componentId={} command={}", InteractiveDisplay.MOD_ID, player.getGameProfile().name(), hitResult.windowId(), hitResult.componentId(), command);
             return ActionExecutionResult.success("run_command 처리 완료");
         } catch (RuntimeException exception) {
             return ActionExecutionResult.failure(DebugReason.ACTION_EXECUTION_FAILED, "run_command 실패: " + exception.getMessage());
@@ -470,7 +471,7 @@ final class WindowLifecycleCoordinator {
                                                String groupId,
                                                String groupWindowId) {
         WindowDefinition definition = this.stateStore.definition(windowId);
-        String playerName = player.getGameProfile().getName();
+        String playerName = player.getGameProfile().name();
         if (definition == null) {
             CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), playerName, windowId, null, overrideAnchor, 0, 0, "창 정의를 찾을 수 없음");
             recordCreate(DebugLevel.WARN, positionMode, result);
@@ -632,7 +633,7 @@ final class WindowLifecycleCoordinator {
                                            float basePitch) {
         WindowDefinition definition = this.stateStore.definition(entry.windowId());
         if (definition == null) {
-            CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().getName(), entry.windowId(), null, null, 0, 0, "그룹 대상 창 정의를 찾을 수 없음");
+            CreateWindowResult result = CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, player.getUUID(), player.getGameProfile().name(), entry.windowId(), null, null, 0, 0, "그룹 대상 창 정의를 찾을 수 없음");
             return new SpawnedWindow(null, result);
         }
         WindowOffset effectiveOffset = definition.offset().plus(entry.offset());
@@ -665,12 +666,12 @@ final class WindowLifecycleCoordinator {
                                                ServerPlayer player) {
         WindowGroupDefinition groupDefinition = this.stateStore.groupDefinition(groupId);
         if (groupDefinition == null) {
-            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().getName(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
+            return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().name(), groupId, null, null, 0, 0, "그룹 정의를 찾을 수 없음");
         }
         WindowGroupEntry entry = groupDefinition.entry(windowId);
         if (entry == null) {
             if (!this.stateStore.hasDefinition(windowId)) {
-                return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().getName(), windowId, null, null, 0, 0, "창 정의를 찾을 수 없음");
+                return CreateWindowResult.failure(DebugReason.WINDOW_DEFINITION_NOT_FOUND, owner, player.getGameProfile().name(), windowId, null, null, 0, 0, "창 정의를 찾을 수 없음");
             }
             removeGroupInternal(owner, groupId, false);
             return createWindow(player, windowId, positionMode, baseAnchor, baseYaw, basePitch);

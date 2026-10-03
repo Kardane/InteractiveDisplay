@@ -15,7 +15,7 @@ import com.interactivedisplay.entity.DisplayEntityFactory;
 import com.interactivedisplay.schema.SchemaLoader;
 import com.interactivedisplay.schema.SchemaValidator;
 import java.nio.file.Path;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,7 +25,7 @@ class AttachedPublicWindowRegistrationTest {
         WindowManager manager = manager(tempDir);
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(new CallbackRegistry());
         api.attach(manager);
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "after_attach");
+        Identifier id = Identifier.fromNamespaceAndPath("example", "after_attach");
 
         var first = api.windows().register(WindowSpec.builder(id).size(2.0f, 1.0f).build());
         var duplicate = api.windows().register(WindowSpec.builder(id).size(4.0f, 2.0f).build());
@@ -40,7 +40,7 @@ class AttachedPublicWindowRegistrationTest {
     void customActionRegistrationShouldWorkAfterManagerAttach(@TempDir Path tempDir) {
         InteractiveDisplayApiImpl api = new InteractiveDisplayApiImpl(new CallbackRegistry());
         api.attach(manager(tempDir));
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("qa", "post_attach_action");
+        Identifier id = Identifier.fromNamespaceAndPath("qa", "post_attach_action");
 
         assertTrue(api.actions().register(id, context -> { }).success());
         assertFalse(api.actions().register(id, context -> { }).success());

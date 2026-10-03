@@ -11,7 +11,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.vehicle.Boat;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.vehicle.boat.Boat;
 import net.minecraft.world.item.Items;
 
 public final class InteractiveDisplayVehicleLifecycleGameTest implements CustomTestMethodInvoker {
@@ -33,12 +34,12 @@ public final class InteractiveDisplayVehicleLifecycleGameTest implements CustomT
         helper.assertTrue(entityCount > 0, Component.literal("vehicle fixture has no virtual entities"));
         helper.assertTrue(bindingCount > 0, Component.literal("vehicle fixture has no interaction bindings"));
 
-        Boat boat = new Boat(EntityType.OAK_BOAT, helper.getLevel(), () -> Items.OAK_BOAT);
+        Boat boat = new Boat(EntityTypes.OAK_BOAT, helper.getLevel(), () -> Items.OAK_BOAT);
         boat.setPos(player.getX(), player.getY(), player.getZ());
         helper.assertTrue(helper.getLevel().addFreshEntity(boat), Component.literal("vehicle fixture boat spawn failed"));
 
         try {
-            helper.assertTrue(player.startRiding(boat, true), Component.literal("player failed to mount QA boat"));
+            helper.assertTrue(player.startRiding(boat, true, true), Component.literal("player failed to mount QA boat"));
             helper.assertTrue(player.isPassenger() && player.getVehicle() == boat,
                     Component.literal("player vehicle relation missing after mount"));
 

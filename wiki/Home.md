@@ -1,6 +1,6 @@
 # InteractiveDisplay Wiki
 
-InteractiveDisplay is a server-side 3D HUD and window framework for Minecraft 1.21.8 Fabric.
+InteractiveDisplay is a server-side 3D HUD and window framework for Minecraft 26.3 Fabric.
 
 Windows are defined with YAML or registered through the stable Java API. Rendering uses owner-only Polymer virtual entities, so a player's private UI is not sent to nearby players as ordinary world entities.
 
@@ -15,8 +15,8 @@ Windows are defined with YAML or registered through the stable Java API. Renderi
 
 ## At a glance
 
-- Target Minecraft: 1.21.8
-- Target Java: 21
+- Target Minecraft: 26.3
+- Target Java: 25
 - Runtime environment: dedicated server
 - Position modes: FIXED, PLAYER_FIXED, and PLAYER_VIEW
 - Components: text, buttons, panels, item displays, block displays, and MAP images in FIXED windows
@@ -27,7 +27,7 @@ Windows are defined with YAML or registered through the stable Java API. Renderi
 
 Consumer mods should use only the package com.interactivedisplay.api.*. The core, entity, schema, polymer, and internal packages are implementation details and are not a compatibility boundary.
 
-This wiki describes API v1 and the current 1.21.8 codebase. Always verify that the JAR, README, and wiki describe the same release before distributing a consumer mod.
+This wiki describes API v1 and the current 26.3 codebase. Always verify that the JAR, README, and wiki describe the same release before distributing a consumer mod.
 
 ## Important limitations
 

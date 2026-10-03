@@ -2,14 +2,14 @@ package com.interactivedisplay.internal.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 class PublicIdCodecTest {
     @Test
     void builtInNamespaceShouldAdaptToLegacyIds() {
-        ResourceLocation windowId = ResourceLocation.fromNamespaceAndPath("interactivedisplay", "main_menu");
-        ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath("interactivedisplay", "main_group");
+        Identifier windowId = Identifier.fromNamespaceAndPath("interactivedisplay", "main_menu");
+        Identifier groupId = Identifier.fromNamespaceAndPath("interactivedisplay", "main_group");
 
         assertEquals("main_menu", PublicIdCodec.toInternalWindowId(windowId));
         assertEquals(windowId, PublicIdCodec.toPublicWindowId("main_menu"));
@@ -19,8 +19,8 @@ class PublicIdCodecTest {
 
     @Test
     void foreignNamespaceShouldStayCanonical() {
-        ResourceLocation windowId = ResourceLocation.fromNamespaceAndPath("economy", "shop/main");
-        ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath("economy", "shop/group");
+        Identifier windowId = Identifier.fromNamespaceAndPath("economy", "shop/main");
+        Identifier groupId = Identifier.fromNamespaceAndPath("economy", "shop/group");
 
         assertEquals("economy:shop/main", PublicIdCodec.toInternalWindowId(windowId));
         assertEquals(windowId, PublicIdCodec.toPublicWindowId("economy:shop/main"));

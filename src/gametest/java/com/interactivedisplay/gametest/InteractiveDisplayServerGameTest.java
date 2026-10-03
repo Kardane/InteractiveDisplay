@@ -30,7 +30,7 @@ import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -56,7 +56,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
     @GameTest
     public void publicApiIsAvailableAndRegistersWindowAgainstLiveManager(GameTestHelper helper) {
         InteractiveDisplayApi api = InteractiveDisplayApi.get();
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("qa", "gametest_runtime");
+        Identifier id = Identifier.fromNamespaceAndPath("qa", "gametest_runtime");
         WindowSpec spec = WindowSpec.builder(id)
                 .size(2.0f, 1.0f)
                 .text("status", text -> text.content("server gametest"))
@@ -75,9 +75,9 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
     public void publicApisOperateAgainstConnectedServerPlayer(GameTestHelper helper) {
         InteractiveDisplayApi api = InteractiveDisplayApi.get();
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        ResourceLocation main = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu");
-        ResourceLocation second = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "sample_index");
-        ResourceLocation groupId = ResourceLocation.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "menu_group");
+        Identifier main = Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "main_menu");
+        Identifier second = Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "sample_index");
+        Identifier groupId = Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "menu_group");
 
         List<EventApi.WindowEvent> opened = new ArrayList<>();
         List<EventApi.WindowEvent> closed = new ArrayList<>();
@@ -114,7 +114,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             helper.assertTrue(closed.size() == closedBeforeGroup + 1, Component.literal("group close did not emit exactly one current-window close event"));
 
             AtomicReference<com.interactivedisplay.api.callback.CallbackApi.CallbackContext> callbackContext = new AtomicReference<>();
-            ResourceLocation callbackId = ResourceLocation.fromNamespaceAndPath("qa", "gametest_callback_" + UUID.randomUUID().toString().replace("-", ""));
+            Identifier callbackId = Identifier.fromNamespaceAndPath("qa", "gametest_callback_" + UUID.randomUUID().toString().replace("-", ""));
             helper.assertTrue(api.callbacks().register(callbackId, callbackContext::set).success(), Component.literal("callback registration failed"));
             InteractiveDisplay.callbackRegistry().find(callbackId.toString()).orElseThrow().execute(player, "main_menu", "button");
             var callback = callbackContext.get();
@@ -125,7 +125,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             helper.assertTrue(callback.windows().registeredIds().equals(api.windows().registeredIds()), Component.literal("callback WindowApi registry view mismatch"));
 
             helper.assertTrue(api.windows().open(player, main, WindowOpenOptions.playerFixed()).success(), Component.literal("main_menu did not open before callback close"));
-            ResourceLocation closingCallbackId = ResourceLocation.fromNamespaceAndPath("qa", "gametest_close_callback_" + UUID.randomUUID().toString().replace("-", ""));
+            Identifier closingCallbackId = Identifier.fromNamespaceAndPath("qa", "gametest_close_callback_" + UUID.randomUUID().toString().replace("-", ""));
             helper.assertTrue(api.callbacks().register(closingCallbackId, context -> {
                 var close = context.windows().close(context.player(), context.windowId());
                 if (!close.success()) {
@@ -136,7 +136,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             helper.assertFalse(api.windows().isOpen(player, main), Component.literal("callback-triggered WindowApi.close did not close window"));
 
             AtomicReference<com.interactivedisplay.api.action.ActionApi.ActionContext> actionContext = new AtomicReference<>();
-            ResourceLocation actionId = ResourceLocation.fromNamespaceAndPath("qa", "gametest_action_" + UUID.randomUUID().toString().replace("-", ""));
+            Identifier actionId = Identifier.fromNamespaceAndPath("qa", "gametest_action_" + UUID.randomUUID().toString().replace("-", ""));
             helper.assertTrue(api.actions().register(actionId, actionContext::set).success(), Component.literal("custom action registration failed"));
             var actionResult = PublicActionDispatcher.execute(
                     player,
@@ -218,7 +218,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             GameTestHelper helper,
             InteractiveDisplayApi api,
             ServerPlayer player,
-            ResourceLocation windowId,
+            Identifier windowId,
             WindowOpenOptions options,
             WindowPositionMode expectedMode
     ) {
