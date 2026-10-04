@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - main
       - master
       - codex/minecraft-26.3
 
