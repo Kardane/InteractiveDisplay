@@ -22,6 +22,8 @@ import com.interactivedisplay.debug.DebugRecorder;
 import com.mojang.math.Transformation;
 import java.util.List;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
@@ -226,6 +228,17 @@ class DisplayEntityFactoryTest {
 
         assertEquals("resolved:안녕 {player:name}", content.getString());
         assertEquals("resolved:열기 {player:name}", label.getString());
+        assertEquals(new FontDescription.Resource(Identifier.parse("interactivedisplay:ui_regular")), content.getStyle().getFont());
+        assertEquals(new FontDescription.Resource(Identifier.parse("interactivedisplay:ui_medium")), label.getStyle().getFont());
+    }
+
+    @Test
+    void uiFontShouldPreserveExplicitFontsAndBackgroundGeometry() {
+        DisplayEntityFactory factory = new DisplayEntityFactory(new DebugRecorder(10), (player, text) -> text);
+        Component custom = factory.renderTextContent("{\"text\":\"Icon\",\"font\":\"example:icons\"}", "#FFFFFF", null);
+        assertEquals(new FontDescription.Resource(Identifier.parse("example:icons")), custom.getStyle().getFont());
+        assertEquals(FontDescription.DEFAULT, DisplayEntityFactory.buildPanelRenderSpec(panel(2.0f, 1.0f)).text().getStyle().getFont());
+        assertEquals(FontDescription.DEFAULT, DisplayEntityFactory.buildButtonBackgroundRenderSpec(button("OK", 2.2f, 0.45f, 0.5f)).text().getStyle().getFont());
     }
 
     @Test

@@ -247,7 +247,7 @@ class WindowDefinitionParserTest {
     }
 
     @Test
-    void bundledSampleIndexGridShouldPreserveButtonPositionsAndHitGeometry(@TempDir Path tempDir) throws Exception {
+    void bundledSampleIndexShouldPreserveButtonPositionsAndHitGeometry(@TempDir Path tempDir) throws Exception {
         Path fixture = copyFixture(tempDir, "/defaults/interactivedisplay/windows/sample_index.yaml");
         JsonNode root = new ConfigDocumentLoader().load(fixture);
         assertTrue(new SchemaValidator().validate(root, "sample_index.yaml").isEmpty());
@@ -258,20 +258,16 @@ class WindowDefinitionParserTest {
             layoutById.put(layout.definition().id(), layout);
         }
 
-        PanelComponentDefinition menuGrid = (PanelComponentDefinition) layoutById.get("menu_grid").definition();
-        assertEquals(LayoutMode.GRID, menuGrid.layoutMode());
-        assertEquals(1, menuGrid.layoutOptions().columns());
-        assertEquals(2, menuGrid.children().size());
-        assertEquals("menu", menuGrid.children().getFirst().id());
-        assertEquals("display", menuGrid.children().get(1).id());
-        assertEquals(-0.62f, layoutById.get("menu").localPosition().y(), 0.0001f);
-        assertEquals(0.0f, layoutById.get("display").localPosition().y(), 0.0001f);
-        assertEquals(1.77f, layoutById.get("close").localPosition().x(), 0.0001f);
-        assertEquals(0.76f, layoutById.get("close").localPosition().y(), 0.0001f);
-        assertEquals(4.2f, layoutById.get("background").definition().size().width(), 0.0001f);
-        assertEquals(2.6f, layoutById.get("background").definition().size().height(), 0.0001f);
+        assertEquals(-0.22f, layoutById.get("menu").localPosition().y(), 0.0001f);
+        assertEquals(0.16f, layoutById.get("display").localPosition().y(), 0.0001f);
+        assertEquals(-0.60f, layoutById.get("fonts").localPosition().y(), 0.0001f);
+        assertEquals("font_showcase", ((ButtonComponentDefinition) layoutById.get("fonts").definition()).action().target());
+        assertEquals(0.87f, layoutById.get("close").localPosition().x(), 0.0001f);
+        assertEquals(-1.02f, layoutById.get("close").localPosition().y(), 0.0001f);
+        assertEquals(2.8f, layoutById.get("background").definition().size().width(), 0.0001f);
+        assertEquals(2.16f, layoutById.get("background").definition().size().height(), 0.0001f);
 
-        for (String id : List.of("menu", "display", "close")) {
+        for (String id : List.of("menu", "display", "fonts", "close")) {
             LayoutComponent layout = layoutById.get(id);
             ButtonComponentDefinition button = (ButtonComponentDefinition) layout.definition();
             Vector3f position = layout.localPosition();

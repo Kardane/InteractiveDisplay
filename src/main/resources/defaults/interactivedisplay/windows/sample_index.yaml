@@ -1,108 +1,182 @@
 id: sample_index
 size:
-  width: 4.2
-  height: 2.6
+  width: 2.84
+  height: 2.2
 offset:
-  forward: 2.6
-  horizontal: 0.0
-  vertical: 0.6
+  forward: 2.8
+  horizontal: 0
+  vertical: 0
+layout:
+  type: absolute
+  overflow: error
 components:
-  - id: background
-    type: panel
-    anchor: center
-    size:
-      width: fill
-      height: fill
-    backgroundColor: "#CC10243A"
-    children: []
-  - id: title
-    type: text
-    position:
-      x: 0.0
-      y: 0.62
-      z: 0.02
-    size:
-      width: 3.2
-      height: 0.35
-    content: "INTERACTIVE DISPLAY SAMPLES"
-    fontSize: 0.48
-    color: "#79D9FF"
-    alignment: center
-    background: "#00000000"
-  - id: menu_grid
-    type: panel
-    position:
-      x: 0.0
-      y: -0.62
-      z: 0.02
-    size:
-      width: auto
-      height: auto
-    minSize:
-      width: 2.8
-      height: 1.1
-    backgroundColor: "#00000000"
-    layout:
-      type: grid
-      columns: 1
-      rowGap: 0.14
-      columnGap: 0.0
-      justifyItems: center
-      alignItems: center
-    children:
-      - id: menu
-        type: button
-        position:
-          x: 0.0
-          y: 0.0
-          z: 0.0
-        size:
-          width: 2.8
-          height: 0.48
-        label: "기본 창"
-        fontSize: 0.34
-        clickType: both
-        hoverScale: 1.05
-        action:
-          type: open_window
-          target: main_menu
-      - id: display
-        type: button
-        position:
-          x: 0.0
-          y: 0.0
-          z: 0.0
-        size:
-          width: 2.8
-          height: 0.48
-        label: "Display Showcase"
-        fontSize: 0.34
-        clickType: both
-        hoverScale: 1.05
-        action:
-          type: open_window
-          target: display_showcase
-  - id: close
-    type: button
-    position:
-      x: 0.0
-      y: 0.0
-      z: 0.03
-    anchor: top-right
-    margin:
-      top: 0.12
-      right: 0.12
-    size:
-      width: 0.42
-      height: 0.42
-    label: "×"
-    fontSize: 0.5
-    padding:
-      horizontal: 0.04
-      vertical: 0.04
-    alignment:
-      horizontal: center
-      vertical: center
-    clickType: both
-    action:
-      type: close_window
+- id: border
+  type: panel
+  anchor: center
+  position:
+    x: 0
+    y: 0
+    z: 0
+  size:
+    width: fill
+    height: fill
+  backgroundColor: '#FF365369'
+  children: []
+- id: background
+  type: panel
+  anchor: center
+  position:
+    x: 0
+    y: 0
+    z: 0.01
+  size:
+    width: 2.8
+    height: 2.16
+  backgroundColor: '#F2182938'
+  children: []
+- id: title
+  type: text
+  position:
+    x: 0
+    y: 0.79
+    z: 0.04
+  size:
+    width: 2.4
+    height: 0.18
+  content: INTERACTIVE DISPLAY
+  fontSize: 0.48
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: subtitle
+  type: text
+  position:
+    x: 0
+    y: 0.58
+    z: 0.04
+  size:
+    width: 2.4
+    height: 0.14
+  content: 원하는 샘플을 선택하세요
+  fontSize: 0.34
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: display
+  type: button
+  position:
+    x: 0
+    y: 0.16
+    z: 0.04
+  size:
+    width: 2.36
+    height: 0.3
+  label: 디스플레이 보기
+  fontSize: 0.48
+  padding:
+    horizontal: 0.12
+    vertical: 0.04
+  clickType: both
+  hoverScale: 1.015
+  backgroundColor: '#FF285975'
+  hoverColor: '#FF347391'
+  clickSound: minecraft:ui.button.click
+  action:
+    type: open_window
+    target: display_showcase
+- id: menu
+  type: button
+  position:
+    x: 0
+    y: -0.22
+    z: 0.04
+  size:
+    width: 2.36
+    height: 0.3
+  label: 기본 창
+  fontSize: 0.48
+  padding:
+    horizontal: 0.12
+    vertical: 0.04
+  clickType: both
+  hoverScale: 1.015
+  backgroundColor: '#FF2B3F50'
+  hoverColor: '#FF3C566A'
+  clickSound: minecraft:ui.button.click
+  action:
+    type: open_window
+    target: main_menu
+- id: fonts
+  type: button
+  position:
+    x: 0
+    y: -0.6
+    z: 0.04
+  size:
+    width: 2.36
+    height: 0.3
+  label: Pretendard 굵기 비교
+  fontSize: 0.44
+  padding:
+    horizontal: 0.1
+    vertical: 0.04
+  clickType: both
+  hoverScale: 1.015
+  backgroundColor: '#FF2B3F50'
+  hoverColor: '#FF3C566A'
+  clickSound: minecraft:ui.button.click
+  action:
+    type: open_window
+    target: font_showcase
+- id: footer_rule
+  type: panel
+  position:
+    x: 0
+    y: -0.75
+    z: 0.02
+  size:
+    width: 2.36
+    height: 0.008
+  backgroundColor: '#FF365064'
+  children: []
+- id: hint
+  type: text
+  position:
+    x: -0.33
+    y: -0.96
+    z: 0.04
+  size:
+    width: 1.6
+    height: 0.12
+  content: 포인터 · 좌 / 우클릭
+  fontSize: 0.3
+  lineWidth: 200
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: close
+  type: button
+  position:
+    x: 0.87
+    y: -1.02
+    z: 0.04
+  size:
+    width: 0.62
+    height: 0.24
+  label: 닫기
+  fontSize: 0.4
+  padding:
+    horizontal: 0.12
+    vertical: 0.04
+  clickType: both
+  hoverScale: 1.015
+  backgroundColor: '#FF2B3F50'
+  hoverColor: '#FF3C566A'
+  clickSound: minecraft:ui.button.click
+  action:
+    type: close_window

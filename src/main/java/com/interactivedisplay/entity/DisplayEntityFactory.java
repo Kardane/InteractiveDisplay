@@ -45,6 +45,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
@@ -72,6 +73,10 @@ public final class DisplayEntityFactory {
     private static final float TEXT_SPACE_ADVANCE_PIXELS = 4.0f;
     private static final float TEXT_BACKGROUND_WIDTH_PADDING_PIXELS = 1.0f;
     private static final float BUTTON_LABEL_Z_OFFSET = 0.001f;
+    private static final FontDescription UI_TEXT_FONT = new FontDescription.Resource(
+            Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "ui_regular"));
+    private static final FontDescription UI_BUTTON_FONT = new FontDescription.Resource(
+            Identifier.fromNamespaceAndPath(InteractiveDisplay.MOD_ID, "ui_medium"));
     private static final CoordinateTransformer COORDINATE_TRANSFORMER = new CoordinateTransformer();
 
     private final DebugRecorder debugRecorder;
@@ -585,11 +590,18 @@ public final class DisplayEntityFactory {
     }
 
     Component renderTextContent(String content, String color, ServerPlayer owner) {
-        return resolvePlaceholders(buildBaseText(content, color), owner);
+        return withUiFont(resolvePlaceholders(buildBaseText(content, color), owner), UI_TEXT_FONT);
     }
 
     Component renderButtonLabel(String label, ServerPlayer owner) {
-        return resolvePlaceholders(Component.literal(label), owner);
+        return withUiFont(resolvePlaceholders(Component.literal(label), owner), UI_BUTTON_FONT);
+    }
+
+    private static Component withUiFont(Component text, FontDescription font) {
+        // Keep explicit custom fonts and leave geometry-only background text on the vanilla font.
+        return text.getStyle().getFont().equals(FontDescription.DEFAULT)
+                ? text.copy().withStyle(style -> style.withFont(font))
+                : text;
     }
 
     Component renderTextInputValue(TextInputComponentDefinition input, String value, ServerPlayer owner) {

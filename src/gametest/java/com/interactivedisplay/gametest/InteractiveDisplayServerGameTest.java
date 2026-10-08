@@ -1,5 +1,9 @@
 package com.interactivedisplay.gametest;
 
+import com.google.gson.JsonParser;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
 import com.interactivedisplay.InteractiveDisplay;
 import com.interactivedisplay.api.InteractiveDisplayApi;
 import com.interactivedisplay.api.event.EventApi;
@@ -47,6 +51,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         helper.assertTrue(windows.contains("main_menu"), Component.literal("default main_menu window was not loaded"));
         helper.assertTrue(windows.contains("sample_index"), Component.literal("sample_index was not loaded"));
         helper.assertTrue(windows.contains("display_showcase"), Component.literal("display_showcase was not loaded"));
+        helper.assertTrue(windows.contains("font_showcase"), Component.literal("font_showcase was not loaded"));
         helper.assertTrue(mod.windowManager().loadedGroupIds().contains("menu_group"), Component.literal("default menu_group was not loaded"));
         helper.assertTrue(mod.windowManager().brokenWindowIds().isEmpty(), Component.literal("default windows contain broken definitions: " + mod.windowManager().brokenWindowIds()));
         helper.assertTrue(mod.windowManager().brokenGroupIds().isEmpty(), Component.literal("default groups contain broken definitions: " + mod.windowManager().brokenGroupIds()));
@@ -185,6 +190,7 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
         );
         DisplayEntityFactory factory = new DisplayEntityFactory(new DebugRecorder(20));
 
+        helper.assertTrue(factory.refreshText(server, null, runtime, original), Component.literal("vanilla text should receive the UI font on first refresh"));
         helper.assertFalse(factory.refreshText(server, null, runtime, original), Component.literal("unchanged rendered text should not mark an update"));
         TextComponentDefinition changed = text("changed");
         helper.assertTrue(factory.refreshText(server, null, runtime, changed), Component.literal("changed rendered text should update the element"));
@@ -201,6 +207,23 @@ public final class InteractiveDisplayServerGameTest implements CustomTestMethodI
             assertZipEntry(helper, zip, "assets/interactivedisplay/items/pointer.json");
             assertZipEntry(helper, zip, "assets/interactivedisplay/models/item/pointer.json");
             assertZipEntry(helper, zip, "assets/interactivedisplay/textures/item/pointer.png");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/font/ui_regular.json");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/font/ui_medium.json");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/font/pretendard-regular.ttf");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/font/pretendard-medium.ttf");
+            assertZipEntry(helper, zip, "assets/interactivedisplay/font/license-pretendard.txt");
+            for (String fontName : List.of("ui_thin", "ui_extralight", "ui_light", "ui_regular", "ui_medium",
+                    "ui_semibold", "ui_bold", "ui_extrabold", "ui_black")) {
+                assertZipEntry(helper, zip, "assets/interactivedisplay/font/" + fontName + ".json");
+                var entry = zip.getEntry("assets/interactivedisplay/font/" + fontName + ".json");
+                try (var reader = new InputStreamReader(zip.getInputStream(entry), StandardCharsets.UTF_8)) {
+                    var definition = JsonParser.parseReader(reader).getAsJsonObject();
+                    var provider = definition.getAsJsonArray("providers").get(0).getAsJsonObject();
+                    // Minecraft's TTF loader prepends font/ to a validated resource identifier.
+                    Identifier file = Identifier.parse(provider.get("file").getAsString()).withPrefix("font/");
+                    assertZipEntry(helper, zip, "assets/" + file.getNamespace() + "/" + file.getPath());
+                }
+            }
             assertZipEntry(helper, zip, "assets/interactivedisplay/lang/ko_kr.json");
         } catch (IOException exception) {
             throw new AssertionError("Failed to inspect generated Polymer resource pack", exception);

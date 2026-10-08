@@ -54,6 +54,12 @@ The pointer is required for hover and click detection. Holding another item or u
 
 The server-side Polymer resource-pack bootstrap provides the assets required by the pointer and virtual display paths. If the pointer appears as a vanilla fallback item or the UI is invisible, verify that the client accepted the server resource pack before debugging window coordinates.
 
+UI text and text inputs use bundled Pretendard Regular; button labels use Pretendard Medium. The fonts are delivered through the Polymer pack, so clients do not need to install them. Reconnect and accept the updated pack after a server update. Explicit non-default fonts in JSON text are preserved. Spaces, unsupported glyphs, and geometry-only panel/button backgrounds retain the Minecraft default font.
+
+The sample menu includes a Pretendard weight comparison (`font_showcase`) with all nine static weights, from Thin (100) through Black (900). Text components can select them through JSON `content`, for example `'{"text":"Bold example","font":"interactivedisplay:ui_bold"}'`. Available font IDs end in `ui_thin`, `ui_extralight`, `ui_light`, `ui_regular`, `ui_medium`, `ui_semibold`, `ui_bold`, `ui_extrabold`, and `ui_black`. These are separate static fonts; variable-font axis controls are not exposed. All nine use 8x oversampling.
+
+The unmodified TTF files come from [Pretendard v1.3.9](https://github.com/orioncactus/pretendard/releases/tag/v1.3.9) and are distributed under the SIL Open Font License 1.1. The copyright and license are included alongside the fonts in `assets/interactivedisplay/font/license-pretendard.txt` in both the mod and generated pack. Font metrics can change visual wrapping; verify the actual screens in-game when adjusting tight layouts.
+
 ## First verification checklist
 
 1. The server reaches the normal Done state.

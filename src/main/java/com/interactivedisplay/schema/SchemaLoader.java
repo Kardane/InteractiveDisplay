@@ -24,6 +24,7 @@ public final class SchemaLoader {
     private static final String DEFAULT_WINDOW_FILE = "main_menu.yaml";
     private static final String DEFAULT_SAMPLE_INDEX_FILE = "sample_index.yaml";
     private static final String DEFAULT_DISPLAY_SHOWCASE_FILE = "display_showcase.yaml";
+    private static final String DEFAULT_FONT_SHOWCASE_FILE = "font_showcase.yaml";
     private static final String DEFAULT_GROUP_FILE = "menu_group.yaml";
 
     private final Path configRoot;
@@ -308,6 +309,7 @@ public final class SchemaLoader {
         copyDefaultResource("windows/" + DEFAULT_WINDOW_FILE);
         copyDefaultResource("windows/" + DEFAULT_SAMPLE_INDEX_FILE);
         copyDefaultResource("windows/" + DEFAULT_DISPLAY_SHOWCASE_FILE);
+        copyDefaultResource("windows/" + DEFAULT_FONT_SHOWCASE_FILE);
         copyDefaultResource("groups/" + DEFAULT_GROUP_FILE);
     }
 

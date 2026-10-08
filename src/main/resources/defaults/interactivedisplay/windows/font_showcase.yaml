@@ -1,0 +1,653 @@
+id: font_showcase
+size:
+  width: 4.24
+  height: 2.9
+offset:
+  forward: 3.0
+  horizontal: 0
+  vertical: 0
+layout:
+  type: absolute
+  overflow: error
+components:
+- id: border
+  type: panel
+  position:
+    x: 0
+    y: 0
+    z: 0
+  size:
+    width: fill
+    height: fill
+  backgroundColor: '#FF365369'
+  children: []
+  anchor: center
+- id: background
+  type: panel
+  position:
+    x: 0
+    y: 0
+    z: 0.01
+  size:
+    width: 4.2
+    height: 2.86
+  backgroundColor: '#F2182938'
+  children: []
+  anchor: center
+- id: title
+  type: text
+  position:
+    x: 0
+    y: 1.1
+    z: 0.04
+  size:
+    width: 3.8
+    height: 0.18
+  content: '{"text": "PRETENDARD", "font": "interactivedisplay:ui_semibold"}'
+  fontSize: 0.54
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: subtitle
+  type: text
+  position:
+    x: 0
+    y: 0.86
+    z: 0.04
+  size:
+    width: 3.8
+    height: 0.14
+  content: 9가지 굵기 · 같은 문장, 같은 크기
+  fontSize: 0.34
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_thin
+  type: panel
+  position:
+    x: -1.3
+    y: 0.17
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_thin
+  type: text
+  position:
+    x: -1.3
+    y: 0.55
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 100 · Thin
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_thin
+  type: text
+  position:
+    x: -1.3
+    y: 0.39
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_thin"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_thin
+  type: text
+  position:
+    x: -1.3
+    y: 0.24
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_thin"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_extralight
+  type: panel
+  position:
+    x: 0
+    y: 0.17
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_extralight
+  type: text
+  position:
+    x: 0
+    y: 0.55
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 200 · ExtraLight
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_extralight
+  type: text
+  position:
+    x: 0
+    y: 0.39
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_extralight"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_extralight
+  type: text
+  position:
+    x: 0
+    y: 0.24
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_extralight"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_light
+  type: panel
+  position:
+    x: 1.3
+    y: 0.17
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_light
+  type: text
+  position:
+    x: 1.3
+    y: 0.55
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 300 · Light
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_light
+  type: text
+  position:
+    x: 1.3
+    y: 0.39
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_light"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_light
+  type: text
+  position:
+    x: 1.3
+    y: 0.24
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_light"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_regular
+  type: panel
+  position:
+    x: -1.3
+    y: -0.43
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_regular
+  type: text
+  position:
+    x: -1.3
+    y: -0.05
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 400 · Regular
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_regular
+  type: text
+  position:
+    x: -1.3
+    y: -0.21
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_regular"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_regular
+  type: text
+  position:
+    x: -1.3
+    y: -0.36
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_regular"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_medium
+  type: panel
+  position:
+    x: 0
+    y: -0.43
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_medium
+  type: text
+  position:
+    x: 0
+    y: -0.05
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 500 · Medium
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_medium
+  type: text
+  position:
+    x: 0
+    y: -0.21
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_medium"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_medium
+  type: text
+  position:
+    x: 0
+    y: -0.36
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_medium"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_semibold
+  type: panel
+  position:
+    x: 1.3
+    y: -0.43
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_semibold
+  type: text
+  position:
+    x: 1.3
+    y: -0.05
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 600 · SemiBold
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_semibold
+  type: text
+  position:
+    x: 1.3
+    y: -0.21
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_semibold"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_semibold
+  type: text
+  position:
+    x: 1.3
+    y: -0.36
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_semibold"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_bold
+  type: panel
+  position:
+    x: -1.3
+    y: -1.03
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_bold
+  type: text
+  position:
+    x: -1.3
+    y: -0.65
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 700 · Bold
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_bold
+  type: text
+  position:
+    x: -1.3
+    y: -0.81
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_bold"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_bold
+  type: text
+  position:
+    x: -1.3
+    y: -0.96
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_bold"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_extrabold
+  type: panel
+  position:
+    x: 0
+    y: -1.03
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_extrabold
+  type: text
+  position:
+    x: 0
+    y: -0.65
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 800 · ExtraBold
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_extrabold
+  type: text
+  position:
+    x: 0
+    y: -0.81
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_extrabold"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_extrabold
+  type: text
+  position:
+    x: 0
+    y: -0.96
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_extrabold"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: card_black
+  type: panel
+  position:
+    x: 1.3
+    y: -1.03
+    z: 0.02
+  size:
+    width: 1.16
+    height: 0.54
+  backgroundColor: '#FF243A4B'
+  children: []
+- id: label_black
+  type: text
+  position:
+    x: 1.3
+    y: -0.65
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: 900 · Black
+  fontSize: 0.28
+  lineWidth: 240
+  color: '#C0D0DB'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: specimen_black
+  type: text
+  position:
+    x: 1.3
+    y: -0.81
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.12
+  content: '{"text": "가나다 Aa 123", "font": "interactivedisplay:ui_black"}'
+  fontSize: 0.4
+  lineWidth: 240
+  color: '#FFE2A6'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: latin_black
+  type: text
+  position:
+    x: 1.3
+    y: -0.96
+    z: 0.04
+  size:
+    width: 1.04
+    height: 0.1
+  content: '{"text": "Interactive Display", "font": "interactivedisplay:ui_black"}'
+  fontSize: 0.32
+  lineWidth: 240
+  color: '#EAF4FA'
+  alignment: center
+  shadow: false
+  background: '#00000000'
+- id: footer_rule
+  type: panel
+  position:
+    x: 0
+    y: -1.1
+    z: 0.02
+  size:
+    width: 3.76
+    height: 0.008
+  backgroundColor: '#FF365064'
+  children: []
+- id: back
+  type: button
+  position:
+    x: -0.98
+    y: -1.4
+    z: 0.04
+  size:
+    width: 1.72
+    height: 0.26
+  label: 샘플 목록
+  fontSize: 0.4
+  padding:
+    horizontal: 0.1
+    vertical: 0.04
+  clickType: both
+  hoverScale: 1.015
+  backgroundColor: '#FF2B3F50'
+  hoverColor: '#FF3C566A'
+  clickSound: minecraft:ui.button.click
+  action:
+    type: open_window
+    target: sample_index
+- id: close
+  type: button
+  position:
+    x: 0.98
+    y: -1.4
+    z: 0.04
+  size:
+    width: 1.72
+    height: 0.26
+  label: 닫기
+  fontSize: 0.4
+  padding:
+    horizontal: 0.1
+    vertical: 0.04
+  clickType: both
+  hoverScale: 1.015
+  backgroundColor: '#FF2B3F50'
+  hoverColor: '#FF3C566A'
+  clickSound: minecraft:ui.button.click
+  action:
+    type: close_window
