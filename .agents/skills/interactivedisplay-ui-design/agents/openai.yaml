@@ -1,0 +1,6 @@
+interface:
+  display_name: "InteractiveDisplay UI Design"
+  short_description: "Design and verify InteractiveDisplay YAML UI"
+  default_prompt: "Use $interactivedisplay-ui-design to improve this project's UI family and verify the actual server YAML and rendered screens."
+policy:
+  allow_implicit_invocation: true

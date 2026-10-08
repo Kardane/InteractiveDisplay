@@ -1,0 +1,17 @@
+allprojects {
+    afterEvaluate {
+        tasks.register('validateInteractiveDisplayUi', Exec) {
+            dependsOn tasks.named('classes')
+            def scriptRoot = new File(gradle.startParameter.initScripts.find {
+                it.name == 'validate-ui.gradle'
+            }.parent)
+            def javaExecutable = new File(System.getProperty('java.home'),
+                    System.getProperty('os.name').toLowerCase().contains('windows') ? 'bin/java.exe' : 'bin/java')
+            def configDir = project.file(project.findProperty('uiConfigDir') ?: 'run/config')
+            def windows = project.findProperty('uiWindows') ?: 'main_menu,sample_index,display_showcase,font_showcase'
+            commandLine javaExecutable.absolutePath, '-Djava.awt.headless=true', '-Dfile.encoding=UTF-8',
+                    '-cp', sourceSets.main.runtimeClasspath.asPath,
+                    new File(scriptRoot, 'UiValidator.java').absolutePath, configDir.absolutePath, windows.toString()
+        }
+    }
+}

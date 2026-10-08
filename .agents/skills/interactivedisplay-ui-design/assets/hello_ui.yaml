@@ -1,0 +1,63 @@
+id: hello_ui
+size: { width: 2.84, height: 1.8 }
+offset: { forward: 2.8, horizontal: 0.0, vertical: 0.0 }
+layout: { type: absolute, overflow: error }
+components:
+  - id: border
+    type: panel
+    anchor: center
+    size: { width: fill, height: fill }
+    backgroundColor: "#FF365369"
+    children: []
+  - id: background
+    type: panel
+    anchor: center
+    position: { x: 0.0, y: 0.0, z: 0.01 }
+    size: { width: 2.80, height: 1.76 }
+    backgroundColor: "#F2182938"
+    children: []
+  - id: heading
+    type: text
+    position: { x: 0.0, y: 0.46, z: 0.04 }
+    size: { width: 2.36, height: 0.18 }
+    content: '{"text":"MY FIRST WINDOW","font":"interactivedisplay:ui_semibold"}'
+    fontSize: 0.48
+    lineWidth: 240
+    color: "#EAF4FA"
+    alignment: center
+    shadow: false
+    background: "#00000000"
+  - id: description
+    type: text
+    position: { x: 0.0, y: 0.18, z: 0.04 }
+    size: { width: 2.36, height: 0.14 }
+    content: "A small YAML window"
+    fontSize: 0.34
+    lineWidth: 240
+    color: "#C0D0DB"
+    alignment: center
+    shadow: false
+    background: "#00000000"
+  - id: specimen
+    type: text
+    position: { x: 0.0, y: -0.14, z: 0.04 }
+    size: { width: 2.36, height: 0.14 }
+    content: "Hello, 가나다 123"
+    fontSize: 0.40
+    lineWidth: 240
+    color: "#FFE2A6"
+    alignment: center
+    shadow: false
+    background: "#00000000"
+  - id: close
+    type: button
+    position: { x: 0.0, y: -0.70, z: 0.04 }
+    size: { width: 1.72, height: 0.26 }
+    label: "Close"
+    fontSize: 0.40
+    padding: { horizontal: 0.10, vertical: 0.04 }
+    hoverScale: 1.015
+    backgroundColor: "#FF2B3F50"
+    hoverColor: "#FF3C566A"
+    clickType: both
+    action: { type: close_window }
